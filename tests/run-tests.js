@@ -91,7 +91,7 @@ function testExploreTurnBasedModeConstant(MODE) {
 }
 
 function testCombatInitSystemContracts() {
-  const combatInitPath = path.join(root, 'js', 'systems', 'combat-init-system.js');
+  const combatInitPath = path.join(root, 'js', 'modes', 'mode-combat.js');
   const src = fs.readFileSync(combatInitPath, 'utf8');
 
   assert.ok(src.includes('findApproachPathToEnemy('), 'combat-init missing approach path helper');
@@ -102,13 +102,14 @@ function testCombatInitSystemContracts() {
 }
 
 function testExploreTurnBasedContracts() {
-  const gamePath = path.join(root, 'js', 'game.js');
-  const src = fs.readFileSync(gamePath, 'utf8');
+  // Methods in mode-explore-tb.js
+  const etbPath = path.join(root, 'js', 'modes', 'mode-explore-tb.js');
+  const src = fs.readFileSync(etbPath, 'utf8');
 
-  assert.ok(src.includes('toggleExploreTurnBased()'), 'game.js missing explore TB toggle');
-  assert.ok(src.includes('beginExploreTurnBasedPlayerTurn()'), 'game.js missing explore TB player turn start');
-  assert.ok(src.includes('runExploreTurnBasedEnemyPhase()'), 'game.js missing explore TB enemy phase');
-  assert.ok(src.includes('this._exploreTBMovesRemaining=1;'), 'explore TB should grant bounded movement per turn');
+  assert.ok(src.includes('toggleExploreTurnBased()'), 'explore-tb-system missing explore TB toggle');
+  assert.ok(src.includes('beginExploreTurnBasedPlayerTurn()'), 'explore-tb-system missing explore TB player turn start');
+  assert.ok(src.includes('runExploreTurnBasedEnemyPhase()'), 'explore-tb-system missing explore TB enemy phase');
+  assert.ok(src.includes('this._exploreTBMovesRemaining = 1;'), 'explore TB should grant bounded movement per turn');
 }
 
 function testEngageAndAutoplayContracts() {

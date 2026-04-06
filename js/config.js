@@ -315,7 +315,7 @@ const dnd = {
       const rolls = count * (crit ? 2 : 1);
       for (let i = 0; i < rolls; i++) {
         const v = Math.floor(Math.random()*sides)+1;
-        diceValues.push({ sides, value:v, kind:'dmg' });
+        diceValues.push({ sides, value:v, kind:'d'+sides });
         subtotal += v;
       }
     }

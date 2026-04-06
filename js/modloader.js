@@ -99,7 +99,13 @@ const ModLoader = {
     const settings = await this.loadYaml('data/modsettings.yaml');
 
     // 2. Load each enabled mod
-    const modData = { rules: {}, classes: {}, weapons: {}, creatures: {}, maps: {}, abilities: {}, statuses: {}, statusRules: {} };
+    const modData = { rules: {}, classes: {}, weapons: {}, creatures: {}, maps: {}, abilities: {}, statuses: {}, statusRules: {}, lootTables: {} };
+
+    // 1b. Load core loot tables
+    try {
+      const lt = await this.loadYaml('data/core/loot-tables.yaml');
+      if (lt && typeof lt === 'object') Object.assign(modData.lootTables, lt);
+    } catch (_e) { /* no loot tables file — ok */ }
     for (const modId of settings.mods) {
       const meta = await this.loadYaml(`data/${modId}/meta.yaml`);
       if (meta.enabled === false) continue;
@@ -133,6 +139,7 @@ const ModLoader = {
         globalLight: stageData.globalLight || 'dark',
         doors: stageData.doors || [],
         interactables: stageData.interactables || [],
+        lootTables: stageData.lootTables || {},
         stageSprites: stageData.stageSprites || stageData.sprites || [],
         tileAnimations: stageData.tileAnimations || {},
       };
@@ -354,6 +361,7 @@ const ModLoader = {
       globalLight: mapDef.globalLight || 'dark',
       doors: mapDef.doors || [],
       interactables: mapDef.interactables || [],
+      lootTables: { ...modData.lootTables, ...(mapDef.lootTables || {}) },
       stageSprites: mapDef.stageSprites || mapDef.sprites || [],
       tileAnimations: mapDef.tileAnimations || {},
     };
