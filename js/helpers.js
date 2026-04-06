@@ -6,6 +6,8 @@ function isWallCell(cell) {
   return cell === TILE.WALL || cell === '#';
 }
 
+// Legacy: MAP no longer holds DOOR values after entity init.
+// Kept for backward compat with any external callers.
 function isDoorCell(cell) {
   return cell === TILE.DOOR || cell === 'D';
 }
@@ -34,16 +36,16 @@ function bfs(sx, sy, ex, ey, blockedFn) {
   return [];
 }
 
-// Only block walls (used for pathfinding routing)
+// Only block walls + locked/closed entities (used for pathfinding routing)
 function wallBlk(x, y) {
   if (isWallCell(MAP[y][x])) return true;
-  if (isDoorCell(MAP[y][x]) && typeof window._isDoorPassable === 'function') {
-    return !window._isDoorPassable(x, y);
-  }
+  // Entity movement blocking (closed doors, etc.) via global callback
+  if (typeof window._tileBlocksMovement === 'function' && window._tileBlocksMovement(x, y)) return true;
   return false;
 }
 
 // ── Line of Sight (Bresenham) ─────────────────────────
+// Checks walls (MAP) and entity sight-blocking (global callback).
 function hasLOS(x0, y0, x1, y1) {
   let dx=Math.abs(x1-x0), dy=Math.abs(y1-y0);
   let sx=x0<x1?1:-1, sy=y0<y1?1:-1, err=dx-dy;
@@ -52,10 +54,8 @@ function hasLOS(x0, y0, x1, y1) {
     if (cx===x1 && cy===y1) return true;
     if (!first) {
       if (isWallCell(MAP[cy][cx])) return false;
-      if (isDoorCell(MAP[cy][cx])) {
-        const closed = typeof window._isDoorClosed === 'function' ? window._isDoorClosed(cx, cy) : true;
-        if (closed) return false;
-      }
+      // Entity sight blocking (doors, etc.) via global callback
+      if (typeof window._tileBlocksSight === 'function' && window._tileBlocksSight(cx, cy)) return false;
     }
     first = false;
     const e2 = 2*err;

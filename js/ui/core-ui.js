@@ -91,7 +91,14 @@ window.onerror = function (msg, src, line, col, err) {
 // ── DICE CLICK ───────────────────────────────────────
 function handleDiceClick() {
   const scene = game && game.scene && game.scene.getScene('GameScene');
-  if (scene && scene.diceWaiting) scene._handleDiceDismiss();
+  if (!scene) return;
+  if (scene.diceWaiting) {
+    scene._handleDiceDismiss();
+  } else {
+    // Force-dismiss if overlay is visible but diceWaiting got out of sync
+    const ov = document.getElementById('dice-ov');
+    if (ov) ov.classList.remove('show');
+  }
 }
 
 // ── STATS PANEL ──────────────────────────────────────
@@ -193,10 +200,6 @@ class GameUIController {
       if (action === 'attack') s.playerAttackEnemy(enemy);
       else if (action === 'moveattack') s.tryMoveAndAttack(enemy);
     };
-    s.time.delayedCall(8000, () => {
-      if (pop) pop.style.display = 'none';
-      window._combatAct = null;
-    });
   }
 
   showEnemyStatPopup(enemy) {
@@ -213,13 +216,26 @@ class GameUIController {
       </div>
       <div style="color:#aaa;font-size:10px">AC ${enemy.ac} · HP ${enemy.hp}/${enemy.maxHp} · CR ${enemy.cr}</div>
       <div style="color:#e74c3c;font-size:10px;margin-top:3px">ATK: 1d20+${this._mod(enemy.stats.str)} · DMG: ${dnd.damageSpecToString(enemy.damageFormula)}</div>
-      <div onclick="window._engageEnemy&&window._engageEnemy()" style="margin-top:8px;text-align:center;background:rgba(231,76,60,0.2);border:1px solid rgba(231,76,60,0.5);color:#e74c3c;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:10px;letter-spacing:2px;pointer-events:all">⚔ ENGAGE</div>`;
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <div onclick="window._engageEnemy&&window._engageEnemy()" style="flex:1;text-align:center;background:rgba(231,76,60,0.2);border:1px solid rgba(231,76,60,0.5);color:#e74c3c;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:10px;letter-spacing:2px;pointer-events:all">⚔ ENGAGE</div>
+        <div onclick="window._dismissEnemyPopup&&window._dismissEnemyPopup()" style="text-align:center;background:rgba(52,73,94,0.5);border:1px solid #333;color:#aaa;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:10px;pointer-events:all">✕</div>
+      </div>`;
     if (window.U) U.html('esp-stats', statsHtml);
     else document.getElementById('esp-stats').innerHTML = statsHtml;
 
-    pop.style.left = '50%';
-    pop.style.top = '50%';
-    pop.style.transform = 'translate(-50%,-50%)';
+    // Position popup near the enemy on screen
+    const cam = s.cameras.main;
+    const canvas = s.game.canvas;
+    const screenX = (enemy.tx * S + S / 2 - cam.scrollX) * cam.zoom;
+    const screenY = (enemy.ty * S - cam.scrollY) * cam.zoom;
+    const popW = 200, popH = 180;
+    // Clamp to stay within canvas bounds
+    let px = Math.min(Math.max(8, screenX - popW / 2), canvas.width - popW - 8);
+    let py = screenY - popH - 12; // prefer above enemy
+    if (py < 8) py = screenY + S * cam.zoom + 8; // flip below if no room
+    pop.style.left = px + 'px';
+    pop.style.top = py + 'px';
+    pop.style.transform = 'none';
     pop.style.display = 'block';
 
     s._statPopupEnemy = enemy;
@@ -228,6 +244,7 @@ class GameUIController {
       if (p) p.style.display = 'none';
       s._statPopupEnemy = null;
       window._engageEnemy = null;
+      window._dismissEnemyPopup = null;
       s.tweens.killTweensOf(s.player);
       s.movePath = [];
       s.isMoving = false;
@@ -239,10 +256,13 @@ class GameUIController {
         s.enterCombat([enemy]);
       }
     };
-    s.time.delayedCall(4000, () => {
-      if (pop) pop.style.display = 'none';
+    window._dismissEnemyPopup = () => {
+      const p = document.getElementById('enemy-stat-popup');
+      if (p) p.style.display = 'none';
+      s._statPopupEnemy = null;
       window._engageEnemy = null;
-    });
+      window._dismissEnemyPopup = null;
+    };
   }
 
   showDicePopup(rollLine, detailLine, type, diceValues) {
@@ -252,44 +272,116 @@ class GameUIController {
     const rl = document.getElementById('dice-rl');
     const dl = document.getElementById('dice-dl');
     const out = document.getElementById('dice-out');
+    const cont = document.getElementById('dice-cont');
     stage.innerHTML = '';
     rl.className = ''; dl.className = ''; out.className = '';
     rl.textContent = ''; dl.textContent = ''; out.textContent = '';
+    if (cont) { cont.className = ''; cont.textContent = ''; }
     clearTimeout(s._diceTimer);
+    clearTimeout(s._diceAutoTimer);
     ov.classList.add('show');
 
     const dice = diceValues || [{ sides: 20, value: 1, kind: 'd20' }];
-    dice.forEach((d, i) => {
-      const wrap = document.createElement('div'); wrap.className = `die-wrap ${d.kind} ${type}`;
+
+    // Split dice into attack (d20) and damage groups
+    const atkDice = dice.filter(d => d.kind === 'd20');
+    const dmgDice = dice.filter(d => d.kind !== 'd20');
+    const hasBothGroups = atkDice.length > 0 && dmgDice.length > 0;
+
+    // Die face value color per type
+    const dieColors = {
+      d20: '#f0c060', d12: '#e67e22', d10: '#e74c3c',
+      d8: '#9b59b6', d6: '#3498db', d4: '#2ecc71'
+    };
+    // translateZ half-size for each die
+    const dieHalfZ = { d4: 24, d6: 32, d8: 28, d10: 28, d12: 30, d20: 32 };
+
+    const buildDie = (d, type) => {
+      const kind = d.kind || ('d' + d.sides);
+      const wrap = document.createElement('div'); wrap.className = `die-wrap ${kind} ${type}`;
       const box = document.createElement('div'); box.className = 'die-box';
       box.style.setProperty('--rx', '0deg'); box.style.setProperty('--ry', '0deg');
+      const hz = dieHalfZ[kind] || 32;
       const fv = [d.value, 1, Math.ceil(d.sides / 2), Math.ceil(d.sides / 4) * 3, 2, d.sides];
+      const faceColor = type === 'crit' ? '#f39c12' : type === 'miss' ? '#e74c3c' : (dieColors[kind] || '#f0c060');
       for (let f = 0; f < 6; f++) {
         const face = document.createElement('div'); face.className = `die-face f${f + 1}`;
-        if (f === 0) { face.style.color = type === 'crit' ? '#f39c12' : type === 'miss' ? '#e74c3c' : '#f0c060'; face.style.fontSize = '24px'; }
+        // Override translateZ for non-64px dice
+        if (hz !== 32) {
+          const transforms = [
+            `translateZ(${hz}px)`,
+            `rotateY(180deg)translateZ(${hz}px)`,
+            `rotateY(90deg)translateZ(${hz}px)`,
+            `rotateY(-90deg)translateZ(${hz}px)`,
+            `rotateX(90deg)translateZ(${hz}px)`,
+            `rotateX(-90deg)translateZ(${hz}px)`
+          ];
+          face.style.transform = transforms[f];
+        }
+        if (f === 0) { face.style.color = faceColor; face.style.fontSize = '24px'; }
         else { face.style.color = 'rgba(255,255,255,0.25)'; face.style.fontSize = '14px'; }
         face.textContent = fv[f] > d.sides ? d.sides : fv[f];
         box.appendChild(face);
       }
-      wrap.appendChild(box); stage.appendChild(wrap);
+      wrap.appendChild(box);
+      // Type badge below die
+      const badge = document.createElement('div'); badge.className = 'die-type-badge';
+      badge.textContent = kind; badge.style.color = faceColor;
+      wrap.appendChild(badge);
+      return { wrap, box };
+    };
+
+    let dieIndex = 0;
+    const allBoxes = [];
+
+    if (hasBothGroups) {
+      // Attack dice group
+      const atkGroup = document.createElement('div'); atkGroup.className = 'dice-group-wrap';
+      const atkLabel = document.createElement('div'); atkLabel.className = 'dice-label'; atkLabel.textContent = 'ATK';
+      atkGroup.appendChild(atkLabel);
+      atkDice.forEach(d => { const { wrap, box } = buildDie(d, type); atkGroup.appendChild(wrap); allBoxes.push({ box, idx: dieIndex++ }); });
+      stage.appendChild(atkGroup);
+
+      // Separator
+      const sep = document.createElement('div'); sep.className = 'dice-sep';
+      stage.appendChild(sep);
+
+      // Damage dice group
+      const dmgGroup = document.createElement('div'); dmgGroup.className = 'dice-group-wrap';
+      const dmgLabel = document.createElement('div'); dmgLabel.className = 'dice-label'; dmgLabel.textContent = 'DMG';
+      dmgGroup.appendChild(dmgLabel);
+      dmgDice.forEach(d => { const { wrap, box } = buildDie(d, type); dmgGroup.appendChild(wrap); allBoxes.push({ box, idx: dieIndex++ }); });
+      stage.appendChild(dmgGroup);
+    } else {
+      // Single group (miss or single die)
+      dice.forEach(d => { const { wrap, box } = buildDie(d, type); stage.appendChild(wrap); allBoxes.push({ box, idx: dieIndex++ }); });
+    }
+
+    // Stagger roll animations
+    allBoxes.forEach(({ box, idx }) => {
       setTimeout(() => {
         box.classList.add('rolling');
         box.addEventListener('animationend', () => { box.classList.remove('rolling'); box.classList.add('landing'); }, { once: true });
-      }, i * 120);
+      }, idx * 120);
     });
 
     const delay = 700 + dice.length * 120;
     setTimeout(() => { rl.textContent = rollLine; rl.classList.add('show'); }, delay);
     setTimeout(() => { dl.textContent = detailLine; dl.classList.add('show'); }, delay + 100);
     setTimeout(() => {
-      const labels = {
-        hit: 'HIT',
-        miss: 'MISS',
-        crit: 'CRITICAL HIT (NAT 20)'
-      };
+      const labels = { hit: 'HIT', miss: 'MISS', crit: 'CRITICAL HIT (NAT 20)' };
       out.textContent = labels[type] || '';
       out.className = 'show ' + type;
     }, delay + 200);
+
+    // Auto-advance after delay (tap still skips immediately)
+    const autoDelay = delay + 2000;
+    setTimeout(() => {
+      if (cont) { cont.textContent = 'tap to skip'; cont.className = 'show'; }
+    }, delay + 400);
+    s._diceAutoTimer = setTimeout(() => {
+      if (s.diceWaiting) s._handleDiceDismiss();
+    }, autoDelay);
   }
 
   showStatus(msg) {

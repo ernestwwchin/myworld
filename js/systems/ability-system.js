@@ -123,75 +123,110 @@ const GameSceneAbilitySystem = {
   },
 
   // ─────────────────────────────────────────
-  // SKILL CHECKS & ABILITY USAGE
+  // STEALTH & HIDING  (BG3-style)
+  //
+  // Flow: Hide action → roll Stealth → store result
+  // While hidden: can move (slower). Each step near an
+  // enemy triggers a Stealth-vs-Perception contest.
+  //
+  // Light levels:
+  //   bright (2): auto-revealed in enemy FOV
+  //   dim    (1): normal Stealth contest
+  //   dark   (0): advantage (enemies need darkvision)
+  //
+  // Break conditions:
+  //   • Failed Perception contest (enemy spots you)
+  //   • Attacking
+  //   • Interacting with entities (doors, chests = noise)
+  //   • Entering bright light in enemy LOS+FOV
   // ─────────────────────────────────────────
-  
-  getEnemyPassivePerception(enemy) {
-    const wisdomMod = dnd.mod(enemy.stats.wis);
-    const profBonus = enemy.profBonus || 2;
-    return 10 + wisdomMod + (enemy.ai?.hasPassivePerceptionProf ? profBonus : 0);
-  },
 
-  resolveAbilityDamage(ability, actor, isCrit) {
-    if (ability === 'attack') {
-      const dmgSpec = actor === 'player' 
-        ? this.pStats.damageFormula 
-        : (this.lastShownEnemy?.damageFormula || '1d6+0');
-      const dr = dnd.rollDamageSpec(dmgSpec, isCrit);
-      return dr;
-    }
-    // Extensible for other abilities
-    return { total: 0, diceValues: [], str: '' };
-  },
-
-  applyAbilityOnHitStatuses(ability, actor, target) {
-    // Hook for statuses applied on hit (poison, bleed, etc.)
-    // Currently no-op, can be extended
-  },
-
-  processStatusEffectsForActor(actor, hook, context = {}) {
-    // Process status effect triggers (on_action, turn_start, etc.)
-    // Currently returns no skip, extensible for status system
-    return { skipTurn: false };
-  },
-
-  checkLevelUp() {
-    const nextThreshold = (this.pStats.level) * 100;
-    if (this.pStats.xp >= nextThreshold) {
-      this.pStats.level++;
-      const strIncrease = Math.floor(Math.random() * 2);
-      this.pStats.str += strIncrease;
-      const conIncrease = Math.floor(Math.random() * 2);
-      this.pStats.con += conIncrease;
-      this.playerHP = this.pStats.hp + dnd.mod(this.pStats.con) * this.pStats.level;
-      this.showStatus(`⭐ Level ${this.pStats.level}! STR +${strIncrease}, CON +${conIncrease}`);
-      this.updateHUD();
+  // Central stealth-break utility — called from everywhere
+  _breakStealth(reason, opts = {}) {
+    if (!this.playerHidden) return;
+    this.playerHidden = false;
+    this.playerStealthRoll = 0;
+    this.clearStealthVisuals();
+    if (reason) this.showStatus(reason);
+    if (this.logEvent) {
+      const mode = this.mode === MODE.COMBAT ? 'COMBAT' : 'EXPLORE';
+      this.logEvent(mode, 'STEALTH_BROKEN', { reason, ...opts });
     }
   },
 
-  // ─────────────────────────────────────────
-  // STEALTH & HIDING
-  // ─────────────────────────────────────────
+  // Enter hidden state (shared by combat + explore)
+  _enterStealth(stealthTotal) {
+    this.playerHidden = true;
+    this.playerStealthRoll = stealthTotal;
+    this.showStealthVisuals();
+  },
 
-  tryHideAction() {
-    if (!this.isPlayerTurn()) { this.showStatus('Not your turn yet.'); return; }
-    if (this.playerHidden) { this.showStatus('Already hidden! Move to break stealth.'); return; }
-    if (this.playerAP <= 0) { this.showStatus('Action already used.'); return; }
+  // Check if a specific enemy can see the player through stealth.
+  // Returns { spotted, reason } or { spotted: false }.
+  _stealthContestEnemy(enemy) {
+    if (!enemy.alive) return { spotted: false };
+    const px = this.playerTile.x, py = this.playerTile.y;
+    const dist = Math.sqrt((enemy.tx - px) ** 2 + (enemy.ty - py) ** 2);
+    const sightRange = this.effectiveEnemySight(enemy);
+    if (dist > sightRange) return { spotted: false };
+    if (!inFOV(enemy, px, py)) return { spotted: false };
+    if (!hasLOS(enemy.tx, enemy.ty, px, py)) return { spotted: false };
 
-    // Roll Stealth check
-    const stealthRoll = dnd.skillCheck('stealth', this.pStats, 100);
+    // Light at player position
+    const light = this.tileLightLevel(px, py);
 
-    // Compare against each enemy's Passive Perception
-    let spotted = false;
-    let spottersList = [];
-    for (let enemy of this.combatGroup) {
-      if (!enemy.alive) continue;
-      const perception = this.getEnemyPassivePerception(enemy);
-      if (stealthRoll.total < perception) {
-        spotted = true;
-        spottersList.push(`${enemy.type} (Perception ${perception})`);
+    // Bright light + in FOV + LOS → auto-spotted (no check)
+    if (light === 2) {
+      return { spotted: true, reason: 'bright_light', perception: '∞' };
+    }
+
+    // Dark + no darkvision → cannot see at all
+    const hasDarkvision = !!(enemy.traits?.darkvision || enemy.darkvision);
+    if (light === 0 && !hasDarkvision) return { spotted: false };
+
+    // Contested: stored Stealth roll vs enemy Passive Perception
+    const perception = this.getEnemyPassivePerception(enemy);
+
+    // Dim light with darkvision or dark with darkvision → normal contest
+    // Adjacent (dist <= 1.5) → Perception gets +5 (proximity awareness)
+    const proxBonus = dist <= 1.5 ? 5 : 0;
+    const effectivePerception = perception + proxBonus;
+
+    if (this.playerStealthRoll < effectivePerception) {
+      return { spotted: true, reason: 'perception', perception: effectivePerception };
+    }
+    return { spotted: false };
+  },
+
+  // BG3-style detection check for ALL nearby enemies.
+  // Returns { broken, spotters[] } — breaks stealth if any enemy spots.
+  checkStealthVsEnemies(enemyList) {
+    if (!this.playerHidden) return { broken: false, spotters: [] };
+    const spotters = [];
+    for (const enemy of enemyList) {
+      const result = this._stealthContestEnemy(enemy);
+      if (result.spotted) {
+        spotters.push({ enemy, ...result });
       }
     }
+    if (spotters.length) {
+      const names = spotters.map(s => {
+        const tag = s.reason === 'bright_light' ? 'bright light' : `Perception ${s.perception}`;
+        return `${s.enemy.type} (${tag})`;
+      }).join(', ');
+      this._breakStealth(`Spotted! (Stealth ${this.playerStealthRoll}) by: ${names}`);
+      return { broken: true, spotters };
+    }
+    return { broken: false, spotters: [] };
+  },
+
+  // ── Combat: Hide action (costs action) ──
+  tryHideAction() {
+    if (!this.isPlayerTurn()) { this.showStatus('Not your turn yet.'); return; }
+    if (this.playerHidden) { this.showStatus('Already hidden.'); return; }
+    if (this.playerAP <= 0) { this.showStatus('Action already used.'); return; }
+
+    const stealthRoll = dnd.skillCheck('stealth', this.pStats, 0);
 
     this.playerAP = 0;
     this.processStatusEffectsForActor('player', 'on_action', { actionId: 'hide' });
@@ -200,115 +235,112 @@ const GameSceneAbilitySystem = {
     this.updateResBar();
     this.setActionButtonsUsed(true);
 
-    this.playerHidden = !spotted;
-
-    if (spotted) {
-      this.playerHidden = false;
-      this.player.setAlpha(1);
-      this.showStatus(`Failed to hide (Stealth ${stealthRoll.total}). Spotted by: ${spottersList.join(', ')}`);
-    } else {
-      // Successfully hidden!
-      this.player.setAlpha(0.4);
-
-      // Create shadow at current position
-      const shx = this.playerTile.x * S + S / 2;
-      const shy = this.playerTile.y * S + S / 2;
-      this._shadowPlayer = this.add.sprite(shx, shy, 'player_atlas', 'idle_0');
-      this._shadowPlayer.setAlpha(0.2);
-      this._shadowPlayer.setTint(0x6666ff);
-      this._shadowPlayer.setDepth(100);
-
-      // Enemies search for configurable turns
-      for (let enemy of this.combatGroup) {
-        if (enemy.alive) {
-          const searchTurns = Math.max(1, Number(enemy?.ai?.searchTurns || enemy?.searchTurns || 4));
-          enemy.lastSeenPlayerTile = { x: this.playerTile.x, y: this.playerTile.y };
-          enemy.searchTurnsRemaining = searchTurns;
-        }
-      }
-
-      this.showStatus(`Hidden! (Stealth ${stealthRoll.total}). Enemies searching last known location...`);
-
-      if (this.logEvent) this.logEvent('COMBAT', 'HIDE_SUCCESS', {
-        roll: stealthRoll.total
-      });
-    }
-  },
-
-  tryHideInExplore() {
-    if (!this.isExploreMode()) return;
-    if (this.playerHidden) { this.showStatus('Already hidden! Move to break stealth.'); return; }
-    if (this.isMoving) { this.showStatus('Cannot hide while moving.'); return; }
-
-    // BG3-style: Check light at player position
-    const lightAtPlayer = (this.mapLights || []).reduce((maxLight, light) => {
-      const dist = Math.sqrt((this.playerTile.x - light.x) ** 2 + (this.playerTile.y - light.y) ** 2);
-      const lightVal = Math.max(0, (light.range - dist) / light.range);
-      return Math.max(maxLight, lightVal);
-    }, 0);
-    const lightPenalty = Math.floor(lightAtPlayer * 5);
-
-    // Roll Stealth (with light penalty)
-    const stealthRoll = dnd.rollAbility('dex', this.pStats);
-    const stealthAdjusted = stealthRoll.total - lightPenalty;
-
-    // Check if any nearby enemies spot
+    // Immediate check: can any combat enemy see through this roll?
     let spotted = false;
     let spottersList = [];
-    for (let enemy of this.enemies) {
+    for (const enemy of this.combatGroup) {
       if (!enemy.alive) continue;
-      const dist = Math.sqrt((enemy.tx - this.playerTile.x) ** 2 + (enemy.ty - this.playerTile.y) ** 2);
       const perception = this.getEnemyPassivePerception(enemy);
-      if (dist <= enemy.sight && inFOV(enemy, this.playerTile.x, this.playerTile.y) && hasLOS(enemy.tx, enemy.ty, this.playerTile.x, this.playerTile.y)) {
-        if (stealthAdjusted < perception) {
-          spotted = true;
-          spottersList.push(`${enemy.type} (Perception ${perception})`);
-        }
+      if (stealthRoll.total < perception) {
+        spotted = true;
+        spottersList.push(`${enemy.type} (Perception ${perception})`);
       }
     }
 
     if (spotted) {
-      const lightMsg = lightPenalty > 0 ? ` (Light penalty: -${lightPenalty})` : '';
-      this.showStatus(`Failed to hide (Stealth ${stealthAdjusted})${lightMsg}. Spotted by: ${spottersList.join(', ')}`);
+      this.showStatus(`Failed to hide (Stealth ${stealthRoll.total}). Spotted by: ${spottersList.join(', ')}`);
+      return;
+    }
+
+    this._enterStealth(stealthRoll.total);
+
+    // Enemies search last known location
+    for (const enemy of this.combatGroup) {
+      if (enemy.alive) {
+        const searchTurns = Math.max(1, Number(enemy?.ai?.searchTurns || enemy?.searchTurns || 4));
+        enemy.lastSeenPlayerTile = { x: this.playerTile.x, y: this.playerTile.y };
+        enemy.searchTurnsRemaining = searchTurns;
+      }
+    }
+
+    this.showStatus(`Hidden! (Stealth ${stealthRoll.total}). Enemies searching last known position...`);
+    if (this.logEvent) this.logEvent('COMBAT', 'HIDE_SUCCESS', { roll: stealthRoll.total });
+  },
+
+  // ── Explore: Hide action (press H) ──
+  tryHideInExplore() {
+    if (!this.isExploreMode()) return;
+    if (this.playerHidden) { this.showStatus('Already hidden.'); return; }
+    if (this.isMoving) { this.showStatus('Cannot hide while moving.'); return; }
+
+    // Light at player tile affects roll
+    const light = this.tileLightLevel(this.playerTile.x, this.playerTile.y);
+
+    // Bright light: cannot hide if ANY enemy has LOS+FOV
+    if (light === 2) {
+      const exposed = this.enemies.some(e => {
+        if (!e.alive) return false;
+        const d = Math.sqrt((e.tx - this.playerTile.x) ** 2 + (e.ty - this.playerTile.y) ** 2);
+        return d <= e.sight && inFOV(e, this.playerTile.x, this.playerTile.y)
+          && hasLOS(e.tx, e.ty, this.playerTile.x, this.playerTile.y);
+      });
+      if (exposed) {
+        this.showStatus('Too exposed! Cannot hide in bright light within enemy sight.');
+        return;
+      }
+    }
+
+    // Roll Stealth (proper skill check with proficiency/expertise)
+    const stealthRoll = dnd.skillCheck('stealth', this.pStats, 0);
+    let stealthTotal = stealthRoll.total;
+
+    // Dark → advantage (+5 flat bonus, simplified from double-roll)
+    if (light === 0) stealthTotal += 5;
+
+    // Immediate contest vs nearby enemies who can see this tile
+    let spotted = false;
+    let spottersList = [];
+    for (const enemy of this.enemies) {
+      if (!enemy.alive) continue;
+      const d = Math.sqrt((enemy.tx - this.playerTile.x) ** 2 + (enemy.ty - this.playerTile.y) ** 2);
+      if (d > enemy.sight) continue;
+      if (!inFOV(enemy, this.playerTile.x, this.playerTile.y)) continue;
+      if (!hasLOS(enemy.tx, enemy.ty, this.playerTile.x, this.playerTile.y)) continue;
+      const hasDV = !!(enemy.traits?.darkvision || enemy.darkvision);
+      if (light === 0 && !hasDV) continue;
+      const perception = this.getEnemyPassivePerception(enemy);
+      if (stealthTotal < perception) {
+        spotted = true;
+        spottersList.push(`${enemy.type} (Perception ${perception})`);
+      }
+    }
+
+    if (spotted) {
+      const lightLabel = light === 0 ? ' (dark)' : light === 1 ? ' (dim)' : '';
+      this.showStatus(`Failed to hide (Stealth ${stealthTotal}${lightLabel}). Spotted by: ${spottersList.join(', ')}`);
       if (this.logEvent) this.logEvent('EXPLORE', 'HIDE_FAILED', {
-        roll: stealthRoll.total,
-        adjusted: stealthAdjusted,
-        lightPenalty: lightPenalty,
-        spottedBy: spottersList
+        roll: stealthRoll.total, adjusted: stealthTotal, light, spottedBy: spottersList
       });
       return;
     }
 
-    // Successfully hidden!
-    this.playerHidden = true;
-    this.player.setAlpha(0.4);
+    this._enterStealth(stealthTotal);
 
-    // Create shadow at current position
-    const shx = this.playerTile.x * S + S / 2;
-    const shy = this.playerTile.y * S + S / 2;
-    this._shadowPlayer = this.add.sprite(shx, shy, 'player_atlas', 'idle_0');
-    this._shadowPlayer.setAlpha(0.2);
-    this._shadowPlayer.setTint(0x6666ff);
-    this._shadowPlayer.setDepth(100);
-
-    // Set nearby enemies to search
-    for (let enemy of this.enemies) {
-      if (enemy.alive) {
-        const dist = Math.sqrt((enemy.tx - this.playerTile.x) ** 2 + (enemy.ty - this.playerTile.y) ** 2);
-        if (dist <= 15) {
-          const searchTurns = Math.max(2, Number(enemy?.ai?.searchTurns || enemy?.searchTurns || 4));
-          enemy.lastSeenPlayerTile = { x: this.playerTile.x, y: this.playerTile.y };
-          enemy.searchTurnsRemaining = searchTurns;
-        }
+    // Nearby enemies enter search mode
+    for (const enemy of this.enemies) {
+      if (!enemy.alive) continue;
+      const d = Math.sqrt((enemy.tx - this.playerTile.x) ** 2 + (enemy.ty - this.playerTile.y) ** 2);
+      if (d <= 15) {
+        const searchTurns = Math.max(2, Number(enemy?.ai?.searchTurns || enemy?.searchTurns || 4));
+        enemy.lastSeenPlayerTile = { x: this.playerTile.x, y: this.playerTile.y };
+        enemy.searchTurnsRemaining = searchTurns;
       }
     }
 
-    this.showStatus(`Hidden! (Stealth ${stealthAdjusted}). Stay still to remain hidden...`);
-
+    const lightLabel = light === 0 ? ' (dark +5)' : light === 1 ? ' (dim)' : '';
+    this.showStatus(`Hidden! (Stealth ${stealthTotal}${lightLabel}). You can move — enemies will contest your Stealth.`);
     if (this.logEvent) this.logEvent('EXPLORE', 'HIDE_SUCCESS', {
-      roll: stealthRoll.total,
-      adjusted: stealthAdjusted,
-      lightPenalty: lightPenalty
+      roll: stealthRoll.total, adjusted: stealthTotal, light
     });
   },
 };

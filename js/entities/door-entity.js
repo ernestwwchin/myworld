@@ -38,6 +38,30 @@ class DoorEntity extends InteractableEntity {
     this.closeDelayMs = Number(def.closeDelayMs || 0);
   }
 
+  // ── Type protocol ──
+  getIcon() { return '🚪'; }
+  getLabel() { return this.locked ? 'Locked Door' : (this.open ? 'Open Door' : 'Door'); }
+
+  getMenuOptions(_scene) {
+    if (this.locked) {
+      return [{ label: 'Unlock Door', icon: '🔑', action: 'toggle', enabled: false }];
+    }
+    const label = this.open ? 'Close Door' : 'Open Door';
+    return [{ label, icon: '🚪', action: 'toggle', enabled: true }];
+  }
+
+  blocksMovement(_scene) { return !this.open; }
+  blocksSight() { return !this.open; }
+  getTexture() { return this.open ? 't_door_open' : 't_door'; }
+
+  interact(scene, action, opts = {}) {
+    if (action === 'toggle') {
+      const result = this.toggle(scene, opts);
+      return { ...result, kind: 'door' };
+    }
+    return { ok: false, reason: 'Unknown door action.', kind: 'door' };
+  }
+
   getBehavior() {
     return DoorEntity.behaviorPresets[this.behavior] || DoorEntity.behaviorPresets.standard;
   }

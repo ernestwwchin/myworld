@@ -1,0 +1,978 @@
+// ═══════════════════════════════════════════════════════
+// mode-combat.js — Combat mode controller for GameScene
+// Initiative, engagement, enter/exit, turn management,
+// attacks, flee, range display, dice dismiss
+// Merged from combat-system.js + combat-init-system.js
+// ═══════════════════════════════════════════════════════
+
+Object.assign(GameScene.prototype, {
+
+  // ─────────────────────────────────────────
+  // INITIATIVE (D&D 5e: d20 + DEX mod)
+  // ─────────────────────────────────────────
+  rollInitiativeOrder(combatGroup, surprisedEnemies = new Set()) {
+    const playerDexMod = dnd.mod(this.pStats?.dex || 10);
+    const playerRoll = dnd.roll(1, 20);
+    const entries = [{
+      id: 'player',
+      roll: playerRoll,
+      mod: playerDexMod,
+      init: playerRoll + playerDexMod,
+      surprised: false,
+    }];
+
+    for (const e of combatGroup) {
+      const dexMod = dnd.mod(e?.stats?.dex || 10);
+      const roll = dnd.roll(1, 20);
+      entries.push({
+        id: 'enemy',
+        enemy: e,
+        roll,
+        mod: dexMod,
+        init: roll + dexMod,
+        surprised: surprisedEnemies.has(e),
+      });
+    }
+
+    entries.sort((a, b) => {
+      if (b.init !== a.init) return b.init - a.init;
+      if (b.mod !== a.mod) return b.mod - a.mod;
+      if (a.id === 'player' && b.id !== 'player') return -1;
+      if (b.id === 'player' && a.id !== 'player') return 1;
+      return Math.random() - 0.5;
+    });
+
+    return entries;
+  },
+
+  // ─────────────────────────────────────────
+  // ENGAGE FROM EXPLORE
+  // ─────────────────────────────────────────
+  findApproachPathToEnemy(enemy, maxSteps = Number.POSITIVE_INFINITY) {
+    if (!enemy || !enemy.alive) return null;
+    const dirs = [
+      { x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 },
+      { x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 },
+    ];
+    const moveBlk = (x, y) =>
+      this.isWallTile(x, y) ||
+      (this.isDoorTile(x, y) && !this.isDoorPassable(x, y)) ||
+      this.enemies.some((e) => e.alive && e.tx === x && e.ty === y);
+
+    let best = null;
+    for (const d of dirs) {
+      const ax = enemy.tx + d.x;
+      const ay = enemy.ty + d.y;
+      if (ax < 0 || ay < 0 || ax >= COLS || ay >= ROWS) continue;
+      if (this.isWallTile(ax, ay)) continue;
+      if (this.isDoorTile(ax, ay) && !this.isDoorPassable(ax, ay)) continue;
+      if (this.enemies.some((e) => e.alive && e.tx === ax && e.ty === ay)) continue;
+
+      const p = bfs(this.playerTile.x, this.playerTile.y, ax, ay, moveBlk);
+      if (!p.length) continue;
+      if (!best || p.length < best.path.length) best = { path: p, dest: { x: ax, y: ay } };
+    }
+
+    if (!best) return null;
+    const allowed = Math.max(0, Number(maxSteps));
+    if (Number.isFinite(allowed) && best.path.length > allowed) {
+      if (allowed === 0) return null;
+      const partial = best.path.slice(0, allowed);
+      return { path: partial, dest: partial[partial.length - 1], partial: true };
+    }
+    return { ...best, partial: false };
+  },
+
+  _isEnemyAwareOfPlayer(enemy) {
+    if (!enemy || !enemy.alive) return false;
+    const dist = Math.sqrt((enemy.tx - this.playerTile.x) ** 2 + (enemy.ty - this.playerTile.y) ** 2);
+    if (dist > this.effectiveEnemySight(enemy)) return false;
+    if (!inFOV(enemy, this.playerTile.x, this.playerTile.y)) return false;
+    return hasLOS(enemy.tx, enemy.ty, this.playerTile.x, this.playerTile.y);
+  },
+
+  _buildAlertedEnemySet(triggers, opts = {}) {
+    const seeds = (triggers || []).filter((e) => e && e.alive);
+    const alerted = new Set(seeds);
+
+    if (opts.openerGroup) {
+      for (const e of this.enemies) {
+        if (e.alive && e.group && e.group === opts.openerGroup) alerted.add(e);
+      }
+    }
+
+    const scriptedGroups = new Set([...alerted].map((e) => e.group).filter(Boolean));
+    if (scriptedGroups.size) {
+      for (const e of this.enemies) {
+        if (e.alive && e.group && scriptedGroups.has(e.group)) alerted.add(e);
+      }
+    }
+
+    const localSeeds = [...alerted];
+    const roomMax = Math.max(1, Number(COMBAT_RULES.roomAlertMaxDistance || 8));
+    const nearAnySeed = (e) => localSeeds.some((s) => Math.abs(e.tx - s.tx) + Math.abs(e.ty - s.ty) <= roomMax);
+
+    for (const e of this.enemies) {
+      if (!e.alive || alerted.has(e)) continue;
+      if (!nearAnySeed(e)) continue;
+      const dist = Math.sqrt((e.tx - this.playerTile.x) ** 2 + (e.ty - this.playerTile.y) ** 2);
+      if (dist <= this.effectiveEnemySight(e) && inFOV(e, this.playerTile.x, this.playerTile.y) && hasLOS(e.tx, e.ty, this.playerTile.x, this.playerTile.y)) {
+        alerted.add(e);
+      }
+    }
+
+    const isSideNeighbor = (a, b) => Math.abs(a.tx - b.tx) + Math.abs(a.ty - b.ty) === 1;
+    for (const e of this.enemies) {
+      if (!e.alive || alerted.has(e)) continue;
+      if (!nearAnySeed(e)) continue;
+      const shouldAlert = localSeeds.some((a) =>
+        (sameRoom(e.tx, e.ty, a.tx, a.ty) && sameOpenArea(e.tx, e.ty, a.tx, a.ty, roomMax)) ||
+        sideRoom(e.tx, e.ty, a.tx, a.ty) ||
+        isSideNeighbor(e, a)
+      );
+      if (shouldAlert) {
+        alerted.add(e);
+      }
+    }
+
+    return alerted;
+  },
+
+  tryEngageEnemyFromExplore(enemy) {
+    if (!enemy || !enemy.alive) return;
+    if (!this.isExploreMode()) return;
+    if (this.mode === MODE.EXPLORE_TB && this._exploreTBEnemyPhase) return;
+    if (this.isMoving) return;
+
+    const dx = Math.abs(this.playerTile.x - enemy.tx);
+    const dy = Math.abs(this.playerTile.y - enemy.ty);
+    if (dx <= 1 && dy <= 1) {
+      this.executeEngageOpenerAttack(enemy);
+      return;
+    }
+
+    const approach = this.findApproachPathToEnemy(enemy);
+    if (!approach || !approach.path.length) {
+      this.showStatus('Cannot path to this enemy.');
+      return;
+    }
+
+    this._engageInProgress = true;
+    this._suppressExploreSightChecks = true;
+    this.clearPathDots();
+
+    this.setDestination(approach.dest.x, approach.dest.y, () => {
+      this._engageInProgress = false;
+      this._suppressExploreSightChecks = false;
+      this.executeEngageOpenerAttack(enemy);
+    });
+  },
+
+  executeEngageOpenerAttack(enemy) {
+    if (!enemy || !enemy.alive || !this.isExploreMode()) return;
+
+    const dx = Math.abs(this.playerTile.x - enemy.tx);
+    const dy = Math.abs(this.playerTile.y - enemy.ty);
+    if (dx > 1 || dy > 1) {
+      this.showStatus('Not in melee range to open with attack.');
+      return;
+    }
+
+    if (this.playerHidden) this._breakStealth(null);
+    const strMod = dnd.mod(this.pStats.str);
+    const atkRoll = dnd.roll(1, 20);
+    const atkTotal = atkRoll + strMod + this.pStats.profBonus;
+    const isCrit = atkRoll === 20;
+    const isMiss = atkRoll === 1;
+    const hits = isCrit || (!isMiss && atkTotal >= enemy.ac);
+
+    if(this.logEvent) this.logEvent('COMBAT', 'OPENER_ATTACK', {
+      enemy: enemy.type,
+      roll: atkRoll,
+      total: atkTotal,
+      ac: enemy.ac,
+      hit: hits,
+      crit: isCrit
+    });
+
+    if (hits) {
+      const dr = this.resolveAbilityDamage('attack', 'player', isCrit);
+      const dmg = Math.max(1, dr.total);
+      enemy.hp -= dmg;
+      this.applyAbilityOnHitStatuses('attack', 'player', enemy);
+
+      this.tweens.add({ targets: enemy.img, alpha: 0.15, duration: 80, yoyo: true, repeat: 3 });
+      this.spawnFloat(enemy.tx * S + S / 2, enemy.ty * S, isCrit ? `CRIT ${dmg}` : `-${dmg}`, '#ffdd57');
+
+      const ratio = Math.max(0, enemy.hp / enemy.maxHp);
+      if (enemy.hpFg) {
+        enemy.hpFg.setDisplaySize((S - 8) * ratio, 5);
+        if (ratio < 0.4) enemy.hpFg.setFillStyle(0xe67e22);
+        if (ratio < 0.15) enemy.hpFg.setFillStyle(0xe74c3c);
+      }
+
+      if (enemy.hp <= 0) {
+        enemy.alive = false;
+        enemy.inCombat = true;
+        this.tweens.add({
+          targets: [enemy.img, enemy.hpBg, enemy.hpFg, enemy.lbl, enemy.sightRing],
+          alpha: 0,
+          duration: 500,
+          onComplete: () => {
+            [enemy.img, enemy.hpBg, enemy.hpFg, enemy.lbl, enemy.sightRing, enemy.fa].forEach((o) => {
+              if (o && o.destroy) o.destroy();
+            });
+          },
+        });
+        if (enemy.fa) this.tweens.add({ targets: enemy.fa, alpha: 0, duration: 300 });
+        this.spawnFloat(enemy.tx * S + S / 2, enemy.ty * S - 10, 'DEFEATED!', '#f0c060');
+        this.pStats.xp += enemy.xp || 50;
+        this.checkLevelUp();
+        this.showStatus(`${isCrit ? 'CRIT! ' : ''}Opener kill ${enemy.type}! Entering combat...`);
+      } else {
+        this.showStatus(`${isCrit ? 'CRIT! ' : ''}Opener hit ${enemy.type} for ${dmg}. Rolling initiative...`);
+      }
+    } else {
+      this.tweens.add({ targets: enemy.img, x: enemy.img.x + 6, duration: 60, yoyo: true, repeat: 1 });
+      this.showStatus(`Opener missed! Rolling initiative...`);
+    }
+
+    this.enterCombat([enemy], { openerGroup: enemy.group, surpriseFromOpener: true });
+  },
+
+  // ─────────────────────────────────────────
+  // ENTER / EXIT COMBAT
+  // ─────────────────────────────────────────
+  enterCombat(triggers, opts = {}) {
+    if (this.mode === MODE.COMBAT) return;
+    this._returnToExploreTB = this.mode === MODE.EXPLORE_TB;
+    this.mode = MODE.COMBAT;
+    this.syncExploreBar();
+
+    if(this.logEvent) this.logEvent('COMBAT', 'COMBAT_START', {
+      triggerCount: triggers?.length || 0,
+      surprise: opts.surpriseFromOpener
+    });
+
+    this.tweens.killTweensOf(this.player);
+    this.movePath = []; this.isMoving = false; this.clearPathDots(); this.onArrival = null;
+    this.diceWaiting = false; this._afterPlayerDice = null;
+    const snapTile = this.lastCompletedTile || this.playerTile;
+    this.playerTile = { x: snapTile.x, y: snapTile.y };
+    this.lastCompletedTile = { x: snapTile.x, y: snapTile.y };
+    this.player.setPosition(snapTile.x * S + S / 2, snapTile.y * S + S / 2);
+    this.cameras.main.startFollow(this.player, true, 1, 1);
+
+    if (this.playerHidden) this._breakStealth(null);
+
+    // Record player's last seen location for all enemies (for search behavior when hiding)
+    for (const e of this.enemies) {
+      if (e.alive) {
+        e.lastSeenPlayerTile = { x: this.playerTile.x, y: this.playerTile.y };
+        e.searchTurnsRemaining = 0;
+      }
+    }
+
+    const alerted = this._buildAlertedEnemySet(triggers, opts);
+    this.combatGroup = [...alerted];
+    this.combatGroup.forEach((e) => (e.inCombat = true));
+
+    // Ensure engaged enemies are visible in combat
+    this.combatGroup.forEach((e) => {
+      if (e.img) e.img.setAlpha(1);
+      if (e.hpBg) e.hpBg.setAlpha(1);
+      if (e.hpFg) e.hpFg.setAlpha(1);
+      if (e.lbl) e.lbl.setAlpha(0.7);
+      if (e.fa) e.fa.setAlpha(1);
+    });
+
+    // Show detection pings on all engaged enemies
+    this.combatGroup.forEach((e) => this.showDetectedEnemyMarker(e));
+
+    const unseen = this.combatGroup.filter((e) => {
+      const invisible = !this.isTileVisibleToPlayer(e.tx, e.ty);
+      const dark = this.tileLightLevel(e.tx, e.ty) <= 1;
+      return invisible || dark;
+    });
+
+    // Surprise is assigned only when combat was initiated by a successful opener
+    const surprisedEnemies = new Set();
+    if (opts.surpriseFromOpener) {
+      for (const e of this.combatGroup) {
+        if (!this._isEnemyAwareOfPlayer(e)) surprisedEnemies.add(e);
+      }
+    }
+
+    this.turnOrder = this.rollInitiativeOrder(this.combatGroup, surprisedEnemies);
+    this.turnIndex = 0;
+    this.playerAP = 1;
+    this.playerMoves = Number(COMBAT_RULES.playerMovePerTurn || 5);
+    this.playerMovesUsed = 0;
+
+    if (surprisedEnemies.size > 0) {
+      this.showStatus(`Ambush! ${surprisedEnemies.size} ${surprisedEnemies.size === 1 ? 'enemy is' : 'enemies are'} surprised.`);
+    } else if (unseen.length) {
+      this.showStatus(`Detected movement nearby: ${unseen.length} unseen ${unseen.length === 1 ? 'enemy' : 'enemies'}.`);
+    }
+
+    this.flashBanner('COMBAT!', 'combat');
+    document.getElementById('vignette').classList.add('combat');
+    document.getElementById('mode-badge').className = 'turnbased';
+    document.getElementById('mode-badge').textContent = '⚔ COMBAT';
+    this.cameras.main.shake(400, 0.008);
+    this.clearSightOverlays();
+    this.syncEnemySightRings(false);
+    this.updateFogOfWar();
+    this.time.delayedCall(700, () => { this.buildInitBar(); this.startNextTurn(); });
+  },
+
+  exitCombat(reason='victory'){
+    const returnToExploreTB=this._returnToExploreTB===true;
+    this._returnToExploreTB=false;
+    this.mode=returnToExploreTB?MODE.EXPLORE_TB:MODE.EXPLORE;
+    if (this.playerHidden) this._breakStealth(null);
+    this.syncExploreBar();
+    this.combatGroup=[]; this.turnOrder=[]; this.turnIndex=0; this.pendingAction=null;
+    this.diceWaiting=false; this._afterPlayerDice=null; this._movingToAttack=false;
+    const ov=document.getElementById('dice-ov'); if(ov) ov.classList.remove('show');
+    this.clearMoveRange(); this.clearAtkRange();
+    this.clearDetectMarkers();
+    this.turnHL.setAlpha(0); this.tweens.killTweensOf(this.turnHL);
+    document.getElementById('vignette').classList.remove('combat');
+    if(returnToExploreTB){
+      document.getElementById('mode-badge').className='turnbased';
+      document.getElementById('mode-badge').textContent='TURN-BASED';
+      this.beginExploreTurnBasedPlayerTurn();
+    } else {
+      document.getElementById('mode-badge').className='realtime';
+      document.getElementById('mode-badge').textContent='EXPLORE';
+    }
+    document.getElementById('init-bar').classList.remove('show');
+    document.getElementById('action-bar').classList.remove('show');
+    document.getElementById('res-bar').classList.remove('show');
+    if(reason==='flee'){
+      this.flashBanner('FLED COMBAT','explore');
+      this.showStatus('Escaped combat. Stay hidden to avoid re-engage.');
+    }else{
+      this.flashBanner('COMBAT OVER','explore');
+      this.showStatus('Victory! Continue exploring.');
+    }
+    this.time.delayedCall(300,()=>{ this.drawSightOverlays(); this.updateFogOfWar(); });
+  },
+
+  // ─────────────────────────────────────────
+  // COMBAT TAP
+  // ─────────────────────────────────────────
+  onTapCombat(tx,ty,enemy){
+    if(this._movingToAttack) return;
+    if(!this.isPlayerTurn()){ this.showStatus('Not your turn yet.'); return; }
+
+    // Door interaction — but only if no alive enemy is standing on it
+    if(this.isDoorTile(tx,ty)&&!(enemy&&enemy.alive)){
+      const adj=Math.abs(this.playerTile.x-tx)+Math.abs(this.playerTile.y-ty)===1;
+      if(!adj){ this.showStatus('Move next to the door to interact.'); return; }
+      this.toggleDoor(tx,ty);
+      return;
+    }
+
+    if(this.pendingAction==='attack'){
+      if(enemy&&this.combatGroup.includes(enemy)) this.playerAttackEnemy(enemy);
+      else this.showStatus('Tap a highlighted enemy to attack.');
+      return;
+    }
+
+    if(enemy&&this.combatGroup.includes(enemy)){
+      const dx=Math.abs(this.playerTile.x-enemy.tx), dy=Math.abs(this.playerTile.y-enemy.ty);
+      const isAdj=dx<=1&&dy<=1;
+      if(!isAdj && this.playerAP>0 && this.playerMoves>0){
+        this.tryMoveAndAttack(enemy);
+        return;
+      }
+      this.showCombatEnemyPopup(enemy);
+      return;
+    }
+
+    if(enemy&&!this.combatGroup.includes(enemy)){
+      this.showStatus('That enemy is not in this fight.');
+      return;
+    }
+
+    if(!this.isWallTile(tx,ty)){
+      if(this.playerMoves<=0){ this.showStatus('No movement left — Attack or End Turn.'); return; }
+      if(this.enemies.some(e=>e.alive&&e.tx===tx&&e.ty===ty)){ this.showStatus('Cannot move onto an enemy tile.'); return; }
+      const path=bfs(this.playerTile.x,this.playerTile.y,tx,ty,wallBlk);
+      if(!path.length){ this.showStatus('Cannot reach that tile.'); return; }
+      if(path.length>this.playerMoves){
+        this.showMoveRange();
+        this.showStatus(`Too far (${path.length} tiles), you have ${this.playerMoves}.`);
+        return;
+      }
+      const moveCost=path.length;
+      this.clearMoveRange();
+      this.setDestination(tx,ty,()=>{
+        this.playerMovesUsed+=moveCost;
+        this.playerMoves=Math.max(0,this.playerMoves-moveCost);
+        this.updateResBar();
+        if(this.playerMoves>0) this.showMoveRange();
+        if(this.playerMoves<=0&&this.playerAP<=0) this.endPlayerTurn();
+        else this.showStatus(`${this.playerMoves} moves · ${this.playerAP>0?'Action ready':'No action'} · End Turn when done.`);
+      });
+    }
+  },
+
+  // ─────────────────────────────────────────
+  // TURN MANAGEMENT
+  // ─────────────────────────────────────────
+  startNextTurn(){
+    this.turnOrder=this.turnOrder.filter(t=>t.id==='player'||(t.enemy&&t.enemy.alive));
+    if(!this.turnOrder.length||this.combatGroup.every(e=>!e.alive)){ this.exitCombat(); return; }
+
+    if(this.playerHidden && this.combatGroup.every(e => !e.alive || e.searchTurnsRemaining <= 0)){
+      this.showStatus('All enemies have abandoned the search. You escaped!');
+      this.time.delayedCall(400, ()=>this.exitCombat('escape'));
+      return;
+    }
+
+    if(this.turnIndex<0||this.turnIndex>=this.turnOrder.length) this.turnIndex=0;
+    const cur=this.turnOrder[this.turnIndex];
+    this.buildInitBar();
+
+    if(cur.surprised){
+      cur.surprised=false;
+      this.showStatus(`${cur.id==='player'?'You are':cur.enemy.type+' is'} surprised and loses this turn!`);
+      if(cur.id==='player') this.time.delayedCall(220,()=>this.endPlayerTurn(true));
+      else this.time.delayedCall(220,()=>this.endEnemyTurn(cur.enemy));
+      return;
+    }
+
+    if(cur.id==='player'){
+      const st=this.processStatusEffectsForActor('player','turn_start');
+      if(st.skipTurn){
+        this.turnHL.setAlpha(0); this.tweens.killTweensOf(this.turnHL);
+        document.getElementById('action-bar').classList.remove('show');
+        document.getElementById('res-bar').classList.remove('show');
+        this.time.delayedCall(250,()=>this.endPlayerTurn(true));
+        return;
+      }
+      this.playerAP=1; this.playerMoves=Number(COMBAT_RULES.playerMovePerTurn||5); this.playerMovesUsed=0;
+      this.turnStartMoves=Number(COMBAT_RULES.playerMovePerTurn||5);
+      this.turnStartTile={...this.playerTile};
+      this.pendingAction=null;
+      this.clearMoveRange(); this.clearAtkRange();
+      document.getElementById('action-bar').classList.add('show');
+      document.getElementById('res-bar').classList.add('show');
+      this.initActionButtons();
+      this.resetActionButtons();
+      this.turnHL.setPosition(this.player.x,this.player.y).setAlpha(1);
+      this.tweens.add({targets:this.turnHL,alpha:0.35,duration:600,yoyo:true,repeat:-1});
+      this.updateResBar();
+      this.time.delayedCall(100,()=>this.showMoveRange());
+      const engageTarget=this._queuedEngageEnemy;
+      this._queuedEngageEnemy=null;
+      if(engageTarget&&engageTarget.alive&&this.combatGroup.includes(engageTarget)){
+        this.showStatus(`Engaging ${engageTarget.type}...`);
+        this.time.delayedCall(180,()=>{
+          if(this.mode===MODE.COMBAT&&this.isPlayerTurn()&&engageTarget.alive) this.tryMoveAndAttack(engageTarget);
+        });
+      }else{
+        this.showStatus('Your turn! Move freely · Attack, Dash, Hide, or Flee as your action.');
+      }
+    } else {
+      const st=this.processStatusEffectsForActor(cur.enemy,'turn_start');
+      if(st.skipTurn){ this.time.delayedCall(220,()=>this.endEnemyTurn(cur.enemy)); return; }
+      document.getElementById('action-bar').classList.remove('show');
+      document.getElementById('res-bar').classList.remove('show');
+      this.turnHL.setAlpha(0); this.tweens.killTweensOf(this.turnHL);
+      this.clearMoveRange();
+      this.showStatus(`${cur.enemy.type}'s turn...`);
+      this.time.delayedCall(400,()=>this.doEnemyTurn(cur.enemy));
+    }
+  },
+
+  endPlayerTurn(fromStatusSkip=false){
+    if(this.mode!==MODE.COMBAT) return;
+    if(!fromStatusSkip) this.processStatusEffectsForActor('player','turn_end');
+    this.playerMoves=0; this.playerAP=0;
+    this.diceWaiting=false; this._afterPlayerDice=null; this._movingToAttack=false;
+    this.clearPendingAction(); this.clearMoveRange(); this.clearAtkRange();
+    this.turnHL.setAlpha(0); this.tweens.killTweensOf(this.turnHL);
+    document.getElementById('action-bar').classList.remove('show');
+    document.getElementById('res-bar').classList.remove('show');
+    this.turnIndex++;
+    this.time.delayedCall(200,()=>this.startNextTurn());
+  },
+
+  isPlayerTurn(){
+    if(this.mode!==MODE.COMBAT) return false;
+    const c=this.turnOrder[this.turnIndex];
+    return c&&c.id==='player';
+  },
+
+  advanceEnemyTurn(){
+    this.diceWaiting=false; this._afterPlayerDice=null;
+
+    if(this.playerHidden){
+      const allGivenUp = this.combatGroup.every(e => !e.alive || e.searchTurnsRemaining <= 0);
+      if(allGivenUp){
+        this.showStatus('All enemies have abandoned the search. You escaped!');
+        this.time.delayedCall(400, ()=>this.exitCombat('escape'));
+        return;
+      }
+    }
+
+    this.turnIndex++;
+    if(this.turnIndex>=this.turnOrder.length) this.turnIndex=0;
+    this.time.delayedCall(150,()=>this.startNextTurn());
+  },
+
+  // ─────────────────────────────────────────
+  // RESET MOVE
+  // ─────────────────────────────────────────
+  resetMove(){
+    if(!this.isPlayerTurn()) return;
+    if(this.playerAP<=0){ this.showStatus('Cannot reset after using an action.'); return; }
+    if(this.playerMovesUsed===0){ this.showStatus('Haven\'t moved yet.'); return; }
+    this.tweens.killTweensOf(this.player);
+    this.movePath=[]; this.isMoving=false; this.clearPathDots(); this.onArrival=null;
+    this.playerTile={...this.turnStartTile};
+    this.player.setPosition(this.turnStartTile.x*S+S/2,this.turnStartTile.y*S+S/2);
+    this.cameras.main.startFollow(this.player,true,1,1);
+    this.playerMoves=Number(COMBAT_RULES.playerMovePerTurn||5);
+    this.playerMovesUsed=0;
+    this.updateFogOfWar();
+    this.clearMoveRange();
+    this.showMoveRange();
+    this.updateResBar();
+    this.showStatus('Move reset! You\'re back at turn start position.');
+  },
+
+  // ─────────────────────────────────────────
+  // ENEMY AI
+  // ─────────────────────────────────────────
+  doEnemyTurn(enemy){
+    if(!enemy.alive){ this.advanceEnemyTurn(); return; }
+    this.tweens.add({targets:enemy.img,alpha:0.55,duration:150,yoyo:true});
+
+    if(this.playerHidden && enemy.searchTurnsRemaining > 0) {
+      enemy.searchTurnsRemaining--;
+      if(enemy.searchTurnsRemaining === 0) {
+        this.showStatus(`${enemy.type} gives up searching.`);
+        const anySearching = this.combatGroup.some(e => e.alive && e.searchTurnsRemaining > 0);
+        if(!anySearching && this._shadowPlayer) {
+          this._shadowPlayer.destroy();
+          this._shadowPlayer = null;
+          this.showStatus('Shadow fades away as search is abandoned.');
+        }
+      }
+    }
+
+    let targetTile = this.playerTile;
+    if (this.playerHidden && enemy.searchTurnsRemaining > 0) {
+      targetTile = enemy.lastSeenPlayerTile;
+    } else if (this.playerHidden && enemy.searchTurnsRemaining <= 0) {
+      this.endEnemyTurn(enemy);
+      return;
+    } else if (!this.playerHidden) {
+      enemy.lastSeenPlayerTile = { x: this.playerTile.x, y: this.playerTile.y };
+      enemy.searchTurnsRemaining = 0;
+    }
+
+    const isAdj=()=>Math.abs(enemy.tx-targetTile.x)<=1&&Math.abs(enemy.ty-targetTile.y)<=1;
+
+    const afterMove=()=>{
+      if(this.playerHidden){ this.endEnemyTurn(enemy); return; }
+      if(isAdj()) this.time.delayedCall(150,()=>this.doEnemyAttack(enemy));
+      else this.endEnemyTurn(enemy);
+    };
+
+    if(!this.playerHidden && isAdj()){ this.time.delayedCall(150,()=>this.doEnemyAttack(enemy)); return; }
+
+    const blockFn = this.playerHidden ? wallBlk : (x,y) => wallBlk(x,y);
+    const path=bfs(enemy.tx,enemy.ty,targetTile.x,targetTile.y,blockFn);
+    const enemySpd=Math.max(1,Math.floor(enemy.spd*Number(COMBAT_RULES.enemySpeedScale||1)));
+    const steps=Math.min(enemySpd,Math.max(0,path.length-1));
+    if(steps<=0){ afterMove(); return; }
+
+    const mp=[];
+    for(let i=0;i<steps;i++){
+      const t=path[i];
+      if(this.enemies.some(e=>e.alive&&e!==enemy&&e.tx===t.x&&e.ty===t.y)) break;
+      if(!this.playerHidden&&t.x===this.playerTile.x&&t.y===this.playerTile.y) break;
+      mp.push(t);
+    }
+    if(!mp.length){ afterMove(); return; }
+
+    const dest=mp[mp.length-1];
+    this.animEnemyMove(enemy,mp.slice(),()=>{ enemy.tx=dest.x; enemy.ty=dest.y; afterMove(); });
+  },
+
+  doEnemyAttack(enemy){
+    const atkMod=dnd.mod(enemy.stats.str);
+    const atkRoll=dnd.roll(1,20);
+    const atkTotal=atkRoll+atkMod;
+    const isCrit=atkRoll===20;
+    const isMiss=atkRoll===1||(!isCrit&&atkTotal<this.pStats.ac);
+    this.diceWaiting='enemy';
+    this._pendingEnemyTurnActor=enemy;
+
+    if(this.logEvent) this.logEvent('COMBAT', 'ENEMY_ATTACK', {
+      enemy: enemy.type, roll: atkRoll, total: atkTotal,
+      ac: this.pStats.ac, hit: !isMiss, crit: isCrit
+    });
+
+    if(isMiss){
+      this.spawnFloat(this.player.x,this.player.y-10,'Blocked!','#7fc8f8');
+      const rollLine=this.formatRollLine(atkRoll,atkMod,atkTotal,this.pStats.ac,'Str');
+      this.showStatus(`${enemy.type} missed! (${rollLine})`);
+      this.showDicePopup(rollLine,'Miss!','miss',[{sides:20,value:atkRoll,kind:'d20'}]);
+      return;
+    }
+    const dr=dnd.rollDamageSpec(enemy.damageFormula,isCrit);
+    const dmg=Math.max(1,dr.total);
+    this.playerHP=Math.max(0,this.playerHP-dmg);
+    this.cameras.main.shake(180,0.006);
+    this.tweens.add({targets:this.player,alpha:0.3,duration:80,yoyo:true,repeat:2});
+    this.spawnFloat(this.player.x,this.player.y-10,`-${dmg}`,'#e74c3c');
+    const dmgText=this.formatDamageBreakdown(dr.str,'Str');
+    this.showStatus(`${enemy.type}${isCrit?' CRITS':' hits'} for ${dmg}! (${dmgText})`);
+    this.updateHUD();
+    if(this.playerHP<=0) this.showStatus('You have been defeated...');
+    const enemyDetail=isCrit
+      ? `${enemy.type} critical hit: damage dice doubled (${dmgText})`
+      : `${enemy.type} damage: ${dmgText}`;
+    this.showDicePopup(this.formatRollLine(atkRoll,atkMod,atkTotal,this.pStats.ac,'Str'),enemyDetail,isCrit?'crit':'hit',[{sides:20,value:atkRoll,kind:'d20'},...dr.diceValues]);
+  },
+
+  animEnemyMove(enemy,path,onDone,_prevTx,_prevTy){
+    if(!path.length){ onDone(); return; }
+    const step=path.shift();
+    const nx=step.x*S+S/2, ny=step.y*S+S/2;
+    const fromX=_prevTx!==undefined?_prevTx:enemy.tx;
+    const fromY=_prevTy!==undefined?_prevTy:enemy.ty;
+    const fdx=step.x-fromX, fdy=step.y-fromY;
+    if(fdx||fdy) enemy.facing=Math.atan2(fdy,fdx)*180/Math.PI;
+    this.playActorMove(enemy.img,enemy.type,enemy.spd>=2);
+    this.tweens.add({targets:enemy.img,x:nx,y:ny,duration:200,ease:'Linear',onComplete:()=>this.animEnemyMove(enemy,path,onDone,step.x,step.y)});
+    this.tweens.add({targets:enemy.hpBg,x:nx,y:step.y*S-4,duration:200});
+    this.tweens.add({targets:enemy.hpFg,x:nx,y:step.y*S-4,duration:200});
+    this.tweens.add({targets:enemy.lbl,x:nx,y:ny+S*0.52,duration:200});
+    this.tweens.add({targets:enemy.sightRing,x:nx,y:ny,duration:200});
+    if(enemy.fa){ this.tweens.add({targets:enemy.fa,x:nx,y:ny,duration:200}); enemy.fa.setRotation(enemy.facing*Math.PI/180); }
+    if(!path.length) this.time.delayedCall(210,()=>this.playActorIdle(enemy.img,enemy.type));
+  },
+
+  // ─────────────────────────────────────────
+  // PLAYER ACTIONS
+  // ─────────────────────────────────────────
+  selectAction(action){
+    if(!this.isPlayerTurn()) return;
+    if(action==='attack'){
+      if(this.playerAP<=0){ this.showStatus('Action already used.'); return; }
+      this.pendingAction='attack';
+      this.setSelectedActionButton('attack');
+      this.clearMoveRange(); this.showAtkRange();
+      this.showStatus('Tap a highlighted enemy to attack.');
+    } else if(action==='sleep_cloud'){
+      this.showStatus('Sleep Cloud action setup is not wired to a targeting flow yet.');
+      this.pendingAction=null;
+      this.setSelectedActionButton('');
+    } else if(action==='dash'){
+      if(this.playerAP<=0){ this.showStatus('Action already used.'); return; }
+      this.playerAP=0; this.playerMoves+=Number(COMBAT_RULES.dashMoveBonus||4);
+      this.processStatusEffectsForActor('player','on_action',{actionId:'dash'});
+      this.pendingAction=null;
+      this.setActionButtonsUsed(true);
+      this.updateResBar(); this.clearMoveRange(); this.showMoveRange();
+      this.showStatus(`Dashed! ${this.playerMoves} tiles of movement remaining.`);
+    } else if(action==='hide'){
+      this.tryHideAction();
+    } else if(action==='flee'){
+      this.tryFleeCombat();
+    }
+  },
+
+  clearPendingAction(){
+    this.pendingAction=null;
+    this.setSelectedActionButton('');
+    this.clearAtkRange();
+  },
+
+  playerAttackEnemy(enemy){
+    if(!this.isPlayerTurn()||this.playerAP<=0) return;
+
+    const wasHidden = this.playerHidden;
+    if (wasHidden) this._breakStealth(null); // silent — attack message shown separately
+    const dx=Math.abs(this.playerTile.x-enemy.tx), dy=Math.abs(this.playerTile.y-enemy.ty);
+    if(dx>1||dy>1){ this.showStatus('Too far — move closer first.'); return; }
+    this.clearPendingAction();
+    this.playerAP=0;
+    this.processStatusEffectsForActor('player','on_action',{actionId:'attack'});
+
+    const strMod=dnd.mod(this.pStats.str);
+
+    let atkRoll, atkRoll2 = null;
+    if(wasHidden){
+      atkRoll = dnd.roll(1,20);
+      atkRoll2 = dnd.roll(1,20);
+      atkRoll = Math.max(atkRoll, atkRoll2);
+    } else {
+      atkRoll = dnd.roll(1,20);
+    }
+
+    const atkTotal=atkRoll+strMod+this.pStats.profBonus;
+    const isCrit=atkRoll===20, isMiss=atkRoll===1;
+    const hits=isCrit||(!isMiss&&atkTotal>=enemy.ac);
+
+    if(this.logEvent) this.logEvent('COMBAT', 'PLAYER_ATTACK', {
+      target: enemy.type, roll: atkRoll, roll2: atkRoll2, advantage: wasHidden,
+      total: atkTotal, ac: enemy.ac, hit: hits, crit: isCrit
+    });
+
+    this.setActionButtonsUsed(true);
+    this.updateResBar();
+
+    if(!hits){
+      this.diceWaiting='player';
+      this._afterPlayerDice=()=>{
+        if(wasHidden) this.showStatus(`Missed! Can still Hide. ${this.playerMoves>0?this.playerMoves+' moves left.':''}`);
+        else this.showStatus(`Missed! ${this.playerMoves>0?this.playerMoves+' moves left.':''} End Turn when done.`);
+      };
+      this.tweens.add({targets:enemy.img,x:enemy.img.x+6,duration:60,yoyo:true,repeat:1});
+      const rollDisplay = wasHidden
+        ? `d20[${atkRoll2}|${atkRoll}↑] + ${strMod+this.pStats.profBonus} = ${atkTotal} vs AC${enemy.ac}`
+        : this.formatRollLine(atkRoll,strMod+this.pStats.profBonus,atkTotal,enemy.ac,`Str${this.fmtSigned(strMod)}+Prof(${this.fmtSigned(this.pStats.profBonus)})`)
+      this.showDicePopup(rollDisplay, isMiss?'Natural 1 — Critical Miss!': (wasHidden?'Sneak Attack Missed!':'Miss!'), 'miss', [{sides:20,value:atkRoll,kind:'d20'}, ...(atkRoll2!==null ? [{sides:20,value:atkRoll2,kind:'d20'}] : [])]);
+      this.showStatus(`Missed ${enemy.type}!${wasHidden?' (Hidden attack)':''}`);
+      return;
+    }
+
+    const dr=this.resolveAbilityDamage('attack','player',isCrit);
+    const dmg=Math.max(1,dr.total);
+    enemy.hp-=dmg;
+    this.applyAbilityOnHitStatuses('attack','player',enemy);
+
+    this.tweens.add({targets:enemy.img,alpha:0.15,duration:80,yoyo:true,repeat:3});
+    this.spawnFloat(enemy.tx*S+S/2,enemy.ty*S,isCrit?`💥${dmg}`:`-${dmg}`,'#ffdd57');
+    const ratio=Math.max(0,enemy.hp/enemy.maxHp);
+    enemy.hpFg.setDisplaySize((S-8)*ratio,5);
+    if(ratio<0.4) enemy.hpFg.setFillStyle(0xe67e22);
+    if(ratio<0.15) enemy.hpFg.setFillStyle(0xe74c3c);
+    this.showStatus(`${isCrit?'CRIT! ':''}${wasHidden?'SNEAK ':''}Hit ${enemy.type} for ${dmg}!${wasHidden?' (Can re-hide)':''}`);
+
+    this.diceWaiting='player';
+    this._afterPlayerDice=()=>{
+      if(enemy.hp<=0){
+        enemy.alive=false; enemy.inCombat=false;
+        this.tweens.add({targets:[enemy.img,enemy.hpBg,enemy.hpFg,enemy.lbl,enemy.sightRing],alpha:0,duration:500,onComplete:()=>{[enemy.img,enemy.hpBg,enemy.hpFg,enemy.lbl,enemy.sightRing,enemy.fa].forEach(o=>{if(o&&o.destroy)o.destroy();});}});
+        if(enemy.fa) this.tweens.add({targets:enemy.fa,alpha:0,duration:300});
+        this.spawnFloat(enemy.tx*S+S/2,enemy.ty*S-10,'DEFEATED!','#f0c060');
+        this.pStats.xp+=enemy.xp||50; this.checkLevelUp();
+        if(this.combatGroup.every(e=>!e.alive)){ this.time.delayedCall(600,()=>this.exitCombat()); return; }
+      }
+      this.showMoveRange();
+      this.showStatus(`${this.playerMoves>0?this.playerMoves+' moves left — ':''} End Turn when done.${wasHidden?' (Press H to re-hide)':''}`);
+    };
+
+    const playerDetail=isCrit
+      ? `Critical hit: damage dice doubled (${this.formatDamageBreakdown(dr.str,'Str')})`
+      : `${wasHidden?'Sneak Attack! ':''}Damage: ${this.formatDamageBreakdown(dr.str,'Str')}`;
+    const rollDisplay = wasHidden
+      ? `d20[${atkRoll2}|${atkRoll}↑] + ${strMod+this.pStats.profBonus} = ${atkTotal} vs AC${enemy.ac}`
+      : this.formatRollLine(atkRoll,strMod+this.pStats.profBonus,atkTotal,enemy.ac,`Str${this.fmtSigned(strMod)}+Prof(${this.fmtSigned(this.pStats.profBonus)})`)
+    const diceArray = wasHidden
+      ? [{sides:20,value:atkRoll2,kind:'d20'}, {sides:20,value:atkRoll,kind:'d20'},...dr.diceValues]
+      : [{sides:20,value:atkRoll,kind:'d20'},...dr.diceValues];
+    this.showDicePopup(rollDisplay,playerDetail,isCrit?'crit':'hit',diceArray);
+  },
+
+  tryMoveAndAttack(enemy){
+    if(!enemy||!enemy.alive||!this.combatGroup.includes(enemy)) return;
+    if(!this.isPlayerTurn()){ this.showStatus('Not your turn yet.'); return; }
+    if(this.playerAP<=0){ this.showStatus('Action already used.'); return; }
+    if(this.playerMoves<=0){ this.showStatus('No movement left.'); return; }
+
+    const dirs=[{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+    const moveBlk=(x,y)=>this.isWallTile(x,y)||this.enemies.some(e=>e.alive&&e.tx===x&&e.ty===y);
+    let bestReachPath=null, bestReachAdj=null;
+    let bestAnyPath=null;
+    for(const d of dirs){
+      const ax=enemy.tx+d.x, ay=enemy.ty+d.y;
+      if(ax<0||ay<0||ax>=COLS||ay>=ROWS||this.isWallTile(ax,ay)) continue;
+      if(this.enemies.some(e=>e.alive&&e.tx===ax&&e.ty===ay)) continue;
+      const p=bfs(this.playerTile.x,this.playerTile.y,ax,ay,moveBlk);
+      if(!p.length) continue;
+      if(!bestAnyPath||p.length<bestAnyPath.length) bestAnyPath=p;
+      if(p.length<=this.playerMoves&&(!bestReachPath||p.length<bestReachPath.length)){
+        bestReachPath=p;
+        bestReachAdj={x:ax,y:ay};
+      }
+    }
+
+    if(bestReachPath){
+      const cost=bestReachPath.length;
+      const targetEnemy=enemy;
+      this.clearMoveRange();
+      this._movingToAttack=true;
+      this.setDestination(bestReachAdj.x,bestReachAdj.y,()=>{
+        this._movingToAttack=false;
+        this.playerMovesUsed+=cost;
+        this.playerMoves=Math.max(0,this.playerMoves-cost);
+        this.updateResBar();
+        if(this.playerAP>0&&targetEnemy.alive){
+          this.time.delayedCall(100,()=>this.playerAttackEnemy(targetEnemy));
+        } else {
+          if(this.playerMoves>0) this.showMoveRange();
+          this.showStatus(`Moved. ${this.playerMoves} moves left.`);
+        }
+      });
+      return;
+    }
+
+    if(!bestAnyPath){
+      this.showStatus('Cannot path to this enemy.');
+      return;
+    }
+
+    const partial=bestAnyPath.slice(0,this.playerMoves);
+    if(!partial.length){
+      this.showStatus('Not enough movement to reach.');
+      return;
+    }
+
+    const stop=partial[partial.length-1];
+    const cost=partial.length;
+    const targetEnemy=enemy;
+    this.clearMoveRange();
+    this._movingToAttack=true;
+    this.setDestination(stop.x,stop.y,()=>{
+      this._movingToAttack=false;
+      this.playerMovesUsed+=cost;
+      this.playerMoves=Math.max(0,this.playerMoves-cost);
+      this.updateResBar();
+      if(this.playerMoves>0) this.showMoveRange();
+      const dx=Math.abs(this.playerTile.x-targetEnemy.tx), dy=Math.abs(this.playerTile.y-targetEnemy.ty);
+      const inRange=dx<=1&&dy<=1;
+      if(inRange&&this.playerAP>0){
+        this.showStatus('Moved into range. Action ready.');
+      }else{
+        this.showStatus(`Moved closer. Out of range, ${this.playerMoves} moves left.`);
+      }
+    });
+  },
+
+  canFleeCombat(){
+    if(this.mode!==MODE.COMBAT) return { ok:false, reason:'Not in combat.' };
+    const alive=this.combatGroup.filter(e=>e.alive);
+    if(!alive.length) return { ok:true, reason:'' };
+
+    const minDist=Math.max(1,Number(COMBAT_RULES.fleeMinDistance||6));
+    const nearest=alive.reduce((m,e)=>Math.min(m,Math.abs(e.tx-this.playerTile.x)+Math.abs(e.ty-this.playerTile.y)),Infinity);
+    if(nearest<minDist){
+      return { ok:false, reason:`Too close to enemies (need ${minDist}+ tiles).` };
+    }
+
+    if(COMBAT_RULES.fleeRequiresNoLOS!==false){
+      const seen=alive.some(e=>{
+        const dist=Math.sqrt((e.tx-this.playerTile.x)**2+(e.ty-this.playerTile.y)**2);
+        return dist<=e.sight&&hasLOS(e.tx,e.ty,this.playerTile.x,this.playerTile.y);
+      });
+      if(seen) return { ok:false, reason:'Cannot flee while enemies still have line of sight.' };
+    }
+
+    return { ok:true, reason:'' };
+  },
+
+  tryFleeCombat(){
+    if(!this.isPlayerTurn()){ this.showStatus('Not your turn yet.'); return; }
+    if(this.playerAP<=0){ this.showStatus('Action already used.'); return; }
+
+    const chk=this.canFleeCombat();
+    if(!chk.ok){
+      this.showStatus(`Flee failed: ${chk.reason}`);
+      return;
+    }
+
+    this.playerAP=0;
+    this.processStatusEffectsForActor('player','on_action',{actionId:'flee'});
+    this.pendingAction=null;
+    this.clearPendingAction();
+    this.updateResBar();
+    this.setActionButtonsUsed(true);
+    this.showStatus('Flee successful. Breaking away...');
+    this.time.delayedCall(140,()=>this.exitCombat('flee'));
+  },
+
+  // ─────────────────────────────────────────
+  // DICE
+  // ─────────────────────────────────────────
+  _handleDiceDismiss(){
+    clearTimeout(this._diceAutoTimer);
+    const ov=document.getElementById('dice-ov');
+    if(ov) ov.classList.remove('show');
+    if(this.diceWaiting==='enemy'){
+      this.diceWaiting=false;
+      if(this._pendingEnemyTurnActor){
+        this.processStatusEffectsForActor(this._pendingEnemyTurnActor,'turn_end');
+        this._pendingEnemyTurnActor=null;
+      }
+      this.advanceEnemyTurn();
+    } else if(this.diceWaiting==='player'){
+      this.diceWaiting=false;
+      if(this._afterPlayerDice){ const cb=this._afterPlayerDice; this._afterPlayerDice=null; cb(); }
+    } else {
+      this.diceWaiting=false;
+    }
+  },
+
+  // ─────────────────────────────────────────
+  // RANGE DISPLAY
+  // ─────────────────────────────────────────
+  showMoveRange(){
+    this.clearMoveRange();
+    const range=this.playerMoves||0, px=this.playerTile.x, py=this.playerTile.y;
+    if(range<=0) return;
+    for(let dy=-range;dy<=range;dy++) for(let dx=-range;dx<=range;dx++){
+      if(Math.abs(dx)+Math.abs(dy)>range) continue;
+      const tx=px+dx, ty=py+dy;
+      if(tx<0||ty<0||tx>=COLS||ty>=ROWS) continue;
+      if(this.isWallTile(tx,ty)) continue;
+      if(tx===px&&ty===py) continue;
+      if(this.enemies.some(e=>e.alive&&e.tx===tx&&e.ty===ty)) continue;
+      const moveBlk=(x,y)=>this.isWallTile(x,y)||this.enemies.some(e=>e.alive&&e.tx===x&&e.ty===y);
+      const path=bfs(px,py,tx,ty,moveBlk);
+      if(path.length&&path.length<=range){
+        const o=this.add.image(tx*S+S/2,ty*S+S/2,'t_move').setDisplaySize(S,S).setDepth(3);
+        this.rangeTiles.push({x:tx,y:ty,img:o});
+      }
+    }
+  },
+  clearMoveRange(){ this.rangeTiles.forEach(r=>r.img.destroy()); this.rangeTiles=[]; },
+  inMoveRange(tx,ty){ return this.rangeTiles.some(r=>r.x===tx&&r.y===ty); },
+
+  showAtkRange(){
+    this.clearAtkRange();
+    if(!this.combatGroup||!this.combatGroup.length) return;
+    const px=this.playerTile.x, py=this.playerTile.y, range=this.pStats.atkRange||1;
+    let any=false;
+    for(let dy=-range;dy<=range;dy++) for(let dx=-range;dx<=range;dx++){
+      if(!dx&&!dy) continue;
+      const tx=px+dx, ty=py+dy;
+      if(tx<0||ty<0||tx>=COLS||ty>=ROWS) continue;
+      if(this.isWallTile(tx,ty)) continue;
+      if(this.combatGroup.some(e=>e.alive&&e.img&&!e.img.active===false&&e.tx===tx&&e.ty===ty)){
+        const o=this.add.image(tx*S+S/2,ty*S+S/2,'t_atk').setDisplaySize(S,S).setDepth(4);
+        this.atkRangeTiles.push(o); any=true;
+      }
+    }
+    if(any){ this.showStatus('Tap a red enemy to attack.'); }
+    else{
+      for(const e of this.combatGroup){
+        if(!e.alive) continue;
+        try{ const g=this.add.graphics().setDepth(4); g.lineStyle(2,0xe74c3c,0.5); g.strokeRect(e.tx*S+2,e.ty*S+2,S-4,S-4); this.atkRangeTiles.push(g); }catch(err){}
+      }
+      this.showStatus('No enemies in range — move closer.');
+    }
+  },
+  clearAtkRange(){ this.atkRangeTiles.forEach(o=>o.destroy()); this.atkRangeTiles=[]; },
+
+});
