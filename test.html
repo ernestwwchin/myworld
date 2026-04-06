@@ -3,21 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>RPG</title>
+<title>RPG — Test Runner</title>
 <style>
-/* ═══════════════════════════════════════════════════════
-   style.css — All UI styles
-═══════════════════════════════════════════════════════ */
-
-
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Courier New',monospace;display:flex;align-items:center;justify-content:center;}
 #gc{position:relative;width:100vw;height:100vh;}
 #gc canvas{display:block;}
-/* UI wrapper — overlays constrained to game area */
 #ui-overlay{position:absolute;top:0;left:0;pointer-events:none;z-index:5;overflow:hidden;}
 #ui-overlay > *{pointer-events:auto;}
-
 #hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:10px 16px;background:linear-gradient(to bottom,rgba(0,0,0,0.88),transparent);pointer-events:none;z-index:10;}
 #hud-left{display:flex;flex-direction:column;gap:3px;}
 .hl{color:#c9a84c;font-size:10px;letter-spacing:2px;text-transform:uppercase;opacity:0.7;}
@@ -25,88 +18,42 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 #hp-wrap{width:130px;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;margin-top:2px;}
 #hp-bar{height:100%;width:100%;background:linear-gradient(90deg,#c0392b,#e74c3c);border-radius:3px;transition:width 0.4s;}
 #hud-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;}
-
 #mode-banner{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:50;opacity:0;transition:opacity 0.3s;}
 #mode-banner.show{opacity:1;}
 #mode-banner-text{font-size:28px;letter-spacing:8px;font-weight:bold;padding:10px 32px;border-radius:4px;text-shadow:0 0 20px currentColor;}
 #mode-banner.combat #mode-banner-text{color:#e74c3c;border:2px solid rgba(231,76,60,0.6);background:rgba(231,76,60,0.12);}
 #mode-banner.explore #mode-banner-text{color:#2ecc71;border:2px solid rgba(46,204,113,0.6);background:rgba(46,204,113,0.12);}
-
-#mode-badge{position:absolute;top:68px;left:8px;transform:none;font-size:9px;letter-spacing:3px;padding:3px 12px;border-radius:20px;pointer-events:none;z-index:10;transition:all 0.3s;}
+#mode-badge{position:absolute;top:68px;left:8px;font-size:9px;letter-spacing:3px;padding:3px 12px;border-radius:20px;pointer-events:none;z-index:10;transition:all 0.3s;}
 #mode-badge.realtime{background:rgba(46,204,113,0.12);border:1px solid rgba(46,204,113,0.4);color:#2ecc71;}
 #mode-badge.turnbased{background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.5);color:#e74c3c;}
-
 #init-bar{position:absolute;top:50%;right:8px;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;z-index:10;opacity:0;transition:opacity 0.4s;}
 #init-bar.show{opacity:1;}
 .ip{width:40px;height:40px;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:8px;letter-spacing:1px;gap:2px;border:2px solid transparent;transition:all 0.3s;}
 .ip.active{border-color:#f0c060;box-shadow:0 0 10px rgba(240,192,96,0.6);transform:scale(1.15);}
 .ip.pp{background:rgba(41,128,185,0.4);color:#7fc8f8;}
 .ip.ep{background:rgba(180,30,30,0.4);color:#f08080;}
-.ip-icon{font-size:18px;line-height:1;}
-
-/* Resource bar */
-/* ── Compact combat bar — single row at bottom ── */
-#res-bar{
-  position:absolute;bottom:42px;left:8px;
-  display:flex;gap:8px;align-items:center;
-  opacity:0;pointer-events:none;z-index:10;transition:opacity 0.3s;
-  background:rgba(0,0,0,0.75);border:1px solid rgba(255,255,255,0.1);
-  border-radius:12px;padding:3px 10px;
-}
+#res-bar{position:absolute;bottom:42px;left:8px;display:flex;gap:8px;align-items:center;opacity:0;pointer-events:none;z-index:10;transition:opacity 0.3s;background:rgba(0,0,0,0.75);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:3px 10px;}
 #res-bar.show{opacity:1;}
 .res-item{display:flex;align-items:center;gap:4px;}
 .res-icon{font-size:13px;line-height:1;}
 .res-val{font-size:10px;letter-spacing:1px;font-family:'Courier New',monospace;}
-.res-val.ok{color:#64b5f6;}
-.res-val.spent{color:#546e7a;}
-.res-val.aok{color:#a5d6a7;}
-.res-val.aused{color:#546e7a;}
+.res-val.ok{color:#64b5f6;}.res-val.spent{color:#546e7a;}.res-val.aok{color:#a5d6a7;}.res-val.aused{color:#546e7a;}
 .res-sep{width:1px;height:16px;background:rgba(255,255,255,0.15);}
-
-/* Action bar — compact horizontal */
-#action-bar{
-  position:absolute;bottom:42px;right:8px;
-  display:flex;gap:4px;
-  opacity:0;pointer-events:none;z-index:10;transition:opacity 0.3s;
-}
+#action-bar{position:absolute;bottom:42px;right:8px;display:flex;gap:4px;opacity:0;pointer-events:none;z-index:10;transition:opacity 0.3s;}
 #action-bar.show{opacity:1;pointer-events:all;}
-.ab{
-  padding:5px 10px;border-radius:4px;font-size:9px;letter-spacing:1px;
-  font-family:'Courier New',monospace;cursor:pointer;border:none;
-  transition:all 0.2s;text-transform:uppercase;
-  display:flex;flex-direction:column;align-items:center;gap:1px;
-  min-width:52px;
-}
-.ab-cost{font-size:7px;opacity:0.55;letter-spacing:0px;}
-.ab:active{transform:scale(0.95);}
+.ab{padding:5px 10px;border-radius:4px;font-size:9px;letter-spacing:1px;font-family:'Courier New',monospace;cursor:pointer;border:none;transition:all 0.2s;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:52px;}
+.ab-cost{font-size:7px;opacity:0.55;}
 #btn-atk{background:rgba(192,57,43,0.85);color:#f0e6c8;border:1px solid rgba(231,76,60,0.5);}
-#btn-atk:hover{background:rgba(231,76,60,0.95);}
 #btn-atk.used{opacity:0.3;pointer-events:none;}
 #btn-dash{background:rgba(41,128,185,0.8);color:#f0e6c8;border:1px solid rgba(52,152,219,0.4);}
-#btn-dash:hover{background:rgba(52,152,219,0.95);}
 #btn-dash.used{opacity:0.3;pointer-events:none;}
-#btn-flee{background:rgba(46,204,113,0.75);color:#f0e6c8;border:1px solid rgba(46,204,113,0.45);}
-#btn-flee:hover{background:rgba(46,204,113,0.95);}
-#btn-flee.used{opacity:0.3;pointer-events:none;}
-#btn-hide{background:rgba(52,152,219,0.75);color:#f0e6c8;border:1px solid rgba(52,152,219,0.45);}
-#btn-hide:hover{background:rgba(52,152,219,0.95);}
-#btn-hide.used{opacity:0.3;pointer-events:none;}
-#btn-sleep{background:rgba(123,104,238,0.78);color:#f0e6c8;border:1px solid rgba(123,104,238,0.45);}
-#btn-sleep:hover{background:rgba(147,112,219,0.95);}
-#btn-sleep.used{opacity:0.3;pointer-events:none;}
 #btn-rmove{background:rgba(80,60,130,0.8);color:#f0e6c8;border:1px solid rgba(120,100,180,0.4);}
-#btn-rmove:hover{background:rgba(120,100,180,0.95);}
 #btn-end{background:rgba(52,73,94,0.85);color:#aaa;border:1px solid rgba(127,140,141,0.3);}
-#btn-end:hover{background:rgba(74,96,119,0.95);color:#f0e6c8;}
-.ab.selected{box-shadow:0 0 8px currentColor;transform:scale(1.05);}
-
 #status-bar{position:absolute;bottom:0;left:0;right:0;padding:4px 16px;text-align:center;background:rgba(0,0,0,0.7);color:#7a9e7e;font-size:10px;letter-spacing:1px;pointer-events:none;z-index:10;height:32px;display:flex;align-items:center;justify-content:center;}
 #vignette{position:absolute;inset:0;pointer-events:none;z-index:8;box-shadow:inset 0 0 0px rgba(231,76,60,0);transition:box-shadow 0.4s;}
+#vignette.combat{box-shadow:inset 0 0 80px rgba(231,76,60,0.35);}
 #enemy-stat-popup{display:none;position:absolute;z-index:30;background:rgba(10,10,20,0.97);border:1px solid rgba(231,76,60,0.5);border-radius:8px;padding:12px 14px;font-family:'Courier New',monospace;font-size:11px;color:#f0e6c8;min-width:170px;pointer-events:all;}
 #esp-name{color:#e74c3c;letter-spacing:2px;font-size:12px;margin-bottom:8px;}
-#vignette.combat{box-shadow:inset 0 0 80px rgba(231,76,60,0.35);}
-
-/* Dice overlay */
 #dice-ov{position:absolute;inset:0;z-index:80;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.75);opacity:0;transition:opacity 0.2s;cursor:pointer;pointer-events:none;}
 #dice-ov.show{opacity:1;pointer-events:all;}
 #dice-stage{display:flex;gap:16px;align-items:center;justify-content:center;margin-bottom:16px;min-height:80px;}
@@ -128,44 +75,32 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 .die-wrap.dmg .die-face{border-color:rgba(231,76,60,0.4);}
 .die-wrap.dmg .die-face.f1{background:rgba(40,10,10,0.95);}
 .die-wrap.crit .die-face{border-color:rgba(243,156,18,0.8);box-shadow:0 0 12px rgba(243,156,18,0.5);}
-#dice-rl{font-family:'Courier New',monospace;font-size:13px;letter-spacing:2px;color:#f0e6c8;text-align:center;margin-bottom:6px;opacity:0;transition:opacity 0.3s 0.5s;}
-#dice-rl.show{opacity:1;}
-#dice-dl{font-family:'Courier New',monospace;font-size:11px;letter-spacing:1px;color:#aaa;text-align:center;opacity:0;transition:opacity 0.3s 0.65s;}
-#dice-dl.show{opacity:1;}
-#dice-out{font-family:'Courier New',monospace;font-size:18px;font-weight:bold;letter-spacing:4px;margin-top:8px;text-align:center;opacity:0;transition:opacity 0.3s 0.8s;text-shadow:0 0 20px currentColor;}
-#dice-out.show{opacity:1;}
-#dice-out.hit{color:#2ecc71;}
-#dice-out.miss{color:#e74c3c;}
-#dice-out.crit{color:#f39c12;}
-#dice-cont{font-family:'Courier New',monospace;font-size:10px;letter-spacing:3px;color:rgba(255,255,255,0.4);margin-top:14px;text-align:center;opacity:0;transition:opacity 0.4s 1.2s;animation:blip 1.2s ease-in-out 1.5s infinite;}
-#dice-cont.show{opacity:1;}
-@keyframes blip{0%,100%{opacity:0.35;}50%{opacity:0.85;}}
-
-/* Stats panel */
+#dice-rl,#dice-dl,#dice-out,#dice-cont{font-family:'Courier New',monospace;text-align:center;opacity:0;}
+#dice-rl{font-size:13px;letter-spacing:2px;color:#f0e6c8;margin-bottom:6px;transition:opacity 0.3s 0.5s;}
+#dice-dl{font-size:11px;letter-spacing:1px;color:#aaa;transition:opacity 0.3s 0.65s;}
+#dice-out{font-size:18px;font-weight:bold;letter-spacing:4px;margin-top:8px;transition:opacity 0.3s 0.8s;text-shadow:0 0 20px currentColor;}
+#dice-out.hit{color:#2ecc71;}#dice-out.miss{color:#e74c3c;}#dice-out.crit{color:#f39c12;}
+#dice-cont{font-size:10px;letter-spacing:3px;color:rgba(255,255,255,0.4);margin-top:14px;transition:opacity 0.4s 1.2s;}
+#dice-rl.show,#dice-dl.show,#dice-out.show,#dice-cont.show{opacity:1;}
 #stats-btn{position:absolute;top:10px;right:16px;background:rgba(192,150,50,0.15);border:1px solid rgba(192,150,50,0.4);color:#c9a84c;font-size:10px;letter-spacing:2px;padding:4px 10px;border-radius:20px;cursor:pointer;z-index:15;font-family:'Courier New',monospace;}
-#sight-btn{position:absolute;top:40px;right:16px;background:rgba(127,140,141,0.16);border:1px solid rgba(127,140,141,0.45);color:#b7c6cc;font-size:10px;letter-spacing:2px;padding:4px 10px;border-radius:20px;cursor:pointer;z-index:15;font-family:'Courier New',monospace;}
-#sight-btn.off{background:rgba(70,70,70,0.18);border-color:rgba(90,90,90,0.45);color:#7f8c8d;}
-#tb-btn{position:absolute;top:70px;right:16px;background:rgba(127,140,141,0.16);border:1px solid rgba(127,140,141,0.45);color:#b7c6cc;font-size:10px;letter-spacing:2px;padding:4px 10px;border-radius:20px;cursor:pointer;z-index:15;font-family:'Courier New',monospace;}
+#tb-btn{position:absolute;top:40px;right:16px;background:rgba(127,140,141,0.16);border:1px solid rgba(127,140,141,0.45);color:#b7c6cc;font-size:10px;letter-spacing:2px;padding:4px 10px;border-radius:20px;cursor:pointer;z-index:15;font-family:'Courier New',monospace;}
 #tb-btn.off{background:rgba(70,70,70,0.18);border-color:rgba(90,90,90,0.45);color:#7f8c8d;}
 #stats-panel{position:absolute;top:0;right:0;width:260px;height:100%;background:rgba(8,8,18,0.98);border-left:1px solid rgba(192,150,50,0.3);z-index:20;padding:14px;overflow-y:auto;transform:translateX(100%);transition:transform 0.3s;font-size:11px;color:#f0e6c8;}
 #stats-panel.open{transform:translateX(0);}
 .sr{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.06);}
-.sn{color:#c9a84c;letter-spacing:1px;}
-.sv{color:#f0e6c8;}
-.sm{color:#7fc8f8;font-size:10px;}
+.sn{color:#c9a84c;letter-spacing:1px;}.sv{color:#f0e6c8;}.sm{color:#7fc8f8;font-size:10px;}
 .ss{color:#c9a84c;letter-spacing:2px;font-size:10px;margin:10px 0 4px;border-bottom:1px solid rgba(192,150,50,0.3);padding-bottom:3px;}
 .xw{width:100%;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-top:4px;}
 .xb{height:100%;background:#9b59b6;border-radius:2px;transition:width 0.5s;}
-/* Skill rows */
-.sk-row .sn{font-size:10px;}
-.sk-row .sv{color:#7fc8f8;min-width:28px;text-align:right;}
-
-/* ASI panel */
+.sk-row .sn{font-size:10px;}.sk-row .sv{color:#7fc8f8;min-width:28px;text-align:right;}
 #asi-panel{display:none;position:absolute;inset:0;background:rgba(0,0,0,0.85);z-index:60;align-items:center;justify-content:center;}
 
+/* Test banner */
+#test-banner{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(155,89,182,0.9);color:#fff;font-size:12px;letter-spacing:2px;text-align:center;padding:6px;font-family:'Courier New',monospace;}
 </style>
 </head>
 <body>
+<div id="test-banner">TEST MODE — Autoplay Running</div>
 <div id="gc">
 <div id="ui-overlay">
 <div id="hud">
@@ -175,7 +110,7 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
     <span class="hl">HP <span id="hp-text" style="color:#f0e6c8">12/12</span></span>
   </div>
   <div id="hud-right">
-    <span class="hl">Floor</span><span class="hv">B1F</span>
+    <span class="hl">Floor</span><span class="hv">TEST</span>
     <span class="hl" style="margin-top:4px">Pos</span><span class="hv" id="pos-text">—</span>
   </div>
 </div>
@@ -190,14 +125,10 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 <div id="action-bar">
   <button class="ab" id="btn-atk"><span>⚔ Attack</span><span class="ab-cost">1 Action</span></button>
   <button class="ab" id="btn-dash"><span>💨 Dash</span><span class="ab-cost">1 Action</span></button>
-  <button class="ab" id="btn-sleep"><span>🌫 Sleep</span><span class="ab-cost">1 Action</span></button>
-  <button class="ab" id="btn-hide"><span>🕶 Hide</span><span class="ab-cost">1 Action</span></button>
-  <button class="ab" id="btn-flee"><span>🏳 Flee</span><span class="ab-cost">1 Action</span></button>
   <button class="ab" id="btn-rmove"><span>↺ Reset</span><span class="ab-cost">Undo move</span></button>
   <button class="ab" id="btn-end"><span>⏳ End</span><span class="ab-cost">Pass</span></button>
 </div>
 <button id="stats-btn" onclick="toggleStats()">📊 STATS</button>
-<button id="sight-btn" onclick="toggleEnemySight()">👁 SIGHT ON</button>
 <button id="tb-btn" class="off" onclick="toggleExploreTurnBased()">⏱ TB OFF</button>
 <div id="stats-panel"></div>
 <div id="asi-panel">
@@ -227,22 +158,19 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
   <div id="esp-name"></div>
   <div id="esp-stats"></div>
 </div>
-<div id="context-menu" style="display:none;position:absolute;z-index:31;background:rgba(10,10,20,0.98);border:1px solid rgba(200,180,100,0.6);border-radius:4px;padding:4px;font-family:'Courier New',monospace;font-size:10px;pointer-events:all;min-width:140px;">
-</div>
 <div id="dev-console" style="display:none;">
   <div id="dev-log"></div>
   <div style="display:flex;border-top:1px solid #222;">
     <span style="color:#0f0;padding:4px 6px;">❯</span>
-    <input id="dev-input" type="text" placeholder="playerMove(1,0) | help()">
+    <input id="dev-input" type="text" placeholder="">
   </div>
 </div>
-<div id="status-bar">Explore the dungeon!</div>
+<div id="status-bar">Test Mode — Autoplay in progress...</div>
 <div id="vignette"></div>
 </div><!-- /ui-overlay -->
 </div><!-- /gc -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
-<!-- Game scripts — load order matters -->
 <script src="js/config.js"></script>
 <script src="js/helpers.js"></script>
 <script src="js/utils/common.js"></script>
@@ -255,12 +183,63 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 <script src="js/systems/interactable-system.js"></script>
 <script src="js/systems/initiative-system.js"></script>
 <script src="js/systems/combat-init-system.js"></script>
-<script src="js/systems/ability-system.js"></script>
 <script src="js/systems/door-system.js"></script>
-<script src="js/systems/input-system.js"></script>
-<script src="js/systems/debug-logger.js"></script>
 <script src="js/ui/action-buttons.js"></script>
 <script src="js/ui/core-ui.js"></script>
-<script src="js/main.js"></script>
+
+<!-- Test-specific: override activeMap from ?map= param, then boot -->
+<script>
+(async function boot() {
+  const params = new URLSearchParams(window.location.search);
+  const mapOverride = params.get('map');
+
+  try {
+    await ModLoader.init();
+    // If a test map is specified, switch to it
+    if (mapOverride && ModLoader._modData?.maps?.[mapOverride]) {
+      ModLoader.applyMap(ModLoader._modData, mapOverride);
+      ModLoader.applyCreatures(ModLoader._modData, mapOverride);
+      const p = ModLoader._modData.maps[mapOverride]?.playerStart;
+      if (p) PLAYER_STATS.startTile = p;
+    }
+    ROWS = MAP.length;
+    COLS = MAP[0].length;
+  } catch (e) {
+    console.warn('[Test] ModLoader failed:', e);
+  }
+
+  const GAME_W = COLS * S;
+  const GAME_H = ROWS * S;
+
+  const game = window.game = new Phaser.Game({
+    type: Phaser.AUTO,
+    width: GAME_W,
+    height: GAME_H,
+    backgroundColor: '#0a0a0f',
+    parent: 'gc',
+    scene: GameScene,
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    input: { activePointers: 2 },
+    render: { pixelArt: true, antialias: false },
+  });
+
+  function syncUIOverlay() {
+    const canvas = document.querySelector('#gc canvas');
+    const overlay = document.getElementById('ui-overlay');
+    if (!canvas || !overlay) return;
+    const rect = canvas.getBoundingClientRect();
+    const gc = document.getElementById('gc');
+    const gcRect = gc.getBoundingClientRect();
+    overlay.style.width = rect.width + 'px';
+    overlay.style.height = rect.height + 'px';
+    overlay.style.left = (rect.left - gcRect.left) + 'px';
+    overlay.style.top = (rect.top - gcRect.top) + 'px';
+  }
+  window.addEventListener('resize', syncUIOverlay);
+  game.scale.on('resize', () => setTimeout(syncUIOverlay, 50));
+  setTimeout(syncUIOverlay, 100);
+})();
+</script>
+<script src="js/autoplay.js"></script>
 </body>
 </html>

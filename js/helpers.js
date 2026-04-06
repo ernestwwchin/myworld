@@ -2,6 +2,14 @@
 // helpers.js — Pathfinding, line-of-sight, FOV, etc.
 // ═══════════════════════════════════════════════════════
 
+function isWallCell(cell) {
+  return cell === TILE.WALL || cell === '#';
+}
+
+function isDoorCell(cell) {
+  return cell === TILE.DOOR || cell === 'D';
+}
+
 function bfs(sx, sy, ex, ey, blockedFn) {
   if (blockedFn(ex, ey)) return [];
   const vis = Array.from({length:ROWS}, () => Array(COLS).fill(false));
@@ -27,7 +35,13 @@ function bfs(sx, sy, ex, ey, blockedFn) {
 }
 
 // Only block walls (used for pathfinding routing)
-function wallBlk(x, y) { return MAP[y][x] === TILE.WALL; }
+function wallBlk(x, y) {
+  if (isWallCell(MAP[y][x])) return true;
+  if (isDoorCell(MAP[y][x]) && typeof window._isDoorPassable === 'function') {
+    return !window._isDoorPassable(x, y);
+  }
+  return false;
+}
 
 // ── Line of Sight (Bresenham) ─────────────────────────
 function hasLOS(x0, y0, x1, y1) {
@@ -36,7 +50,13 @@ function hasLOS(x0, y0, x1, y1) {
   let cx=x0, cy=y0, first=true;
   while (true) {
     if (cx===x1 && cy===y1) return true;
-    if (!first && MAP[cy][cx]===TILE.WALL) return false;
+    if (!first) {
+      if (isWallCell(MAP[cy][cx])) return false;
+      if (isDoorCell(MAP[cy][cx])) {
+        const closed = typeof window._isDoorClosed === 'function' ? window._isDoorClosed(cx, cy) : true;
+        if (closed) return false;
+      }
+    }
     first = false;
     const e2 = 2*err;
     if (e2 > -dy) { err -= dy; cx += sx; }
@@ -69,18 +89,117 @@ function sameOpenArea(x0, y0, x1, y1, maxD) {
       const nx=c.x+d.x, ny=c.y+d.y, k=key(nx,ny);
       if (vis.has(k)) continue;
       if (nx<0||ny<0||nx>=COLS||ny>=ROWS) continue;
-      if (MAP[ny][nx]===TILE.WALL) continue;
+      if (isWallCell(MAP[ny][nx])) continue;
       vis.add(k); q.push({x:nx,y:ny,d:c.d+1});
     }
   }
   return false;
 }
 
+// ── Room topology (room + side-room via doors) ─────
+let _roomTopoCache = null;
+
+function _buildRoomTopology() {
+  const roomByKey = new Map();
+  const doorToRooms = new Map();
+  const sideByRoom = new Map();
+  let nextRoomId = 1;
+  const dirs = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+  const key = (x, y) => x + ',' + y;
+
+  const inBounds = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
+  const isWall = (x, y) => isWallCell(MAP[y][x]);
+  const isDoor = (x, y) => isDoorCell(MAP[y][x]);
+  const isRoomFloor = (x, y) => !isWall(x, y) && !isDoor(x, y);
+
+  // Label each contiguous non-door walkable area as a room.
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      if (!isRoomFloor(x, y)) continue;
+      const startKey = key(x, y);
+      if (roomByKey.has(startKey)) continue;
+
+      const roomId = nextRoomId++;
+      const q = [{ x, y }];
+      roomByKey.set(startKey, roomId);
+
+      while (q.length) {
+        const c = q.shift();
+        for (const d of dirs) {
+          const nx = c.x + d.x, ny = c.y + d.y;
+          if (!inBounds(nx, ny) || !isRoomFloor(nx, ny)) continue;
+          const nk = key(nx, ny);
+          if (roomByKey.has(nk)) continue;
+          roomByKey.set(nk, roomId);
+          q.push({ x: nx, y: ny });
+        }
+      }
+    }
+  }
+
+  // Connect adjacent rooms through each door tile.
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      if (!isDoor(x, y)) continue;
+      const roomSet = new Set();
+      for (const d of dirs) {
+        const nx = x + d.x, ny = y + d.y;
+        if (!inBounds(nx, ny)) continue;
+        const rid = roomByKey.get(key(nx, ny));
+        if (rid) roomSet.add(rid);
+      }
+      const rooms = [...roomSet];
+      if (!rooms.length) continue;
+
+      doorToRooms.set(key(x, y), rooms);
+      for (const a of rooms) {
+        if (!sideByRoom.has(a)) sideByRoom.set(a, new Set());
+        for (const b of rooms) {
+          if (a !== b) sideByRoom.get(a).add(b);
+        }
+      }
+    }
+  }
+
+  _roomTopoCache = { roomByKey, doorToRooms, sideByRoom };
+  return _roomTopoCache;
+}
+
+function _getRoomTopology() {
+  if (_roomTopoCache) return _roomTopoCache;
+  return _buildRoomTopology();
+}
+
+function roomIdAt(x, y) {
+  const topo = _getRoomTopology();
+  const k = x + ',' + y;
+  if (topo.roomByKey.has(k)) return topo.roomByKey.get(k);
+
+  // If tile is a door, attach it to one of its adjacent rooms.
+  const dr = topo.doorToRooms.get(k);
+  return dr && dr.length ? dr[0] : null;
+}
+
+function sameRoom(x0, y0, x1, y1) {
+  const r0 = roomIdAt(x0, y0);
+  const r1 = roomIdAt(x1, y1);
+  return r0 !== null && r1 !== null && r0 === r1;
+}
+
+function sideRoom(x0, y0, x1, y1) {
+  const r0 = roomIdAt(x0, y0);
+  const r1 = roomIdAt(x1, y1);
+  if (r0 === null || r1 === null || r0 === r1) return false;
+  const topo = _getRoomTopology();
+  const adj = topo.sideByRoom.get(r0);
+  return !!(adj && adj.has(r1));
+}
+
 // ── Snap pixel position to nearest valid tile ────────
 function snapToTile(px, py) {
   let tx = Math.max(0, Math.min(COLS-1, Math.round((px - S/2) / S)));
   let ty = Math.max(0, Math.min(ROWS-1, Math.round((py - S/2) / S)));
-  if (MAP[ty][tx] === TILE.WALL) {
+  if (isWallCell(MAP[ty][tx])) {
     tx = Math.max(0, Math.min(COLS-1, Math.floor((px - S/2) / S)));
     ty = Math.max(0, Math.min(ROWS-1, Math.floor((py - S/2) / S)));
   }

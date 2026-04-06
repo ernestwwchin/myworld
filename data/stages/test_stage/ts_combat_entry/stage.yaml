@@ -1,0 +1,20 @@
+# Test: Combat Entry
+# Goblin faces left toward the player's path.
+# Walking into FOV should trigger combat.
+
+name: "Test: Combat Entry"
+floor: T2
+globalLight: bright
+
+grid:
+  - "#######"
+  - "#.....#"
+  - "#.....#"
+  - "#.....#"
+  - "#.....#"
+  - "#.....#"
+  - "#######"
+
+playerStart: { x: 1, y: 3 }
+encounters:
+  - { creature: goblin, x: 5, y: 3, facing: 180, group: ~ }

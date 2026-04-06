@@ -1,0 +1,36 @@
+# Weapon definitions (BG3/DnD style baseline).
+# damageDice supports human-readable notation like "1d8+3" or "1d12+1d4+3".
+# range: tiles (1 = melee)
+
+weapons:
+  longsword:
+    name: Longsword
+    category: martial_melee
+    damageType: slashing
+    damageDice: "1d8+3"
+    range: 1
+    properties: [versatile]
+
+  scimitar:
+    name: Scimitar
+    category: martial_melee
+    damageType: slashing
+    damageDice: "1d6-1"
+    range: 1
+    properties: [finesse, light]
+
+  shortsword:
+    name: Shortsword
+    category: martial_melee
+    damageType: piercing
+    damageDice: "1d6+3"
+    range: 1
+    properties: [finesse, light]
+
+  greataxe:
+    name: Greataxe
+    category: martial_melee
+    damageType: slashing
+    damageDice: "1d12+1d4+3"
+    range: 1
+    properties: [heavy, two_handed]

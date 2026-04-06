@@ -1,0 +1,7 @@
+# Mod load order and game settings.
+# Add mod folder names to 'mods' array. First mod wins on conflicts.
+
+activeMap: gw_b1f
+
+mods:
+  - core

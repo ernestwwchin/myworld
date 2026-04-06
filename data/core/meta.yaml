@@ -1,0 +1,17 @@
+# Core module metadata
+
+id: core
+name: Core Module
+author: MyWorld
+version: 1.0.0
+description: Base game data — maps, classes, creatures, and rules.
+loadOrder: 0
+enabled: true
+
+includes:
+  - rules.yaml
+  - abilities.yaml
+  - statuses.yaml
+  - classes.yaml
+  - weapons.yaml
+  - creatures.yaml

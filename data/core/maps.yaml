@@ -1,0 +1,35 @@
+# Map definitions.
+# Each map has a grid, player start, and encounter placements.
+
+maps:
+  b1f:
+    name: "B1F — Goblin Warren"
+    floor: B1F
+
+    grid:
+      - "####################"
+      - "#......#...........#"
+      - "#......#...GG......#"
+      - "#....C.D..GGGG.....#"
+      - "#......#.GG~~GG....#"
+      - "#......#.G~~~~G....#"
+      - "#####D###########D##"
+      - "#..................#"
+      - "#...###.......###..#"
+      - "#...#.........#....#"
+      - "#...#.........#....#"
+      - "#...###.......###..#"
+      - "#..................#"
+      - "#.........S.......#"
+      - "#..................#"
+      - "####################"
+
+    playerStart: { x: 2, y: 2 }
+
+    encounters:
+      - { creature: goblin,   x: 8,  y: 2,  facing: 180, group: goblins }
+      - { creature: goblin,   x: 14, y: 3,  facing: 90,  group: goblins }
+      - { creature: skeleton, x: 7,  y: 9,  facing: 0,   group: skeletons }
+      - { creature: skeleton, x: 16, y: 10, facing: 180, group: skeletons }
+      - { creature: skeleton, x: 11, y: 12, facing: 270, group: skeletons }
+      - { creature: orc,      x: 10, y: 13, facing: 270, group: ~ }

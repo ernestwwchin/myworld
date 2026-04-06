@@ -1,0 +1,47 @@
+# Creature templates (bestiary).
+# Stats follow DnD 5e Monster Manual.
+
+creatures:
+  goblin:
+    name: Goblin
+    type: goblin
+    icon: "\U0001F47A"   # 👺
+    cr: "1/4"
+    xp: 50
+    hp: 7
+    ac: 15
+    speed: 2
+    sight: 4
+    fov: 120
+    stats: { str: 8, dex: 14, con: 10, int: 10, wis: 8, cha: 8 }
+    skillProficiencies: [stealth, perception]
+    attack: { weaponId: scimitar, dice: "1d6-1", range: 1 }
+    sneakAttackDice: 1  # 1d6 Sneak Attack when flanking/advantage
+
+  skeleton:
+    name: Skeleton
+    type: skeleton
+    icon: "\U0001F480"   # 💀
+    cr: "1/4"
+    xp: 100
+    hp: 13
+    ac: 13
+    speed: 2
+    sight: 5
+    fov: 100
+    stats: { str: 10, dex: 14, con: 15, int: 6, wis: 8, cha: 5 }
+    attack: { weaponId: shortsword, dice: "1d6+2", range: 1 }
+
+  orc:
+    name: Orc
+    type: orc
+    icon: "\U0001F479"   # 👹
+    cr: "1/2"
+    xp: 200
+    hp: 15
+    ac: 13
+    speed: 1
+    sight: 6
+    fov: 140
+    stats: { str: 16, dex: 12, con: 16, int: 7, wis: 11, cha: 10 }
+    attack: { weaponId: greataxe, dice: "1d12+3", range: 1 }

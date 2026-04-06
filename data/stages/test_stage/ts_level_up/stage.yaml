@@ -1,0 +1,20 @@
+# Test: Level Up
+# Two weak goblins — killing both should grant enough XP to level up.
+
+name: "Test: Level Up"
+floor: T6
+globalLight: bright
+
+grid:
+  - "#######"
+  - "#.....#"
+  - "#.....#"
+  - "#.....#"
+  - "#.....#"
+  - "#.....#"
+  - "#######"
+
+playerStart: { x: 1, y: 3 }
+encounters:
+  - { creature: goblin, x: 2, y: 3, facing: 180, group: ~ }
+  - { creature: goblin, x: 3, y: 3, facing: 180, group: ~ }

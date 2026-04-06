@@ -1,0 +1,19 @@
+# Test: Movement
+# Verify pathfinding through doors and around walls.
+# Player starts top-left, must pathfind to bottom-right.
+
+name: "Test: Movement"
+floor: T1
+globalLight: bright
+
+grid:
+  - "#######"
+  - "#..D..#"
+  - "#.....#"
+  - "#.....#"
+  - "#.....#"
+  - "#.....#"
+  - "#######"
+
+playerStart: { x: 1, y: 1 }
+encounters: []

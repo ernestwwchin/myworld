@@ -1,0 +1,151 @@
+# DnD 5e core rules — XP thresholds, ASI levels, tile types, display, skills.
+
+display:
+  tileSize: 48
+
+combat:
+  roomAlertMaxDistance: 8
+  fleeMinDistance: 6
+  fleeRequiresNoLOS: true
+  playerMovePerTurn: 5
+  dashMoveBonus: 4
+  enemySightScale: 0.85
+  enemySpeedScale: 0.75
+
+fog:
+  enabled: true
+  radius: 7
+  unvisitedAlpha: 0.78
+  exploredAlpha: 0.62
+  exploredColor: 2439729
+
+light:
+  darkSightPenalty: 3
+  dimSightPenalty: 1
+  hiddenSightPenalty: 2
+  hideDcBright: 16
+  hideDcDim: 12
+  hideDcDark: 8
+
+doors:
+  autoOpenOnPass: true
+  defaultAuto: false
+
+sprites:
+  blinkChance: 0.18
+  walkFrameRate: 9
+  runFrameRate: 14
+
+tileset:
+  enabled: true
+  sources:
+    t_floor: assets/tiles/base/t_floor.svg
+    t_wall: assets/tiles/base/t_wall.svg
+    t_door: assets/tiles/base/t_door.svg
+    t_chest: assets/tiles/base/t_chest.svg
+    t_stairs: assets/tiles/base/t_stairs.svg
+    t_water: assets/tiles/base/t_water.svg
+    t_water_1: assets/tiles/base/t_water_1.svg
+    t_water_2: assets/tiles/base/t_water_2.svg
+    t_grass: assets/tiles/base/t_grass.svg
+    t_grass_1: assets/tiles/base/t_grass_1.svg
+    t_grass_2: assets/tiles/base/t_grass_2.svg
+
+tileTypes:
+  FLOOR: 0
+  WALL: 1
+  DOOR: 3
+  CHEST: 4
+  STAIRS: 5
+  WATER: 6
+  GRASS: 7
+
+# Symbols for human-readable map editing (converted to numbers on load)
+tileSymbols:
+  "#": 1      # WALL
+  ".": 0      # FLOOR
+  "D": 3      # DOOR
+  "C": 4      # CHEST
+  "S": 5      # STAIRS
+  "~": 6      # WATER
+  "G": 7      # GRASS
+
+xpThresholds:
+  - 0
+  - 300
+  - 900
+  - 2700
+  - 6500
+  - 14000
+  - 23000
+  - 34000
+  - 48000
+  - 64000
+  - 85000
+  - 100000
+  - 120000
+  - 140000
+  - 165000
+  - 195000
+  - 225000
+  - 265000
+  - 305000
+  - 355000
+
+asiLevels: [4, 8, 12, 16, 19]
+
+skills:
+  acrobatics:
+    ability: dex
+    label: Acrobatics
+  animalHandling:
+    ability: wis
+    label: Animal Handling
+  arcana:
+    ability: int
+    label: Arcana
+  athletics:
+    ability: str
+    label: Athletics
+  deception:
+    ability: cha
+    label: Deception
+  history:
+    ability: int
+    label: History
+  insight:
+    ability: wis
+    label: Insight
+  intimidation:
+    ability: cha
+    label: Intimidation
+  investigation:
+    ability: int
+    label: Investigation
+  medicine:
+    ability: wis
+    label: Medicine
+  nature:
+    ability: int
+    label: Nature
+  perception:
+    ability: wis
+    label: Perception
+  performance:
+    ability: cha
+    label: Performance
+  persuasion:
+    ability: cha
+    label: Persuasion
+  religion:
+    ability: int
+    label: Religion
+  sleightOfHand:
+    ability: dex
+    label: Sleight of Hand
+  stealth:
+    ability: dex
+    label: Stealth
+  survival:
+    ability: wis
+    label: Survival

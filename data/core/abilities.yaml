@@ -1,0 +1,330 @@
+# Ability System — BG3-style action/resource management
+# Each ability costs resources (Action, Bonus Action, Movement, Reaction)
+# Classes can modify costs or unlock new abilities
+
+abilities:
+  # Template schema (optional per ability):
+  # template:
+  #   hit:
+  #     attackRoll: { ability: str|dex|wis|int|cha, addProf: true|false }
+  #   damage:
+  #     base: weapon|actorAttack|[count,sides,bonus]
+  #     addMods: [ability:str, prof]
+  #   onHit:
+  #     statuses:
+  #       - { id: poisoned, target: enemy, save:{stat:con,dc:12}, duration: 3, trigger: turn_end, damageDice: "1d4" }
+
+  # ── Basic Actions (available to all) ──
+  attack:
+    name: "Attack"
+    type: action
+    resourceCost:
+      action: 1
+    range: melee
+    description: "Make a melee attack with your weapon."
+    requiresTarget: true
+    template:
+      hit:
+        attackRoll:
+          ability: str
+          addProf: true
+      damage:
+        base: weapon
+        addMods: []
+      onHit:
+        statuses: []
+
+  poison_strike:
+    name: "Poison Strike"
+    type: action
+    resourceCost:
+      action: 1
+    range: melee
+    description: "Weapon strike that can inflict Poisoned."
+    requiresTarget: true
+    template:
+      hit:
+        attackRoll:
+          ability: dex
+          addProf: true
+      damage:
+        base: weapon
+        addMods: []
+      onHit:
+        statuses:
+          - id: poisoned
+            target: enemy
+            save:
+              stat: con
+              dc: 12
+            duration: 3
+            trigger: turn_end
+            damageDice: "1d4"
+
+  sleep_cloud:
+    name: "Sleep Cloud"
+    type: action
+    resourceCost:
+      action: 1
+    range: nearby
+    description: "Create a sleep cloud that affects all creatures in an area."
+    requiresTarget: true
+    template:
+      target:
+        mode: aoe
+        radius: 2
+        includeCenter: true
+      hit:
+        save:
+          stat: wis
+          dc: 12
+      damage:
+        base: none
+        addMods: []
+      onHit:
+        statuses:
+          - id: sleep
+            target: enemy
+            save:
+              stat: wis
+              dc: 12
+            duration: 2
+            trigger: turn_start
+            wakeDc: 12
+    
+  dash:
+    name: "Dash"
+    type: action
+    resourceCost:
+      movement: all      # Uses all remaining movement
+    range: self
+    description: "Move up to your speed."
+    
+  disengage:
+    name: "Disengage"
+    type: bonusAction
+    resourceCost:
+      bonusAction: 1
+    range: self
+    description: "Move without provoking attacks of opportunity."
+    
+  dodge:
+    name: "Dodge"
+    type: action
+    resourceCost:
+      action: 1
+    range: self
+    description: "Gain advantage on DEX saves until end of turn."
+    
+  help:
+    name: "Help"
+    type: action
+    resourceCost:
+      action: 1
+    range: nearby
+    description: "Grant an ally advantage on next ability check."
+    
+  # ── Rogue Abilities ──
+  hide:
+    name: "Hide"
+    type: action
+    resourceCost:
+      action: 1
+    range: self
+    description: "Make a Stealth check vs Perception."
+    requiresClass: Rogue
+    stealth:
+      # What ability drives the hide check
+      checkAbility: dex
+      checkSkill: stealth
+      # Combat hide search behavior
+      searchTurns: 4  # How long enemies search after hide succeeds
+      rerollPerTurn: false  # Can roll to search again each turn?
+      # Modifiers that affect DC
+      modifiers:
+        - type: light
+          name: "Light Level"
+          formula: "floor(lightIntensity * 5)"  # 0-5 penalty in bright light
+          direction: penalty  # Adding to DC (harder to hide)
+        - type: distance
+          name: "Distance from Enemies"
+          formula: "(distance < 5) ? -3 : (distance < 10) ? -1 : 0"
+          direction: penalty
+        - type: cover
+          name: "Environmental Cover"
+          formula: "hasCover ? -2 : 0"
+          direction: penalty
+      # Combat vs Explore mode settings
+      combat:
+        shadowShowsSearchLocation: true  # Show blue shadow where they search
+        allowReHideAfterAttack: true  # Can re-hide after sneak attack hits
+        advantageOnFirstAttack: true  # d20[higher] on first attack while hidden
+      explore:
+        enableLightPenalty: true  # Apply light penalty in explore
+        searchRadiusNearby: 15  # How far nearby enemies react
+        shadowDuration: "searchTurns"  # Shadow lasts until search done
+    # ═══ MOD HOOKS ═══ User can extend behavior at key events
+    # Preferred fn syntax is a plain JavaScript body.
+    # Runtime args: context, scene, ability, hook
+    # Example:
+    # fn: |
+    #   if (context.isCrit) {
+    #     scene.showStatus(`Critical hit on ${context.target.type}!`)
+    #   }
+    # Full function syntax also works if you want it:
+    # fn: |
+    #   function(context, scene, ability, hook) {
+    #     scene.showStatus('Custom hook fired')
+    #   }
+    hooks:
+      on_combat_start:
+        # Hook: When player enters combat
+        # Available context: { player, enemies, mode }
+        effects: []
+        # Example:
+        # - type: log
+        #   message: "Battle start: {enemy.count} enemies engaged"
+        # - type: status_apply
+        #   target: player
+        #   statusId: adrenaline
+        #   duration: turn_end
+      on_turn_start:
+        # Hook: At start of player's turn
+        # Available context: { player, turnNumber, combatTurns }
+        effects: []
+        # Example:
+        # - type: modify_stat
+        #   target: player
+        #   stat: ac
+        #   bonus: 1
+        #   duration: this_turn
+      on_turn_end:
+        # Hook: At end of player's turn
+        effects: []
+      on_attack:
+        # Hook: When player attacks (resolve phase)
+        # Available context: { player, target, roll, isCrit, damage }
+        effects: []
+        # Example:
+        # - type: trigger_ability
+        #   abilityId: riposte
+        #   condition: "isCrit || roll >= 18"
+        # - type: spawn_effect
+        #   effectId: blood_splatter
+        #   position: target
+        # - type: play_sound
+        #   soundId: weapon_hit
+      on_attack_miss:
+        # Hook: When player attack misses
+        # Available context: { player, target, roll, totalRoll }
+        effects: []
+      on_attack_hit:
+        # Hook: When player attack hits
+        # Available context: { player, target, damage, isCrit }
+        effects: []
+      on_attacked:
+        # Hook: When player is attacked by enemy
+        # Available context: { player, attacker, roll, damage, isCrit }
+        effects: []
+        # Example:
+        # - type: counter_attack
+        #   condition: "!isCrit"
+        #   damageBonus: 2
+      on_hidden_break:
+        # Hook: When hidden state breaks (move or revealed)
+        # Available context: { player, reason, revealedBy }
+        effects: []
+      on_damage_taken:
+        # Hook: When player takes damage
+        # Available context: { player, damage, source, remaining_hp }
+        effects: []
+      on_ability_use:
+        # Hook: When any ability is used
+        # Available context: { actor, abilityId, resourcesUsed }
+        effects: []
+
+    
+  cunningAction_dash:
+    name: "Cunning Action: Dash"
+    type: bonusAction
+    resourceCost:
+      bonusAction: 1
+    range: self
+    description: "Dash as a bonus action (Cunning Action)."
+    requiresClass: Rogue
+    requiresLevel: 2
+    
+  cunningAction_disengage:
+    name: "Cunning Action: Disengage"
+    type: bonusAction
+    resourceCost:
+      bonusAction: 1
+    range: self
+    description: "Disengage as a bonus action (Cunning Action)."
+    requiresClass: Rogue
+    requiresLevel: 2
+    
+  cunningAction_hide:
+    name: "Cunning Action: Hide"
+    type: bonusAction
+    resourceCost:
+      bonusAction: 1
+    range: self
+    description: "Hide as a bonus action (Cunning Action)."
+    requiresClass: Rogue
+    requiresLevel: 2
+    
+  # ── Fighter Abilities ──
+  secondWind:
+    name: "Second Wind"
+    type: bonusAction
+    resourceCost:
+      bonusAction: 1
+    range: self
+    description: "Regain 1d10 + level HP."
+    requiresClass: Fighter
+    usesPerRest: 1
+    
+  actionSurge:
+    name: "Action Surge"
+    type: action
+    resourceCost:
+      action: 1
+    range: self
+    description: "Take an extra action this turn."
+    requiresClass: Fighter
+    requiresLevel: 2
+    usesPerRest: 1
+    
+  # ── Combat Actions ──
+  flee:
+    name: "Flee"
+    type: action
+    resourceCost:
+      action: 1
+      movement: 6  # Requires movement budget
+    range: self
+    description: "Attempt to escape combat."
+
+# Resource definitions
+resources:
+  action:
+    label: "Action"
+    perTurn: 1
+    description: "Major action (Attack, Cast Spell, Hide, Dash, etc.)"
+    
+  bonusAction:
+    label: "Bonus Action"
+    perTurn: 1
+    description: "Minor action (Cunning Action, Second Wind, object interaction)"
+    
+  movement:
+    label: "Movement"
+    perTurn: variable  # playerMovePerTurn in rules
+    unit: tiles
+    description: "Distance you can move"
+    
+  reaction:
+    label: "Reaction"
+    perTurn: 1
+    description: "Immediate response to outside event (once per round)"

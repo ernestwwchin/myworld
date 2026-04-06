@@ -1,0 +1,16 @@
+# Test: Skill Checks
+# Empty room — test runner exercises dnd.skillCheck() directly.
+
+name: "Test: Skill Checks"
+floor: T5
+globalLight: bright
+
+grid:
+  - "#####"
+  - "#...#"
+  - "#...#"
+  - "#...#"
+  - "#####"
+
+playerStart: { x: 2, y: 2 }
+encounters: []

@@ -1,0 +1,51 @@
+# B1F — Goblin Warren
+# Floor: Basement 1st Floor
+# Loaded preferentially by modloader when activeMap: gw_b1f
+
+name: "B1F — Goblin Warren"
+floor: B1F
+globalLight: dim
+
+lights:
+  - { x: 3, y: 3, radius: 4, level: bright }
+  - { x: 9, y: 13, radius: 4, level: bright }
+  - { x: 17, y: 6, radius: 5, level: dim }
+  - { x: 12, y: 4, radius: 3, level: dim }
+  - { x: 5, y: 9, radius: 3, level: dim }
+  - { x: 15, y: 11, radius: 3, level: dim }
+
+grid:
+  - "####################"
+  - "#......#...........#"
+  - "#......#...GG......#"
+  - "#....C.D..GGGG.....#"
+  - "#......#.GG~~GG....#"
+  - "#......#.G~~~~G....#"
+  - "##########D#######D#"
+  - "#..................#"
+  - "#...###.......###..#"
+  - "#...#.........#....#"
+  - "#...#.........#....#"
+  - "#...###.......###..#"
+  - "#..................#"
+  - "#.........S........#"
+  - "#..................#"
+  - "####################"
+
+playerStart: { x: 2, y: 2 }
+
+interactables:
+  - { id: door_main, kind: door, x: 10, y: 6, behavior: timed, auto: true, closeDelayMs: 1600 }
+  - { id: door_exit, kind: door, x: 18, y: 6, behavior: locked, locked: true, keyId: gw_key_01 }
+  - { id: torch_3_3, kind: torch, x: 3, y: 3, tags: [light, decor], state: { lit: true } }
+  - { id: machine_15_11, kind: machine, x: 15, y: 11, tags: [interactive], state: { power: 0 } }
+  - { id: trap_12_5, kind: floor_trap, x: 12, y: 5, tags: [trap], state: { armed: true, damage: '1d6' } }
+  - { id: chest_4_3, kind: chest, x: 4, y: 3, tags: [loot], state: { opened: false, lootTable: 'starter_common' } }
+
+encounters:
+  - { creature: goblin,   x: 8,  y: 2,  facing: 180, group: goblins }
+  - { creature: goblin,   x: 14, y: 3,  facing: 90,  group: goblins }
+  - { creature: skeleton, x: 7,  y: 9,  facing: 0,   group: skeletons }
+  - { creature: skeleton, x: 16, y: 10, facing: 180, group: skeletons }
+  - { creature: skeleton, x: 11, y: 12, facing: 270, group: skeletons }
+  - { creature: orc,      x: 10, y: 13, facing: 270, group: ~ }

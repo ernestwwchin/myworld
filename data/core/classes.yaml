@@ -1,0 +1,95 @@
+# Class definitions.
+# Each class has features per level, hit die, saving throws, etc.
+
+classes:
+  fighter:
+    name: Fighter
+    hitDie: 10
+    savingThrows: [str, con]
+    skillProficiencyCount: 2
+    skillProficiencyChoices:
+      - acrobatics
+      - animalHandling
+      - athletics
+      - history
+      - insight
+      - intimidation
+      - perception
+      - survival
+
+    features:
+      1:
+        - "Second Wind (1d10+level HP)"
+        - "Fighting Style: Dueling (+2 dmg)"
+      2:
+        - "Action Surge (extra action)"
+      3:
+        - "Champion Archetype"
+      4:
+        - "Ability Score Improvement"
+      5:
+        - "Extra Attack (2 per turn)"
+      6:
+        - "Ability Score Improvement"
+      7:
+        - "Remarkable Athlete"
+      8:
+        - "Ability Score Improvement"
+      9:
+        - "Indomitable"
+      10:
+        - "Additional Fighting Style"
+      11:
+        - "Extra Attack (3 per turn)"
+      12:
+        - "Ability Score Improvement"
+
+  rogue:
+    name: Rogue
+    hitDie: 8
+    savingThrows: [dex, int]
+    skillProficiencyCount: 4
+    skillProficiencyChoices:
+      - acrobatics
+      - athletics
+      - deception
+      - insight
+      - intimidation
+      - investigation
+      - perception
+      - performance
+      - persuasion
+      - sleightOfHand
+      - stealth
+      - survival
+
+    expertiseSkills:
+      - stealth
+      - sleightOfHand
+
+    features:
+      1:
+        - "Expertise (master 2 skills)"
+        - "Sneak Attack (1d6 bonus dmg)"
+      2:
+        - "Cunning Action (bonus move)"
+      3:
+        - "Roguish Archetype"
+      4:
+        - "Ability Score Improvement"
+      5:
+        - "Uncanny Dodge (reaction)"
+      6:
+        - "Expertise (master 2 more skills)"
+      7:
+        - "Evasion (dodge half dmg)"
+      8:
+        - "Ability Score Improvement"
+      9:
+        - "Roguish Archetype Feature"
+      10:
+        - "Ability Score Improvement"
+      11:
+        - "Reliable Talent (minimize failures)"
+      12:
+        - "Ability Score Improvement"

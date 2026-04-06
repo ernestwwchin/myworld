@@ -1,0 +1,18 @@
+# Test: Melee Attack
+# Player starts adjacent to a weak goblin (1 HP override via test runner).
+# Attack should kill it in one hit and grant XP.
+
+name: "Test: Melee Attack"
+floor: T3
+globalLight: bright
+
+grid:
+  - "#####"
+  - "#...#"
+  - "#...#"
+  - "#...#"
+  - "#####"
+
+playerStart: { x: 1, y: 2 }
+encounters:
+  - { creature: goblin, x: 2, y: 2, facing: 180, group: ~ }

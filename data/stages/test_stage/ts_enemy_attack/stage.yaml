@@ -1,0 +1,20 @@
+# Test: Enemy Attack
+# Player surrounded — enemies get turns to attack.
+# Verify enemy AI movement + attack logic.
+
+name: "Test: Enemy Attack"
+floor: T4
+globalLight: bright
+
+grid:
+  - "#######"
+  - "#.....#"
+  - "#.....#"
+  - "#.....#"
+  - "#.....#"
+  - "#.....#"
+  - "#######"
+
+playerStart: { x: 3, y: 3 }
+encounters:
+  - { creature: skeleton, x: 5, y: 3, facing: 180, group: ~ }

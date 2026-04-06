@@ -1,0 +1,37 @@
+# Status Definitions — BG3-style configurable trigger effects
+# Each status can define trigger timing and on-trigger logic.
+
+statusRules:
+  exploreTickMs: 1000
+  defaultPoisonDamageDice: "1d4"
+  sleepWakeDc: 12
+
+statuses:
+  poisoned:
+    id: poisoned
+    label: Poisoned
+    trigger: turn_end
+    duration: 3
+    onTrigger:
+      damageDice: "1d4"
+      damageColor: 0x8bc34a
+
+  sleep:
+    id: sleep
+    label: Sleep
+    trigger: turn_start
+    duration: 2
+    onTrigger:
+      skipTurn: true
+      removeOnSave:
+        stat: wis
+        dc: 12
+
+  burning:
+    id: burning
+    label: Burning
+    trigger: turn_start
+    duration: 2
+    onTrigger:
+      damageDice: "1d6"
+      damageColor: 0xff7043
