@@ -10,7 +10,7 @@
     ROWS = MAP.length;
     COLS = MAP[0].length;
   } catch (e) {
-    console.warn('[ModLoader] Failed, using built-in defaults:', e);
+    console.error('[ModLoader] Failed, using built-in defaults:', e.message || e, e.stack || '');
   }
 
   const GAME_W = COLS * S;
@@ -23,7 +23,7 @@
     backgroundColor: '#0a0a0f',
     parent: 'gc',
     scene: GameScene,
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.NO_CENTER },
     input: { activePointers: 2 },
     render: { pixelArt: true, antialias: false },
   });
@@ -33,15 +33,20 @@
     const canvas = document.querySelector('#gc canvas');
     const overlay = document.getElementById('ui-overlay');
     if (!canvas || !overlay) return;
-    const rect = canvas.getBoundingClientRect();
     const gc = document.getElementById('gc');
+    if (!gc) return;
     const gcRect = gc.getBoundingClientRect();
-    overlay.style.width = rect.width + 'px';
-    overlay.style.height = rect.height + 'px';
-    overlay.style.left = (rect.left - gcRect.left) + 'px';
-    overlay.style.top = (rect.top - gcRect.top) + 'px';
+    overlay.style.width = gcRect.width + 'px';
+    overlay.style.height = gcRect.height + 'px';
+    overlay.style.left = '0px';
+    overlay.style.top = '0px';
   }
+  window.syncUIOverlay = syncUIOverlay;
   window.addEventListener('resize', syncUIOverlay);
   game.scale.on('resize', () => setTimeout(syncUIOverlay, 50));
   setTimeout(syncUIOverlay, 100);
+
+  // Initialize UI modules
+  CombatLog.init();
+  CombatLog.log('Explore the dungeon!', 'system');
 })();

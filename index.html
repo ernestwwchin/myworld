@@ -6,19 +6,171 @@
 <title>RPG</title>
 <style>
 /* ═══════════════════════════════════════════════════════
-   style.css — All UI styles
+   style.css — BG3-Style UI Layout
 ═══════════════════════════════════════════════════════ */
 
-
 *{margin:0;padding:0;box-sizing:border-box;}
-body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Courier New',monospace;display:flex;align-items:center;justify-content:center;}
-#gc{position:relative;width:100vw;height:100vh;}
+body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Courier New',monospace;display:flex;flex-direction:column;}
+
+/* ── Top-Level Layout ── */
+#game-wrapper{display:flex;flex-direction:column;flex:1;min-height:0;height:100vh;}
+#game-top{display:flex;flex:1;min-height:0;}
+#game-area{flex:1;position:relative;min-width:0;display:flex;flex-direction:column;overflow:hidden;}
+#gc{position:relative;flex:1;min-height:0;overflow:hidden;}
 #gc canvas{display:block;}
-/* UI wrapper — overlays constrained to game area */
+/* UI wrapper — overlays constrained to canvas area */
 #ui-overlay{position:absolute;top:0;left:0;pointer-events:none;z-index:5;overflow:hidden;}
 #ui-overlay > *{pointer-events:auto;}
 
-#hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:10px 16px;background:linear-gradient(to bottom,rgba(0,0,0,0.88),transparent);pointer-events:none;z-index:10;}
+/* ── Side Panel ── */
+#side-panel{width:280px;min-width:280px;background:rgba(8,8,18,0.98);border-left:1px solid rgba(192,150,50,0.25);display:flex;flex-direction:column;overflow:hidden;transition:width 0.3s,min-width 0.3s;z-index:20;font-size:14px;color:#f0e6c8;}
+#side-panel.collapsed{width:0;min-width:0;overflow:hidden;border:none;}
+.panel-collapsed #side-panel{width:0;min-width:0;overflow:hidden;border:none;}
+
+/* Side Panel Fixed Header */
+.sp-header{padding:12px 14px;border-bottom:1px solid rgba(192,150,50,0.2);flex-shrink:0;}
+.sp-portrait-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.sp-portrait{width:52px;height:52px;background:rgba(41,128,185,0.2);border:2px solid rgba(41,128,185,0.4);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:28px;}
+.sp-name-block{flex:1;}
+#sp-name{color:#f0c060;font-size:14px;letter-spacing:2px;}
+#sp-class{color:#7fc8f8;font-size:11px;margin-top:2px;}
+.sp-vital-row{display:flex;align-items:center;gap:10px;margin-top:4px;}
+.sp-hp-wrap{flex:1;height:12px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;}
+#sp-hp-bar{height:100%;width:100%;background:linear-gradient(90deg,#c0392b,#e74c3c);border-radius:4px;transition:width 0.4s;}
+#sp-hp-text{color:#f0e6c8;font-size:11px;min-width:60px;text-align:right;}
+.sp-stat-row{display:flex;gap:12px;margin-top:6px;font-size:13px;color:#aaa;}
+#sp-ac{color:#f0c060;}
+#sp-prof{color:#7fc8f8;}
+#sp-asi-badge{display:none;color:#e74c3c;font-size:10px;cursor:pointer;}
+
+/* Tab Bar */
+.sp-tabs{display:flex;border-bottom:1px solid rgba(192,150,50,0.2);flex-shrink:0;}
+.sp-tab{flex:1;padding:8px 4px;text-align:center;font-size:12px;letter-spacing:2px;color:#7a7a7a;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;}
+.sp-tab:hover{color:#c9a84c;}
+.sp-tab.active{color:#f0c060;border-bottom-color:#f0c060;}
+
+/* Tab Content */
+.sp-body{flex:1;overflow-y:auto;padding:10px 14px;}
+.sp-tab-content{display:none;}
+
+/* ── Bottom Panel (Hotbar + Combat Log) ── */
+#bottom-panel{display:flex;border-top:1px solid rgba(192,150,50,0.2);background:rgba(6,6,14,0.98);height:240px;max-height:240px;flex-shrink:0;overflow:hidden;}
+
+/* Hotbar Container (left+center of bottom) */
+#hotbar-container{flex:1 1 50%;display:flex;flex-direction:column;padding:4px 6px 2px;min-width:0;overflow:hidden;position:relative;}
+
+/* ── Resource Pips Row (top of hotbar) ── */
+#res-pips{display:flex;gap:10px;align-items:center;padding:2px 4px 4px;flex-shrink:0;min-height:22px;opacity:0;transition:opacity 0.3s;}
+#res-pips.show{opacity:1;}
+.rp-group{display:flex;align-items:center;gap:4px;}
+.rp-label{font-size:9px;color:#777;letter-spacing:1px;text-transform:uppercase;margin-right:2px;}
+.rp-pip{width:8px;height:8px;border-radius:50%;border:1.5px solid;transition:all 0.2s;}
+.rp-pip.act{border-color:#a5d6a7;background:#a5d6a7;box-shadow:0 0 4px rgba(165,214,167,0.5);}
+.rp-pip.act.spent{background:rgba(165,214,167,0.12);border-color:rgba(165,214,167,0.35);box-shadow:none;}
+.rp-pip.bonus{border-color:#ce93d8;background:#ce93d8;box-shadow:0 0 4px rgba(206,147,216,0.5);}
+.rp-pip.bonus.spent{background:rgba(206,147,216,0.12);border-color:rgba(206,147,216,0.35);box-shadow:none;}
+.rp-pip.mv{border-color:#64b5f6;background:#64b5f6;box-shadow:0 0 3px rgba(100,181,246,0.4);}
+.rp-pip.mv.spent{background:rgba(100,181,246,0.12);border-color:rgba(100,181,246,0.35);box-shadow:none;}
+.rp-count{font-size:9px;color:#999;margin-left:1px;font-variant-numeric:tabular-nums;}
+.rp-sep{width:1px;height:14px;background:rgba(255,255,255,0.1);margin:0 2px;}
+.rp-charge{width:11px;height:11px;border-radius:2px;border:1.5px solid #f0a030;background:#f0a030;box-shadow:0 0 4px rgba(240,160,48,0.4);transition:all 0.2s;}
+.rp-charge.spent{background:transparent;box-shadow:none;}
+
+/* ── Hotbar Grid (center) ── */
+#hotbar-grid{display:flex;flex-direction:column;gap:2px;flex:1;min-height:0;}
+.hb-row{display:flex;gap:4px;}
+.hb-slot{width:58px;height:56px;border-radius:5px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-left:3px solid rgba(255,255,255,0.1);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;transition:all 0.15s;flex-shrink:0;}
+.hb-slot:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2);}
+.hb-slot.selected{border-color:rgba(240,192,96,0.8)!important;box-shadow:0 0 8px rgba(240,192,96,0.4);}
+.hb-slot.used{opacity:0.3;pointer-events:none;}
+.hb-slot.empty{border-style:dashed;border-left:3px dashed rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.06);}
+.hb-slot.empty .hb-icon{color:rgba(255,255,255,0.12);font-size:20px;}
+.hb-slot.move-from{border-color:#64b5f6!important;box-shadow:0 0 6px rgba(100,181,246,0.4);}
+/* Type color borders */
+.hb-slot.t-action{border-left-color:#999;}
+.hb-slot.t-action:hover{border-left-color:#bbb;}
+.hb-slot.t-class{border-left-color:#f0a030;}
+.hb-slot.t-class:hover{border-left-color:#f5c040;}
+.hb-slot.t-spell{border-left-color:#64b5f6;}
+.hb-slot.t-spell:hover{border-left-color:#90caf9;}
+.hb-slot.t-cantrip{border-left-color:#66bb6a;}
+.hb-slot.t-cantrip:hover{border-left-color:#81c784;}
+.hb-slot.t-bonus{border-left-color:#ce93d8;}
+.hb-slot.t-bonus:hover{border-left-color:#e1bee7;}
+.hb-slot.t-item{border-left-color:#4dd0e1;}
+.hb-slot.t-item:hover{border-left-color:#80deea;}
+.hb-icon{font-size:24px;line-height:1;}
+.hb-name{font-size:9px;color:#aaa;letter-spacing:0.3px;line-height:1;margin-top:2px;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hb-cost{display:none;}
+.hb-key{position:absolute;bottom:2px;right:4px;font-size:8px;color:rgba(255,255,255,0.22);}
+
+/* ── Category Tabs (below grid) ── */
+#hotbar-tabs{display:flex;gap:0;flex-shrink:0;border-top:1px solid rgba(255,255,255,0.06);}
+.hb-cat-tab{flex:1;padding:4px 2px;text-align:center;font-size:10px;letter-spacing:1px;color:#555;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;}
+.hb-cat-tab:hover{color:#c9a84c;}
+.hb-cat-tab.active{color:#f0c060;border-bottom-color:#f0c060;}
+
+/* ── Command Strip (right edge of hotbar, vertical) ── */
+#cmd-strip{display:flex;flex-direction:column;gap:3px;padding:2px 3px;border-left:1px solid rgba(255,255,255,0.06);flex-shrink:0;width:52px;overflow:hidden;justify-content:flex-start;}
+.cmd-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 2px;border-radius:4px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);cursor:pointer;transition:all 0.15s;min-height:38px;}
+.cmd-btn:hover{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.25);}
+.cmd-btn .cmd-icon{font-size:18px;line-height:1;}
+.cmd-btn .cmd-label{font-size:7px;color:#777;letter-spacing:0.5px;margin-top:2px;text-align:center;}
+.cmd-btn.end-turn{border-color:rgba(231,76,60,0.3);}
+.cmd-btn.end-turn:hover{background:rgba(231,76,60,0.15);border-color:rgba(231,76,60,0.5);}
+.cmd-btn.end-turn .cmd-label{color:#e74c3c;}
+.cmd-btn.hidden{display:none;}
+/* System tray separator */
+.cmd-sep{width:100%;height:1px;background:rgba(255,255,255,0.06);margin:2px 0;}
+.cmd-btn.sys{opacity:0.6;min-height:32px;}
+.cmd-btn.sys:hover{opacity:1;}
+.cmd-btn.sys.active{opacity:1;border-color:rgba(100,181,246,0.5);background:rgba(100,181,246,0.1);}
+.cmd-btn.sys.active .cmd-label{color:#64b5f6;}
+
+/* Hotbar Description Panel */
+#hotbar-desc{display:none;position:absolute;bottom:100%;left:10px;z-index:40;background:rgba(10,10,22,0.98);border:1px solid rgba(192,150,50,0.5);border-radius:6px;padding:12px 14px;min-width:240px;max-width:320px;font-size:12px;color:#f0e6c8;pointer-events:all;}
+.hbd-header{color:#f0c060;font-size:14px;letter-spacing:1px;margin-bottom:6px;}
+.hbd-meta{color:#7fc8f8;font-size:11px;margin-bottom:2px;}
+.hbd-desc{color:#bbb;font-size:11px;margin-top:6px;line-height:1.4;}
+.hbd-actions{display:flex;gap:6px;margin-top:10px;}
+.hbd-btn{padding:4px 10px;border-radius:3px;font-size:10px;cursor:pointer;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.05);color:#aaa;font-family:'Courier New',monospace;}
+.hbd-btn:hover{background:rgba(255,255,255,0.1);color:#f0e6c8;}
+.hbd-btn-danger{border-color:rgba(231,76,60,0.3);color:#e74c3c;}
+.hbd-btn-danger:hover{background:rgba(231,76,60,0.15);}
+
+/* Combat Log (right side of bottom) */
+#combat-log{flex:0 0 50%;max-width:60%;min-width:20%;border-left:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;overflow:hidden;position:relative;}
+#combat-log-resize{position:absolute;top:0;left:0;width:5px;height:100%;cursor:col-resize;z-index:5;background:transparent;}
+#combat-log-resize:hover,#combat-log-resize.active{background:rgba(192,150,50,0.3);}
+#combat-log.collapsed{width:auto;min-width:0;}
+#combat-log.collapsed #combat-log-body{display:none;}
+#combat-log.collapsed #combat-log-filters{display:none;}
+#combat-log-header{padding:4px 10px;font-size:10px;letter-spacing:2px;color:#7a7a7a;border-bottom:none;flex-shrink:0;user-select:none;display:flex;align-items:center;justify-content:space-between;}
+#combat-log-header:hover{color:#c9a84c;}
+#cl-collapse-btn{cursor:pointer;}
+#combat-log-filters{display:flex;gap:2px;padding:2px 6px 4px;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.05);}
+.cl-filter{padding:2px 8px;font-size:9px;letter-spacing:1px;color:#666;background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:3px;cursor:pointer;font-family:'Courier New',monospace;transition:all 0.15s;}
+.cl-filter:hover{color:#aaa;border-color:rgba(255,255,255,0.2);}
+.cl-filter.active{color:#f0c060;border-color:rgba(240,192,96,0.4);background:rgba(240,192,96,0.08);}
+#combat-log-body{flex:1;overflow-y:auto;padding:6px 12px;font-size:13px;line-height:1.5;}
+.cl-line{padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.03);}
+.cl-roll{padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.06);}
+.cl-roll-main{font-size:13px;font-weight:bold;}
+.cl-roll-detail{font-size:11px;color:#888;margin-top:1px;letter-spacing:0.3px;}
+.cl-roll-result{font-size:12px;font-weight:bold;margin-top:1px;}
+.cl-sep{height:1px;background:rgba(192,150,50,0.15);margin:4px 0;}
+#combat-log-body.filter-combat .cl-line:not([data-cat="combat"]),
+#combat-log-body.filter-combat .cl-roll:not([data-cat="combat"]),
+#combat-log-body.filter-combat .cl-sep{display:none;}
+#combat-log-body.filter-dialog .cl-line:not([data-cat="dialog"]),
+#combat-log-body.filter-dialog .cl-roll:not([data-cat="dialog"]),
+#combat-log-body.filter-dialog .cl-sep{display:none;}
+#combat-log-body.filter-system .cl-line:not([data-cat="system"]),
+#combat-log-body.filter-system .cl-roll:not([data-cat="system"]),
+#combat-log-body.filter-system .cl-sep{display:none;}
+
+/* ── Canvas HUD Overlays ── */
+#hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:8px 12px;background:linear-gradient(to bottom,rgba(0,0,0,0.88),transparent);pointer-events:none;z-index:10;}
 #hud-left{display:flex;flex-direction:column;gap:3px;}
 .hl{color:#c9a84c;font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:0.7;}
 .hv{color:#f0e6c8;font-size:16px;letter-spacing:1px;}
@@ -36,7 +188,8 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 #mode-badge.realtime{background:rgba(46,204,113,0.12);border:1px solid rgba(46,204,113,0.4);color:#2ecc71;}
 #mode-badge.turnbased{background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.5);color:#e74c3c;}
 
-#init-bar{position:absolute;top:50%;right:8px;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;z-index:10;opacity:0;transition:opacity 0.4s;}
+/* Initiative bar — horizontal at top of canvas */
+#init-bar{position:absolute;top:0;left:50%;transform:translateX(-50%);display:flex;flex-direction:row;gap:6px;align-items:center;pointer-events:none;z-index:10;opacity:0;transition:opacity 0.4s;padding:6px 12px;background:rgba(0,0,0,0.7);border-radius:0 0 8px 8px;}
 #init-bar.show{opacity:1;}
 .ip{width:48px;height:48px;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;letter-spacing:1px;gap:2px;border:2px solid transparent;transition:all 0.3s;}
 .ip.active{border-color:#f0c060;box-shadow:0 0 10px rgba(240,192,96,0.6);transform:scale(1.15);}
@@ -44,93 +197,15 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 .ip.ep{background:rgba(180,30,30,0.4);color:#f08080;}
 .ip-icon{font-size:22px;line-height:1;}
 
-/* Resource bar */
-/* ── Compact combat bar — single row at bottom ── */
-#res-bar{
-  position:absolute;bottom:42px;left:50%;transform:translateX(-50%);
-  display:flex;gap:8px;align-items:center;
-  opacity:0;pointer-events:none;z-index:10;transition:opacity 0.3s;
-  background:rgba(0,0,0,0.82);border:1px solid rgba(255,255,255,0.12);
-  border-radius:12px;padding:4px 12px;
-}
-#res-bar.show{opacity:1;}
-.res-item{display:flex;align-items:center;gap:4px;}
-.res-icon{font-size:15px;line-height:1;}
-.res-val{font-size:12px;letter-spacing:1px;font-family:'Courier New',monospace;}
-.res-val.ok{color:#64b5f6;}
-.res-val.spent{color:#546e7a;}
-.res-val.aok{color:#a5d6a7;}
-.res-val.aused{color:#546e7a;}
-.res-sep{width:1px;height:16px;background:rgba(255,255,255,0.15);}
+/* ── Legacy action bar (hidden, kept for compat) ── */
+#action-bar{display:none!important;}
+#explore-bar{display:none!important;}
+/* ── Status bar (hidden, replaced by combat log) ── */
+#status-bar{display:none!important;}
 
-/* Action bar — compact horizontal */
-#action-bar{
-  position:absolute;bottom:82px;left:50%;transform:translateX(-50%);
-  display:flex;gap:5px;
-  opacity:0;pointer-events:none;z-index:10;transition:opacity 0.3s;
-}
-#action-bar.show{opacity:1;pointer-events:all;}
-.ab{
-  padding:8px 14px;border-radius:4px;font-size:11px;letter-spacing:1px;
-  font-family:'Courier New',monospace;cursor:pointer;border:none;
-  transition:all 0.2s;text-transform:uppercase;
-  display:flex;flex-direction:column;align-items:center;gap:2px;
-  min-width:64px;
-}
-.ab-cost{font-size:9px;opacity:0.55;letter-spacing:0px;}
-.ab:active{transform:scale(0.95);}
-#btn-atk{background:rgba(192,57,43,0.85);color:#f0e6c8;border:1px solid rgba(231,76,60,0.5);}
-#btn-atk:hover{background:rgba(231,76,60,0.95);}
-#btn-atk.used{opacity:0.3;pointer-events:none;}
-#btn-dash{background:rgba(41,128,185,0.8);color:#f0e6c8;border:1px solid rgba(52,152,219,0.4);}
-#btn-dash:hover{background:rgba(52,152,219,0.95);}
-#btn-dash.used{opacity:0.3;pointer-events:none;}
-#btn-flee{background:rgba(46,204,113,0.75);color:#f0e6c8;border:1px solid rgba(46,204,113,0.45);}
-#btn-flee:hover{background:rgba(46,204,113,0.95);}
-#btn-flee.used{opacity:0.3;pointer-events:none;}
-#btn-hide{background:rgba(52,152,219,0.75);color:#f0e6c8;border:1px solid rgba(52,152,219,0.45);}
-#btn-hide:hover{background:rgba(52,152,219,0.95);}
-#btn-hide.used{opacity:0.3;pointer-events:none;}
-#btn-sleep{background:rgba(123,104,238,0.78);color:#f0e6c8;border:1px solid rgba(123,104,238,0.45);}
-#btn-sleep:hover{background:rgba(147,112,219,0.95);}
-#btn-sleep.used{opacity:0.3;pointer-events:none;}
-#btn-rmove{background:rgba(80,60,130,0.8);color:#f0e6c8;border:1px solid rgba(120,100,180,0.4);}
-#btn-rmove:hover{background:rgba(120,100,180,0.95);}
-#btn-end{background:rgba(52,73,94,0.85);color:#aaa;border:1px solid rgba(127,140,141,0.3);}
-#btn-end:hover{background:rgba(74,96,119,0.95);color:#f0e6c8;}
-.ab.selected{box-shadow:0 0 8px currentColor;transform:scale(1.05);}
-
-/* Explore hotbar — persistent bottom bar (BG3-style) */
-#explore-bar{
-  position:absolute;bottom:42px;left:50%;transform:translateX(-50%);
-  display:flex;gap:5px;
-  opacity:1;pointer-events:all;z-index:10;transition:opacity 0.3s;
-}
-#explore-bar.hidden{opacity:0;pointer-events:none;}
-.eb{
-  padding:8px 14px;border-radius:4px;font-size:11px;letter-spacing:1px;
-  font-family:'Courier New',monospace;cursor:pointer;border:none;
-  display:flex;flex-direction:column;align-items:center;gap:2px;
-  min-width:64px;transition:all 0.2s;
-}
-.eb-hint{font-size:9px;opacity:0.45;letter-spacing:0px;}
-.eb:active{transform:scale(0.95);}
-#btn-explore-hide{background:rgba(52,152,219,0.75);color:#f0e6c8;border:1px solid rgba(52,152,219,0.45);}
-#btn-explore-hide:hover{background:rgba(52,152,219,0.95);}
-#btn-explore-hide.active{background:rgba(52,152,219,0.95);box-shadow:0 0 8px rgba(52,152,219,0.7);}
-#btn-explore-sight{background:rgba(127,140,141,0.5);color:#b7c6cc;border:1px solid rgba(127,140,141,0.35);}
-#btn-explore-sight:hover{background:rgba(127,140,141,0.7);}
-#btn-explore-sight.off{background:rgba(70,70,70,0.35);border-color:rgba(90,90,90,0.35);color:#7f8c8d;}
-#btn-explore-tb{background:rgba(127,140,141,0.5);color:#b7c6cc;border:1px solid rgba(127,140,141,0.35);}
-#btn-explore-tb:hover{background:rgba(127,140,141,0.7);}
-#btn-explore-tb.off{background:rgba(70,70,70,0.35);border-color:rgba(90,90,90,0.35);color:#7f8c8d;}
-#btn-explore-stats{background:rgba(192,150,50,0.35);color:#c9a84c;border:1px solid rgba(192,150,50,0.35);}
-#btn-explore-stats:hover{background:rgba(192,150,50,0.55);}
-
-#status-bar{position:absolute;bottom:0;left:0;right:0;padding:4px 16px;text-align:center;background:rgba(0,0,0,0.7);color:#7a9e7e;font-size:12px;letter-spacing:1px;pointer-events:none;z-index:10;height:38px;display:flex;align-items:center;justify-content:center;}
 #vignette{position:absolute;inset:0;pointer-events:none;z-index:8;box-shadow:inset 0 0 0px rgba(231,76,60,0);transition:box-shadow 0.4s;}
-#enemy-stat-popup{display:none;position:absolute;z-index:30;background:rgba(10,10,20,0.97);border:1px solid rgba(231,76,60,0.5);border-radius:8px;padding:14px 16px;font-family:'Courier New',monospace;font-size:12px;color:#f0e6c8;min-width:200px;pointer-events:all;}
-#esp-name{color:#e74c3c;letter-spacing:2px;font-size:14px;margin-bottom:8px;}
+#enemy-stat-popup{display:none;position:absolute;z-index:30;background:rgba(10,10,20,0.97);border:1px solid rgba(231,76,60,0.5);border-radius:8px;padding:16px 18px;font-family:'Courier New',monospace;font-size:13px;color:#f0e6c8;min-width:240px;max-width:320px;pointer-events:all;box-shadow:0 4px 20px rgba(0,0,0,0.6);}
+#esp-name{color:#e74c3c;letter-spacing:2px;font-size:16px;margin-bottom:10px;font-weight:bold;}
 #vignette.combat{box-shadow:inset 0 0 80px rgba(231,76,60,0.35);}
 
 /* Dice overlay */
@@ -186,21 +261,19 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 .dice-label{font-family:'Courier New',monospace;font-size:8px;letter-spacing:2px;color:rgba(255,255,255,0.35);text-transform:uppercase;position:absolute;top:-14px;left:50%;transform:translateX(-50%);white-space:nowrap;}
 .dice-group-wrap{position:relative;display:flex;align-items:center;gap:8px;}
 
-/* Stats panel */
-/* Old top-right utility buttons — hidden, replaced by explore hotbar */
+/* Stats panel — now inside side panel tab, no longer sliding overlay */
 #stats-btn,#sight-btn,#tb-btn{display:none!important;}
-#stats-panel{position:absolute;top:0;right:0;width:260px;height:100%;background:rgba(8,8,18,0.98);border-left:1px solid rgba(192,150,50,0.3);z-index:20;padding:14px;overflow-y:auto;transform:translateX(100%);transition:transform 0.3s;font-size:11px;color:#f0e6c8;}
-#stats-panel.open{transform:translateX(0);}
-.sr{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.06);}
-.sn{color:#c9a84c;letter-spacing:1px;}
-.sv{color:#f0e6c8;}
-.sm{color:#7fc8f8;font-size:10px;}
-.ss{color:#c9a84c;letter-spacing:2px;font-size:10px;margin:10px 0 4px;border-bottom:1px solid rgba(192,150,50,0.3);padding-bottom:3px;}
-.xw{width:100%;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-top:4px;}
-.xb{height:100%;background:#9b59b6;border-radius:2px;transition:width 0.5s;}
-/* Skill rows */
-.sk-row .sn{font-size:10px;}
-.sk-row .sv{color:#7fc8f8;min-width:28px;text-align:right;}
+#stats-panel{display:none!important;}
+.sr{display:flex;align-items:baseline;gap:6px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;}
+.sn{color:#c9a84c;letter-spacing:1px;flex:1;}
+.sv{color:#f0e6c8;min-width:30px;text-align:right;}
+.sm{color:#7fc8f8;font-size:11px;min-width:30px;text-align:right;}
+.ss{color:#c9a84c;letter-spacing:2px;font-size:11px;margin:12px 0 5px;border-bottom:1px solid rgba(192,150,50,0.3);padding-bottom:4px;}
+.xw{width:100%;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:4px;}
+.xb{height:100%;background:#9b59b6;border-radius:3px;transition:width 0.5s;}
+.sk-row .sn{font-size:12px;}
+.sk-row .sv{color:#7fc8f8;min-width:32px;text-align:right;font-size:13px;}
+.sk-row .sm{font-size:10px;min-width:32px;text-align:right;}
 
 /* ASI panel */
 #asi-panel{display:none;position:absolute;inset:0;background:rgba(0,0,0,0.85);z-index:60;align-items:center;justify-content:center;}
@@ -208,86 +281,208 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 </style>
 </head>
 <body>
-<div id="gc">
-<div id="ui-overlay">
-<div id="hud">
-  <div id="hud-left">
-    <span class="hl">Adventurer</span>
-    <div id="hp-wrap"><div id="hp-bar"></div></div>
-    <span class="hl">HP <span id="hp-text" style="color:#f0e6c8">12/12</span></span>
-  </div>
-  <div id="hud-right">
-    <span class="hl">Floor</span><span class="hv">B1F</span>
-    <span class="hl" style="margin-top:4px">Pos</span><span class="hv" id="pos-text">—</span>
-  </div>
-</div>
-<div id="mode-badge" class="realtime">EXPLORE</div>
-<div id="mode-banner"><div id="mode-banner-text"></div></div>
-<div id="init-bar"></div>
-<div id="res-bar">
-  <div class="res-item"><div class="res-icon">🦶</div><div class="res-val ok" id="mv-val">6</div></div>
-  <div class="res-sep"></div>
-  <div class="res-item"><div class="res-icon">⚔️</div><div class="res-val aok" id="ac-val">ACT</div></div>
-</div>
-<div id="explore-bar">
-  <button class="eb" id="btn-explore-hide"><span>🕶 Hide</span><span class="eb-hint">Stealth</span></button>
-  <button class="eb" id="btn-explore-sight"><span>👁 Sight</span><span class="eb-hint">Toggle</span></button>
-  <button class="eb" id="btn-explore-tb"><span>⏱ TB</span><span class="eb-hint">Mode</span></button>
-  <button class="eb" id="btn-explore-stats"><span>📊 Stats</span><span class="eb-hint">View</span></button>
-</div>
-<div id="action-bar">
-  <button class="ab" id="btn-atk"><span>⚔ Attack</span><span class="ab-cost">1 Action</span></button>
-  <button class="ab" id="btn-dash"><span>💨 Dash</span><span class="ab-cost">1 Action</span></button>
-  <button class="ab" id="btn-sleep"><span>🌫 Sleep</span><span class="ab-cost">1 Action</span></button>
-  <button class="ab" id="btn-hide"><span>🕶 Hide</span><span class="ab-cost">1 Action</span></button>
-  <button class="ab" id="btn-flee"><span>🏳 Flee</span><span class="ab-cost">1 Action</span></button>
-  <button class="ab" id="btn-rmove"><span>↺ Reset</span><span class="ab-cost">Undo move</span></button>
-  <button class="ab" id="btn-end"><span>⏳ End</span><span class="ab-cost">Pass</span></button>
-</div>
-<button id="stats-btn" onclick="toggleStats()">📊 STATS</button>
-<button id="sight-btn" onclick="toggleEnemySight()">👁 SIGHT ON</button>
-<button id="tb-btn" class="off" onclick="toggleExploreTurnBased()">⏱ TB OFF</button>
-<div id="stats-panel"></div>
-<div id="asi-panel">
-  <div style="background:#0e0e1a;border:1px solid rgba(240,192,96,0.5);border-radius:8px;padding:20px;max-width:300px;width:90%;font-family:'Courier New',monospace;">
-    <div id="asi-title" style="color:#f0c060;letter-spacing:2px;font-size:12px;margin-bottom:12px;text-align:center"></div>
-    <div style="color:#aaa;font-size:10px;text-align:center;margin-bottom:14px">Choose 2 stats to increase by +1</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-      <button onclick="selectASI('str')" id="asi-str" style="padding:8px;background:rgba(192,150,50,0.1);border:1px solid rgba(192,150,50,0.3);color:#f0e6c8;font-family:'Courier New',monospace;font-size:11px;border-radius:4px;cursor:pointer">STR</button>
-      <button onclick="selectASI('dex')" id="asi-dex" style="padding:8px;background:rgba(192,150,50,0.1);border:1px solid rgba(192,150,50,0.3);color:#f0e6c8;font-family:'Courier New',monospace;font-size:11px;border-radius:4px;cursor:pointer">DEX</button>
-      <button onclick="selectASI('con')" id="asi-con" style="padding:8px;background:rgba(192,150,50,0.1);border:1px solid rgba(192,150,50,0.3);color:#f0e6c8;font-family:'Courier New',monospace;font-size:11px;border-radius:4px;cursor:pointer">CON</button>
-      <button onclick="selectASI('int')" id="asi-int" style="padding:8px;background:rgba(192,150,50,0.1);border:1px solid rgba(192,150,50,0.3);color:#f0e6c8;font-family:'Courier New',monospace;font-size:11px;border-radius:4px;cursor:pointer">INT</button>
-      <button onclick="selectASI('wis')" id="asi-wis" style="padding:8px;background:rgba(192,150,50,0.1);border:1px solid rgba(192,150,50,0.3);color:#f0e6c8;font-family:'Courier New',monospace;font-size:11px;border-radius:4px;cursor:pointer">WIS</button>
-      <button onclick="selectASI('cha')" id="asi-cha" style="padding:8px;background:rgba(192,150,50,0.1);border:1px solid rgba(192,150,50,0.3);color:#f0e6c8;font-family:'Courier New',monospace;font-size:11px;border-radius:4px;cursor:pointer">CHA</button>
+<div id="game-wrapper">
+<div id="game-top">
+  <!-- ═══ Game Canvas Area ═══ -->
+  <div id="game-area">
+    <div id="gc">
+      <div id="ui-overlay">
+        <div id="hud">
+          <div id="hud-left">
+            <span class="hl">Adventurer</span>
+            <div id="hp-wrap"><div id="hp-bar"></div></div>
+            <span class="hl">HP <span id="hp-text" style="color:#f0e6c8">12/12</span></span>
+          </div>
+          <div id="hud-right">
+            <span class="hl">Floor</span><span class="hv">B1F</span>
+            <span class="hl" style="margin-top:4px">Pos</span><span class="hv" id="pos-text">—</span>
+          </div>
+        </div>
+        <div id="mode-badge" class="realtime">EXPLORE</div>
+        <div id="mode-banner"><div id="mode-banner-text"></div></div>
+        <div id="init-bar"></div>
+
+        <!-- Legacy elements (hidden, kept for JS compat) -->
+        <div id="action-bar">
+          <button class="ab" id="btn-atk"><span>⚔ Attack</span></button>
+          <button class="ab" id="btn-dash"><span>💨 Dash</span></button>
+          <button class="ab" id="btn-sleep"><span>🌫 Sleep</span></button>
+          <button class="ab" id="btn-hide"><span>🕶 Hide</span></button>
+          <button class="ab" id="btn-flee"><span>🏳 Flee</span></button>
+          <button class="ab" id="btn-rmove"><span>↺ Reset</span></button>
+          <button class="ab" id="btn-end"><span>⏳ End</span></button>
+        </div>
+        <div id="explore-bar">
+          <button class="eb" id="btn-explore-hide"><span>🕶 Hide</span></button>
+          <button class="eb" id="btn-explore-sight"><span>👁 Sight</span></button>
+          <button class="eb" id="btn-explore-tb"><span>⏱ TB</span></button>
+          <button class="eb" id="btn-explore-stats"><span>📊 Stats</span></button>
+        </div>
+
+        <button id="stats-btn" onclick="toggleStats()">📊 STATS</button>
+        <button id="sight-btn" onclick="toggleEnemySight()">👁 SIGHT ON</button>
+        <button id="tb-btn" class="off" onclick="toggleExploreTurnBased()">⏱ TB OFF</button>
+        <div id="stats-panel"></div>
+        <div id="asi-panel">
+          <div style="background:#0e0e1a;border:1px solid rgba(240,192,96,0.5);border-radius:8px;padding:20px;max-width:300px;width:90%;font-family:'Courier New',monospace;">
+            <div id="asi-title" style="color:#f0c060;letter-spacing:2px;font-size:12px;margin-bottom:12px;text-align:center"></div>
+            <div style="color:#aaa;font-size:10px;text-align:center;margin-bottom:14px">Choose 2 stats to increase by +1</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+              <button onclick="selectASI('str')" id="asi-str" style="padding:8px;background:rgba(192,150,50,0.1);border:1px solid rgba(192,150,50,0.3);color:#f0e6c8;font-family:'Courier New',monospace;font-size:11px;border-radius:4px;cursor:pointer">STR</button>
+              <button onclick="selectASI('dex')" id="asi-dex" style="padding:8px;background:rgba(192,150,50,0.1);border:1px solid rgba(192,150,50,0.3);color:#f0e6c8;font-family:'Courier New',monospace;font-size:11px;border-radius:4px;cursor:pointer">DEX</button>
+              <button onclick="selectASI('con')" id="asi-con" style="padding:8px;background:rgba(192,150,50,0.1);border:1px solid rgba(192,150,50,0.3);color:#f0e6c8;font-family:'Courier New',monospace;font-size:11px;border-radius:4px;cursor:pointer">CON</button>
+              <button onclick="selectASI('int')" id="asi-int" style="padding:8px;background:rgba(192,150,50,0.1);border:1px solid rgba(192,150,50,0.3);color:#f0e6c8;font-family:'Courier New',monospace;font-size:11px;border-radius:4px;cursor:pointer">INT</button>
+              <button onclick="selectASI('wis')" id="asi-wis" style="padding:8px;background:rgba(192,150,50,0.1);border:1px solid rgba(192,150,50,0.3);color:#f0e6c8;font-family:'Courier New',monospace;font-size:11px;border-radius:4px;cursor:pointer">WIS</button>
+              <button onclick="selectASI('cha')" id="asi-cha" style="padding:8px;background:rgba(192,150,50,0.1);border:1px solid rgba(192,150,50,0.3);color:#f0e6c8;font-family:'Courier New',monospace;font-size:11px;border-radius:4px;cursor:pointer">CHA</button>
+            </div>
+            <div style="margin-top:10px;color:#555;font-size:9px;text-align:center" id="asi-sel-lbl">Select 2 stats</div>
+            <button id="asi-confirm" onclick="confirmASI()" disabled style="margin-top:12px;width:100%;padding:8px;background:rgba(46,204,113,0.2);border:1px solid rgba(46,204,113,0.4);color:#2ecc71;font-family:'Courier New',monospace;font-size:11px;border-radius:4px;cursor:pointer;opacity:0.4">CONFIRM</button>
+          </div>
+        </div>
+        <div id="dice-ov" onclick="handleDiceClick()">
+          <div id="dice-stage"></div>
+          <div id="dice-rl"></div>
+          <div id="dice-dl"></div>
+          <div id="dice-out"></div>
+          <div id="dice-cont" class="show">TAP TO CONTINUE</div>
+        </div>
+        <div id="enemy-stat-popup">
+          <div id="esp-name"></div>
+          <div id="esp-stats"></div>
+        </div>
+        <div id="context-menu" style="display:none;position:fixed;z-index:31;background:rgba(10,10,20,0.98);border:1px solid rgba(200,180,100,0.6);border-radius:6px;padding:6px;font-family:'Courier New',monospace;font-size:13px;pointer-events:all;min-width:160px;box-shadow:0 4px 16px rgba(0,0,0,0.6);">
+        </div>
+        <div id="dev-console" style="display:none;">
+          <div id="dev-log"></div>
+          <div style="display:flex;border-top:1px solid #222;">
+            <span style="color:#0f0;padding:4px 6px;">❯</span>
+            <input id="dev-input" type="text" placeholder="playerMove(1,0) | help()">
+          </div>
+        </div>
+        <!-- Hidden status bar for backward compat -->
+        <div id="status-bar" style="display:none;">Explore the dungeon!</div>
+        <div id="vignette"></div>
+      </div><!-- /ui-overlay -->
+    </div><!-- /gc -->
+  </div><!-- /game-area -->
+
+  <!-- ═══ Side Panel ═══ -->
+  <div id="side-panel">
+    <div class="sp-header">
+      <div class="sp-portrait-row">
+        <div class="sp-portrait">🧝</div>
+        <div class="sp-name-block">
+          <div id="sp-name">Adventurer</div>
+          <div id="sp-class">Fighter Lv 1</div>
+        </div>
+      </div>
+      <div class="sp-vital-row">
+        <div class="sp-hp-wrap"><div id="sp-hp-bar"></div></div>
+        <span id="sp-hp-text">12/12</span>
+      </div>
+      <div class="sp-stat-row">
+        <span id="sp-ac">AC 16</span>
+        <span>·</span>
+        <span id="sp-prof">Prof +2</span>
+        <span id="sp-asi-badge">🔴 ASI!</span>
+      </div>
     </div>
-    <div style="margin-top:10px;color:#555;font-size:9px;text-align:center" id="asi-sel-lbl">Select 2 stats</div>
-    <button id="asi-confirm" onclick="confirmASI()" disabled style="margin-top:12px;width:100%;padding:8px;background:rgba(46,204,113,0.2);border:1px solid rgba(46,204,113,0.4);color:#2ecc71;font-family:'Courier New',monospace;font-size:11px;border-radius:4px;cursor:pointer;opacity:0.4">CONFIRM</button>
+    <div class="sp-tabs">
+      <div class="sp-tab active" id="tab-character">C</div>
+      <div class="sp-tab" id="tab-inventory">I</div>
+      <div class="sp-tab" id="tab-abilities">K</div>
+      <div class="sp-tab" id="tab-journal">J</div>
+    </div>
+    <div class="sp-body">
+      <div class="sp-tab-content" id="tab-content-character" style="display:block;"></div>
+      <div class="sp-tab-content" id="tab-content-inventory"><div style="color:#666;text-align:center;margin-top:20px">Phase 2</div></div>
+      <div class="sp-tab-content" id="tab-content-abilities"><div style="color:#666;text-align:center;margin-top:20px">Phase 2</div></div>
+      <div class="sp-tab-content" id="tab-content-journal"><div style="color:#666;text-align:center;margin-top:20px">Phase 4</div></div>
+    </div>
   </div>
-</div>
-<div id="dice-ov" onclick="handleDiceClick()">
-  <div id="dice-stage"></div>
-  <div id="dice-rl"></div>
-  <div id="dice-dl"></div>
-  <div id="dice-out"></div>
-  <div id="dice-cont" class="show">TAP TO CONTINUE</div>
-</div>
-<div id="enemy-stat-popup">
-  <div id="esp-name"></div>
-  <div id="esp-stats"></div>
-</div>
-<div id="context-menu" style="display:none;position:absolute;z-index:31;background:rgba(10,10,20,0.98);border:1px solid rgba(200,180,100,0.6);border-radius:4px;padding:4px;font-family:'Courier New',monospace;font-size:10px;pointer-events:all;min-width:140px;">
-</div>
-<div id="dev-console" style="display:none;">
-  <div id="dev-log"></div>
-  <div style="display:flex;border-top:1px solid #222;">
-    <span style="color:#0f0;padding:4px 6px;">❯</span>
-    <input id="dev-input" type="text" placeholder="playerMove(1,0) | help()">
+</div><!-- /game-top -->
+
+<!-- ═══ Bottom Panel: Hotbar + Combat Log (full width) ═══ -->
+<div id="bottom-panel">
+  <div id="hotbar-container">
+    <div id="res-pips">
+      <div class="rp-group" id="rp-action"><span class="rp-label">ACT</span></div>
+      <div class="rp-group" id="rp-bonus"><span class="rp-label">BA</span></div>
+      <div class="rp-sep"></div>
+      <div class="rp-group" id="rp-move"><span class="rp-label">MOV</span></div>
+      <div class="rp-sep"></div>
+      <div class="rp-group" id="rp-charges"><span class="rp-label">CLASS</span></div>
+    </div>
+    <div id="hotbar-grid"></div>
+    <div id="hotbar-tabs">
+      <div class="hb-cat-tab active" data-cat="common">Common</div>
+      <div class="hb-cat-tab" data-cat="class">Class</div>
+      <div class="hb-cat-tab" data-cat="items">Items</div>
+      <div class="hb-cat-tab" data-cat="passives">Passives</div>
+    </div>
+    <div id="hotbar-desc"></div>
   </div>
-</div>
-<div id="status-bar">Explore the dungeon!</div>
-<div id="vignette"></div>
-</div><!-- /ui-overlay -->
-</div><!-- /gc -->
+  <div id="cmd-strip">
+    <div class="cmd-btn end-turn hidden" id="cmd-end" onclick="Hotbar._cmd('end_turn')"><div class="cmd-icon">⏳</div><div class="cmd-label">END</div></div>
+    <div class="cmd-btn hidden" id="cmd-flee" onclick="Hotbar._cmd('flee')"><div class="cmd-icon">🏳</div><div class="cmd-label">FLEE</div></div>
+    <div class="cmd-btn hidden" id="cmd-reset" onclick="Hotbar._cmd('reset_move')"><div class="cmd-icon">↺</div><div class="cmd-label">RESET</div></div>
+    <div class="cmd-sep"></div>
+    <div class="cmd-btn sys" id="cmd-tb" onclick="Hotbar._cmd('toggle_tb')"><div class="cmd-icon">⏱</div><div class="cmd-label">TB</div></div>
+    <div class="cmd-btn sys" onclick="toggleStats()"><div class="cmd-icon">📊</div><div class="cmd-label">STATS</div></div>
+    <div class="cmd-btn sys" onclick="Hotbar._cmd('quest_log')"><div class="cmd-icon">📜</div><div class="cmd-label">LOG</div></div>
+    <div class="cmd-btn sys" onclick="Hotbar._cmd('settings')"><div class="cmd-icon">⚙</div><div class="cmd-label">SET</div></div>
+  </div>
+  <div id="combat-log">
+    <div id="combat-log-resize"></div>
+    <div id="combat-log-header">
+      <span id="cl-collapse-btn">LOG</span>
+    </div>
+    <div id="combat-log-filters">
+      <div class="cl-filter active" data-filter="all">ALL</div>
+      <div class="cl-filter" data-filter="combat">COMBAT</div>
+      <div class="cl-filter" data-filter="dialog">DIALOG</div>
+      <div class="cl-filter" data-filter="system">SYSTEM</div>
+    </div>
+    <div id="combat-log-body"></div>
+  </div>
+</div><!-- /bottom-panel -->
+</div><!-- /game-wrapper -->
+<script>
+(function(){
+  // ── Console Log Forwarder ──
+  // Intercepts all console output and POSTs to server for remote debugging.
+  var _origLog=console.log, _origWarn=console.warn, _origError=console.error, _origInfo=console.info;
+  var _logQueue=[], _flushTimer=null, _flushMs=300, _maxBatch=50;
+  function _enqueue(level, args){
+    var parts=[];
+    for(var i=0;i<args.length;i++){
+      try{ parts.push(typeof args[i]==='object'?JSON.stringify(args[i]):String(args[i])); }
+      catch(e){ parts.push('[unserializable]'); }
+    }
+    _logQueue.push({t:Date.now(),l:level,m:parts.join(' ')});
+    if(_logQueue.length>=_maxBatch) _flush();
+    else if(!_flushTimer) _flushTimer=setTimeout(_flush,_flushMs);
+  }
+  function _flush(){
+    _flushTimer=null;
+    if(!_logQueue.length) return;
+    var batch=_logQueue.splice(0,_maxBatch);
+    fetch('/_debug/console',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({logs:batch})}).catch(function(){});
+  }
+  console.log=function(){_origLog.apply(console,arguments);_enqueue('log',arguments);};
+  console.warn=function(){_origWarn.apply(console,arguments);_enqueue('warn',arguments);};
+  console.error=function(){_origError.apply(console,arguments);_enqueue('error',arguments);};
+  console.info=function(){_origInfo.apply(console,arguments);_enqueue('info',arguments);};
+
+  // ── Global error handlers ──
+  window.onerror=function(m,s,l,c,e){
+    _enqueue('error','[JSERR] '+m+' at '+s+':'+l+':'+c+(e&&e.stack?'\n'+e.stack:''));
+  };
+  window.addEventListener('unhandledrejection',function(ev){
+    _enqueue('error','[UnhandledRejection] '+String(ev.reason)+(ev.reason&&ev.reason.stack?'\n'+ev.reason.stack:''));
+  });
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
 <!-- Game scripts — load order matters -->
@@ -296,6 +491,9 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 <script src="js/utils/common.js"></script>
 <script src="js/sprites.js"></script>
 <script src="js/ui/templates.js"></script>
+<script src="js/ui/combat-log.js"></script>
+<script src="js/ui/side-panel.js"></script>
+<script src="js/ui/hotbar.js"></script>
 <script src="js/systems/flags.js"></script>
 <script src="js/modloader.js"></script>
 <script src="js/systems/event-runner.js"></script>
@@ -324,5 +522,30 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 <script src="js/ui/action-buttons.js"></script>
 <script src="js/ui/core-ui.js"></script>
 <script src="js/main.js"></script>
+<script>
+// Combat log resize handle
+(function(){
+  const handle=document.getElementById('combat-log-resize');
+  const log=document.getElementById('combat-log');
+  const panel=document.getElementById('bottom-panel');
+  if(!handle||!log||!panel) return;
+  let dragging=false;
+  handle.addEventListener('mousedown',function(e){
+    e.preventDefault(); dragging=true; handle.classList.add('active');
+    document.body.style.cursor='col-resize'; document.body.style.userSelect='none';
+  });
+  document.addEventListener('mousemove',function(e){
+    if(!dragging) return;
+    const rect=panel.getBoundingClientRect();
+    const w=Math.max(100,Math.min(rect.right-e.clientX,rect.width*0.6));
+    log.style.flex='none'; log.style.width=w+'px';
+  });
+  document.addEventListener('mouseup',function(){
+    if(!dragging) return;
+    dragging=false; handle.classList.remove('active');
+    document.body.style.cursor=''; document.body.style.userSelect='';
+  });
+})();
+</script>
 </body>
 </html>

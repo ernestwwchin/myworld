@@ -4,6 +4,8 @@
 // ═══════════════════════════════════════════════════════
 
 const GameSceneInputSystem = {
+  _ctxMenuOpenedAt: 0,
+
   hideContextMenu(){
     const menu=document.getElementById('context-menu');
     if(menu) menu.style.display='none';
@@ -15,29 +17,36 @@ const GameSceneInputSystem = {
     menu.innerHTML='';
     for(const opt of options){
       const item=document.createElement('div');
-      item.style.cssText='padding:6px 10px;cursor:pointer;color:#c9a84c;transition:all 0.15s;';
+      item.style.cssText='padding:8px 12px;cursor:pointer;color:#c9a84c;transition:all 0.15s;border-radius:3px;';
       item.textContent=opt.label;
       item.onmouseenter=()=>item.style.backgroundColor='rgba(200,180,100,0.15)';
       item.onmouseleave=()=>item.style.backgroundColor='';
-      item.onclick=()=>{ this.hideContextMenu(); opt.action(); };
+      item.onclick=(e)=>{ e.stopPropagation(); this.hideContextMenu(); opt.action(); };
       menu.appendChild(item);
     }
-    menu.style.left=x+'px';
-    menu.style.top=y+'px';
-    menu.style.display='block';
+    // Clamp to viewport
+    menu.style.left='0px'; menu.style.top='0px'; menu.style.display='block';
+    const mw=menu.offsetWidth, mh=menu.offsetHeight;
+    const vw=window.innerWidth, vh=window.innerHeight;
+    const cx=Math.min(x, vw - mw - 4), cy=Math.min(y, vh - mh - 4);
+    menu.style.left=Math.max(0,cx)+'px';
+    menu.style.top=Math.max(0,cy)+'px';
+    this._ctxMenuOpenedAt=Date.now();
   },
 
   initInputHandlers(){
     document.addEventListener('click', (e) => {
       const menu=document.getElementById('context-menu');
       if(menu && menu.style.display==='block' && !menu.contains(e.target)){
+        // Ignore clicks within 300ms of opening (same click that triggered the menu)
+        if(Date.now()-this._ctxMenuOpenedAt<300) return;
         this.hideContextMenu();
       }
     }, { passive: true });
   },
 
   onTap(ptr){
-    // Dismiss popups on tap (don't block — just close and continue)
+    // Dismiss popups on tap — context menu blocks, enemy popup just closes
     const ctx=document.getElementById('context-menu');
     if(ctx?.style.display==='block'){ ctx.style.display='none'; return; }
     const esp=document.getElementById('enemy-stat-popup');

@@ -20,17 +20,51 @@ class GameScene extends Phaser.Scene {
     return this.mode===MODE.EXPLORE||this.mode===MODE.EXPLORE_TB;
   }
 
+  /** Assign unique displayName to each enemy; appends A/B/C when multiples of same type exist */
+  _assignEnemyDisplayNames(){
+    const counts={};
+    for(const e of this.enemies) counts[e.type]=(counts[e.type]||0)+1;
+    const indices={};
+    const LETTERS='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for(const e of this.enemies){
+      if(e.name){
+        // Explicit name from data (encounter or creature template)
+        e.displayName=e.name;
+      } else {
+        const cap=e.type.charAt(0).toUpperCase()+e.type.slice(1);
+        if(counts[e.type]>1){
+          const idx=indices[e.type]=(indices[e.type]||0);
+          e.displayName=`${cap} ${LETTERS[idx]||idx+1}`;
+          indices[e.type]=idx+1;
+        } else {
+          e.displayName=cap;
+        }
+      }
+      if(e.lbl) e.lbl.setText(e.displayName.toUpperCase());
+    }
+  }
+
+  // Damage type → floating text color
+  static DMG_COLORS = {
+    slashing:'#ffffff', piercing:'#e0e0e0', bludgeoning:'#d0d0d0',
+    fire:'#ff6b35', cold:'#64d8cb', lightning:'#f0e060',
+    thunder:'#b388ff', poison:'#66bb6a', acid:'#c6ff00',
+    necrotic:'#ce93d8', radiant:'#fff59d', psychic:'#f48fb1',
+    force:'#90caf9',
+  };
+  dmgColor(type){ return GameScene.DMG_COLORS[type]||'#ffdd57'; }
+
   fmtSigned(n){
     const v=Number(n)||0;
     return v>=0?`+${v}`:`${v}`;
   }
 
-  formatRollLine(roll,mod,total,ac,modSource=''){
-    const label=modSource||this.fmtSigned(mod);
-    return `d20[${roll}] + ${label} = ${total} vs AC${ac}`;
+  formatRollLine(roll,mod,total,ac){
+    const m=Number(mod)||0;
+    return `d20(${roll}) ${m>=0?'+ '+m:'- '+Math.abs(m)} = ${total} | AC ${ac}`;
   }
 
-  formatDamageBreakdown(str,modSource=''){
+  formatDamageBreakdown(str){
     const s=String(str||'');
     const m=s.match(/^(.*?)([+-]\d+)?\[([^\]]*)\]=(-?\d+)$/);
     if(!m) return s;
@@ -38,8 +72,8 @@ class GameScene extends Phaser.Scene {
     const bonus=m[2]||'';
     const rolls=m[3]||'';
     const total=m[4]||'';
-    const bonusText=bonus&&modSource?`${modSource}(${bonus})`:bonus;
-    return `${dice}[${rolls}] + ${bonusText} = ${total}`;
+    const fmtBonus = bonus ? bonus.replace(/^\+/, '+ ').replace(/^-/, '- ') : '';
+    return fmtBonus ? `${dice}(${rolls}) ${fmtBonus} = ${total}` : `${dice}(${rolls}) = ${total}`;
   }
 
   isWallTile(x,y){
@@ -117,7 +151,7 @@ class GameScene extends Phaser.Scene {
       const img=this.add.sprite(def.tx*S+S/2,def.ty*S+S/2,`spr_${def.type}_idle`).setDisplaySize(S,S).setDepth(9).setInteractive();
       const hpBg=this.add.rectangle(def.tx*S+S/2,def.ty*S-4,S-8,5,0x1a1a2e).setDepth(11);
       const hpFg=this.add.rectangle(def.tx*S+S/2,def.ty*S-4,S-8,5,0xe74c3c).setDepth(12);
-      const lbl=this.add.text(def.tx*S+S/2,def.ty*S+S/2+S*0.52,def.type.toUpperCase(),{fontSize:'7px',fill:'#aaaacc',letterSpacing:1}).setOrigin(0.5).setDepth(12).setAlpha(0.7);
+      const lbl=this.add.text(def.tx*S+S/2,def.ty*S+S/2+S*0.52,'',{fontSize:'7px',fill:'#aaaacc',letterSpacing:1}).setOrigin(0.5).setDepth(12).setAlpha(0.7);
       const sightRing=this.add.circle(def.tx*S+S/2,def.ty*S+S/2,def.sight*S,0xe74c3c,0).setDepth(2).setStrokeStyle(1,0xe74c3c,0.08).setAlpha(0);
       const fa=this.add.triangle(def.tx*S+S/2,def.ty*S+S/2,0,-8,12,0,0,8,0xf0c060,0.7).setDepth(13);
       fa.setRotation(def.facing*Math.PI/180);
@@ -127,6 +161,8 @@ class GameScene extends Phaser.Scene {
       img.on('pointerdown',()=>this.onTapEnemy(enemy));
       return enemy;
     });
+    // Assign unique displayName (e.g. "Goblin A", "Goblin B") when duplicates exist
+    this._assignEnemyDisplayNames();
 
     // player
     this.player=this.add.sprite(this.playerTile.x*S+S/2,this.playerTile.y*S+S/2,'spr_player_idle').setDisplaySize(S,S).setDepth(10);
@@ -195,6 +231,10 @@ class GameScene extends Phaser.Scene {
 
     this.ui = new GameUIController(this);
 
+    // Initialize new UI modules
+    if (typeof SidePanel !== 'undefined') SidePanel.init(this);
+    if (typeof Hotbar !== 'undefined') Hotbar.init(this);
+
     // Initialize debug logger for AI analysis
     this.initDebugLogger();
     this.initDebugBridge();
@@ -208,7 +248,6 @@ class GameScene extends Phaser.Scene {
     this.updateFogOfWar();
     this.time.addEvent({delay:1200,loop:true,callback:()=>{ if(this.mode===MODE.EXPLORE) this.wanderEnemies(); }});
     this.startExploreStatusTicker();
-    this.showStatus('Explore — enemies will spot you from their facing direction!');
 
     // Init event system (YAML-driven events + dialogs)
     if (typeof EventRunner !== 'undefined') {
@@ -217,6 +256,8 @@ class GameScene extends Phaser.Scene {
     if (typeof DialogRunner !== 'undefined') {
       DialogRunner.init(this, ModLoader._modData?._stageDialogs || {});
     }
+
+    console.log(`[GameScene] create() complete — mode:${this.mode} map:${COLS}x${ROWS} enemies:${this.enemies.length} player:(${this.playerTile.x},${this.playerTile.y})`);
   }
 
   playActorIdle(sprite,type){
@@ -425,18 +466,22 @@ class GameScene extends Phaser.Scene {
 
   syncExploreBar(){
     const bar = document.getElementById('explore-bar');
-    if (!bar) return;
-    const show = this.isExploreMode();
-    bar.classList.toggle('hidden', !show);
-    // Hide button glow when hidden
-    const hideBtn = document.getElementById('btn-explore-hide');
-    if (hideBtn) hideBtn.classList.toggle('active', !!this.playerHidden);
-    // Sight toggle state
-    const sightBtn = document.getElementById('btn-explore-sight');
-    if (sightBtn) sightBtn.classList.toggle('off', !this.enemySightEnabled);
-    // TB toggle state
-    const tbBtn = document.getElementById('btn-explore-tb');
-    if (tbBtn) tbBtn.classList.toggle('off', this.mode !== MODE.EXPLORE_TB);
+    if (bar) {
+      const show = this.isExploreMode();
+      bar.classList.toggle('hidden', !show);
+      const hideBtn = document.getElementById('btn-explore-hide');
+      if (hideBtn) hideBtn.classList.toggle('active', !!this.playerHidden);
+      const sightBtn = document.getElementById('btn-explore-sight');
+      if (sightBtn) sightBtn.classList.toggle('off', !this.enemySightEnabled);
+      const tbBtn = document.getElementById('btn-explore-tb');
+      if (tbBtn) tbBtn.classList.toggle('off', this.mode !== MODE.EXPLORE_TB);
+    }
+    // Sync hotbar expand/collapse with mode
+    if (typeof Hotbar !== 'undefined') {
+      Hotbar.setExpanded(this.mode === MODE.COMBAT);
+      Hotbar.syncCommandStrip();
+      Hotbar.updateResourcePips();
+    }
   }
 
   // tryHideAction — implemented in ability-system.js
@@ -445,14 +490,24 @@ class GameScene extends Phaser.Scene {
 
   onTapEnemy(enemy){
     if(!enemy.alive) return;
-    if(this.isExploreMode()){
-      const pop=document.getElementById('enemy-stat-popup');
-      if(this._statPopupEnemy===enemy&&pop&&pop.style.display!=='none'){
-        pop.style.display='none';
-        this._statPopupEnemy=null;
-        if(window._engageEnemy){ window._engageEnemy(); window._engageEnemy=null; }
-        return;
+    // Attack targeting mode: initiate combat / attack this enemy
+    if(this.pendingAction==='attack'){
+      this.clearPendingAction();
+      if(this.mode===MODE.COMBAT){
+        const dx=Math.abs(this.playerTile.x-enemy.tx), dy=Math.abs(this.playerTile.y-enemy.ty);
+        if(dx<=1&&dy<=1) this.playerAttackEnemy(enemy);
+        else if(this.playerMoves>0) this.tryMoveAndAttack(enemy);
+        else this.showStatus('No movement left to reach this enemy.');
+      } else if(this.isExploreMode()){
+        if(typeof this.tryEngageEnemyFromExplore==='function'){
+          this.tryEngageEnemyFromExplore(enemy);
+        } else {
+          this.enterCombat([enemy]);
+        }
       }
+      return;
+    }
+    if(this.isExploreMode()){
       this.showEnemyStatPopup(enemy);
       return;
     }
@@ -533,9 +588,13 @@ class GameScene extends Phaser.Scene {
     if(this.ui) return this.ui.flashBanner(text,type);
   }
 
-  spawnFloat(x,y,text,color){
-    const t=this.add.text(x,y,text,{fontSize:'15px',fill:color,stroke:'#000',strokeThickness:3,fontStyle:'bold'}).setOrigin(0.5).setDepth(30);
-    this.tweens.add({targets:t,y:y-44,alpha:0,duration:900,ease:'Power2',onComplete:()=>t.destroy()});
+  spawnFloat(x,y,text,color,delay=0){
+    const spawn=()=>{
+      const t=this.add.text(x,y,text,{fontSize:'20px',fill:color,stroke:'#000',strokeThickness:4,fontStyle:'bold'}).setOrigin(0.5).setDepth(30);
+      this.tweens.add({targets:t,y:y-50,duration:1600,ease:'Power2'});
+      this.tweens.add({targets:t,alpha:0,duration:600,delay:1000,ease:'Linear',onComplete:()=>t.destroy()});
+    };
+    if(delay>0) this.time.delayedCall(delay,spawn); else spawn();
   }
 
   showStatus(msg){ if(this.ui) return this.ui.showStatus(msg); }
