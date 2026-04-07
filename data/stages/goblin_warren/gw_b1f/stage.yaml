@@ -1,6 +1,14 @@
 # B1F — The Warren Gate
 # Floor: Basement 1st Floor — Full Goblin Base (56×36)
 # Loaded preferentially by modloader when activeMap: gw_b1f
+#
+# NOTE: This map is for layout/encounter testing only.
+# Several features defined here are NOT yet implemented in the engine:
+#   - Chest interaction & loot tables (chests render but cannot be opened)
+#   - Key item system (locked doors with keyId will not unlock)
+#   - Prisoner interactables (kind: prisoner has no interaction handler)
+#   - AI patrol paths (ai.patrolPath parsed but patrol movement unconfirmed)
+# See interactable-system.js and door-system.js for implementation status.
 
 name: "B1F — The Warren Gate"
 floor: B1F
