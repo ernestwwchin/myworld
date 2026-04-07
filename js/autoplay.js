@@ -396,6 +396,21 @@ const AutoPlay = {
   /** All available test scenario names */
   ALL_TESTS: ['movement', 'combat_entry', 'melee_attack', 'enemy_attack', 'skills', 'level_up', 'engage_flow', 'explore_turn_based', 'alert_locality', 'engage_adjacent'],
 
+  /** Try to load events.yaml for a test stage and return autoplay steps */
+  async loadEventsYaml(testName) {
+    const stageId = `ts_${testName}`;
+    const url = `data/00_core_test/stages/${stageId}/events.yaml`;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      const text = await resp.text();
+      const data = jsyaml.load(text);
+      return data?.autoplay || null;
+    } catch (_e) {
+      return null;
+    }
+  },
+
   /** Run selected tests; each reloads the page with its own map */
   async runSingle(testName) {
     this.results = [];
@@ -415,15 +430,29 @@ const AutoPlay = {
     }
     this.scene = s;
 
-    const fn = this[`test_${testName}`];
-    if (!fn) {
-      this.assert(testName, false, 'Unknown test');
-    } else {
+    // Try data-driven test first (events.yaml → EventRunner)
+    const steps = await this.loadEventsYaml(testName);
+    if (steps && steps.length > 0 && typeof EventRunner !== 'undefined') {
+      console.log(`[AutoPlay] Running ${testName} via events.yaml (${steps.length} steps)`);
+      EventRunner._scene = s;
       try {
-        await fn.call(this);
+        await EventRunner.executeSteps(steps);
       } catch (e) {
-        this.assert(`${testName}:error`, false, e.message);
+        this.assert(`${testName}:event_error`, false, e.message);
         console.error(e);
+      }
+    } else {
+      // Fallback to hardcoded test method
+      const fn = this[`test_${testName}`];
+      if (!fn) {
+        this.assert(testName, false, 'Unknown test (no events.yaml or test_ method)');
+      } else {
+        try {
+          await fn.call(this);
+        } catch (e) {
+          this.assert(`${testName}:error`, false, e.message);
+          console.error(e);
+        }
       }
     }
 

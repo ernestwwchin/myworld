@@ -49,45 +49,59 @@ How to create mods for MyWorld RPG. Covers YAML data mods, JavaScript hooks, and
 
 ```
 data/
-  mymod/
-    meta.yaml          # Required: mod metadata + file list
+  02_mymod/
+    meta.yaml          # Required: mod metadata + file list + flags
     creatures.yaml     # Optional: new/override creatures
     weapons.yaml       # Optional: new/override weapons
     abilities.yaml     # Optional: new/override abilities + hooks
     classes.yaml       # Optional: new/override classes
     statuses.yaml      # Optional: new/override status effects
     rules.yaml         # Optional: override combat/fog/light tuning
-  stages/
-    mymod_dungeon/
-      stage.yaml       # Map grid, encounters, lights, events
+    stages/
+      mymod_dungeon/
+        stage.yaml     # Map grid, encounters, lights
+        events.yaml    # Optional: triggers + scripted events
+        dialogs.yaml   # Optional: conversation trees
 ```
+
+Mod folders use two-digit numeric prefixes for load order (`00_core`, `01_goblin_invasion`, `02_mymod`).
 
 ### meta.yaml
 
 ```yaml
-id: mymod
+id: 02_mymod
 name: "My Cool Mod"
 author: "YourName"
 version: "1.0.0"
 description: "Adds new creatures and a dungeon."
-loadOrder: 10          # Higher = loads later (overrides earlier mods)
 enabled: true
+
+startMap: mymod_dungeon
 
 includes:
   - creatures.yaml
   - weapons.yaml
   - abilities.yaml
+
+stages:
+  - mymod_dungeon
+
+flags:
+  boss_defeated: { type: bool, default: false }
+  wolves_killed: { type: counter, default: 0 }
+  quest_wolf_den: { type: enum, values: [not_started, active, complete], default: not_started }
 ```
 
 ### modsettings.yaml
 
 ```yaml
-activeMap: mymod_dungeon
-
 mods:
-  - core          # Always load core first
-  - mymod         # Your mod loads after, overrides core
+  - 00_core              # Always load core first
+  - 01_goblin_invasion   # Base dungeon
+  - 02_mymod             # Your mod loads last, overrides earlier
 ```
+
+The last mod declaring `startMap` sets the opening stage.
 
 ---
 
@@ -418,6 +432,112 @@ mods:
 
 ---
 
+## Event System (YAML-Driven Scripting)
+
+Stages can have scripted events and dialog trees — no JS needed.
+
+### events.yaml (co-located with stage.yaml)
+
+```yaml
+events:
+  - id: wolf_ambush
+    trigger: { tile: { x: 5, y: 3 } }    # fire when player steps here
+    once: true                             # only fires first time
+    steps:
+      - { do: say, speaker: "???", text: "You hear growling..." }
+      - { do: spawn, creature: dire_wolf, x: 6, y: 3 }
+      - { do: setFlag, quest_wolf_den: active }
+
+  - id: boss_killed_check
+    trigger: { event: enemyKilled, if: { creature: alpha_wolf } }
+    once: true
+    steps:
+      - { do: setFlag, boss_defeated: true }
+      - { do: say, text: "The den falls silent." }
+```
+
+### Available Actions
+
+| Action | Description | Example |
+|--------|-------------|--------|
+| `move` | Pathfind player to tile | `{ do: move, x: 5, y: 5 }` |
+| `say` | Show dialogue text | `{ do: say, speaker: NPC, text: "Hello" }` |
+| `spawn` | Spawn creature | `{ do: spawn, creature: goblin, x: 4, y: 3 }` |
+| `dialog` | Start dialog tree | `{ do: dialog, id: npc_talk }` |
+| `setFlag` | Set a flag | `{ do: setFlag, quest: active }` |
+| `incrementFlag` | Increment counter | `{ do: incrementFlag, key: kills }` |
+| `openDoor` | Open door at tile | `{ do: openDoor, x: 3, y: 1 }` |
+| `lockDoor` | Close/lock door | `{ do: lockDoor, x: 3, y: 1 }` |
+| `hide` | Player hides | `{ do: hide }` |
+| `enterCombat` | Force combat | `{ do: enterCombat }` |
+| `flee` | Flee combat | `{ do: flee }` |
+| `attack` | Attack target | `{ do: attack, target: nearest }` |
+| `wait` | Wait milliseconds | `{ do: wait, ms: 1000 }` |
+| `branch` | Conditional goto | `{ do: branch, if: { hidden: true }, goto: sneak }` |
+| `goto` | Jump to label | `{ do: goto, label: end }` |
+| `triggerEvent` | Fire another event | `{ do: triggerEvent, id: wolf_ambush }` |
+| `log` | Console log | `{ do: log, text: "debug info" }` |
+| `custom` | Call named JS function | `{ do: custom, fn: myFunction }` |
+
+### Conditions
+
+```yaml
+# Simple
+if: { flag: boss_defeated }           # flag is truthy
+if: { hidden: true }                   # player hidden
+if: { mode: combat }                   # game mode
+if: { hp_below: 5 }                    # player HP < 5
+if: { enemyAlive: dire_wolf }          # creature alive
+if: { doorClosed: [3, 1] }             # door at tile
+if: { playerAt: [5, 5] }              # player position
+if: { skillCheck: { skill: stealth, dc: 14 } }
+
+# Combinators
+if: { all: [{ hidden: true }, { mode: explore }] }
+if: { any: [{ hp_below: 5 }, { flag: boss_defeated }] }
+if: { not: { flag: boss_defeated } }
+```
+
+### dialogs.yaml (conversation trees)
+
+```yaml
+dialogs:
+  npc_talk:
+    speaker: Old Man
+    text: "The wolves grow bolder each night."
+    choices:
+      - label: "I'll help."
+        next: accept_quest
+      - label: "Not my problem."
+        next: refuse
+      - label: "[Persuasion] Surely you can handle it."
+        check: { skill: persuasion, dc: 14 }
+        pass: persuade_success
+        fail: persuade_fail
+
+  accept_quest:
+    speaker: Old Man
+    text: "Thank you! The den is to the east."
+    actions:
+      - { do: setFlag, quest_wolf_den: active }
+```
+
+### Flags
+
+Declared in `meta.yaml`, read/written by events and dialogs:
+
+```yaml
+# meta.yaml
+flags:
+  boss_defeated: { type: bool, default: false }
+  wolves_killed: { type: counter, default: 0 }
+  quest_wolf_den: { type: enum, values: [not_started, active, complete], default: not_started }
+```
+
+Within a mod, use short names (`boss_defeated`). To read another mod's flag: `"01_goblin_invasion.goblin_chief_dead"`.
+
+---
+
 ## Testing Your Mod
 
 ```bash
@@ -425,8 +545,11 @@ npm start                    # Start server
 # Open http://localhost:3000  — play with your mod active
 
 npm test                     # Run automated tests
-# Open http://localhost:3000/test — browser-based tests
+# Open http://localhost:3000/test.html?test=all — browser autoplay tests
 ```
+
+Test stages go in a paired test mod (e.g., `00_core_test` for `00_core`).
+Add `events.yaml` with `autoplay:` steps to data-drive browser tests.
 
 ### Debug Mode
 
