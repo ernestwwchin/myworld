@@ -37,9 +37,11 @@ const GameSceneInputSystem = {
   },
 
   onTap(ptr){
-    // Block input if any popup is showing
-    if(document.getElementById('context-menu')?.style.display==='block') return;
-    if(document.getElementById('enemy-stat-popup')?.style.display==='block') return;
+    // Dismiss popups on tap (don't block — just close and continue)
+    const ctx=document.getElementById('context-menu');
+    if(ctx?.style.display==='block'){ ctx.style.display='none'; return; }
+    const esp=document.getElementById('enemy-stat-popup');
+    if(esp?.style.display==='block'){ esp.style.display='none'; this._statPopupEnemy=null; }
 
     if(this.diceWaiting){ this._handleDiceDismiss(); return; }
     if(this.isMoving){ this.cancelCurrentMove(); return; }
