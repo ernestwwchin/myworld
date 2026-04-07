@@ -112,6 +112,128 @@ function testExploreTurnBasedContracts() {
   assert.ok(src.includes('this._exploreTBMovesRemaining = 1;'), 'explore TB should grant bounded movement per turn');
 }
 
+// ── Mod system tests (from claude/add-claude-documentation merge) ──
+
+function testModMetaYamlContracts() {
+  // Core meta.yaml must exist and declare required includes
+  const coreMeta = loadYaml('data/core/meta.yaml');
+  assert.strictEqual(coreMeta.id, 'core', 'core meta.yaml missing id');
+  assert.ok(Array.isArray(coreMeta.includes), 'core meta.yaml missing includes array');
+  const requiredIncludes = ['rules.yaml', 'abilities.yaml', 'creatures.yaml', 'classes.yaml', 'weapons.yaml', 'statuses.yaml'];
+  for (const file of requiredIncludes) {
+    assert.ok(coreMeta.includes.includes(file), `core meta.yaml missing include: ${file}`);
+  }
+  // Core should NOT declare startMap
+  assert.ok(!coreMeta.startMap, 'core should not declare startMap');
+}
+
+function testModSettingsStructure() {
+  const settings = loadYaml('data/modsettings.yaml');
+  assert.ok(Array.isArray(settings.mods), 'modsettings.yaml must have mods array');
+  assert.ok(settings.mods.includes('core'), 'modsettings must include core');
+}
+
+function testCoreFirstDedup() {
+  // Simulate the modList logic from modloader.js
+  const settings = loadYaml('data/modsettings.yaml');
+  const modList = ['core', ...(settings.mods || []).filter(m => m !== 'core')];
+  assert.strictEqual(modList[0], 'core', 'core must be first mod in load order');
+  // No duplicates
+  assert.strictEqual(modList.filter(m => m === 'core').length, 1, 'core should not be duplicated');
+}
+
+function testGoblinInvasionMod() {
+  const meta = loadYaml('data/goblin_invasion/meta.yaml');
+  assert.strictEqual(meta.id, 'goblin_invasion');
+  assert.strictEqual(meta.startMap, 'gw_b1f', 'goblin_invasion must declare startMap');
+  assert.ok(Array.isArray(meta.stages), 'goblin_invasion must declare stages');
+  assert.ok(meta.stages.includes('gw_b1f'), 'goblin_invasion must include gw_b1f stage');
+
+  // Creatures file must have valid stat blocks
+  const creatures = loadYaml('data/goblin_invasion/creatures.yaml').creatures;
+  assert.ok(creatures.goblin_captain, 'goblin_invasion missing goblin_captain');
+  assert.ok(creatures.goblin_shaman, 'goblin_invasion missing goblin_shaman');
+  for (const [id, c] of Object.entries(creatures)) {
+    assert.ok(c.hp > 0, `${id} must have positive hp`);
+    assert.ok(c.ac > 0, `${id} must have positive ac`);
+    assert.ok(c.stats && c.stats.str, `${id} must have stats.str`);
+    assert.ok(c.attack, `${id} must have attack definition`);
+  }
+}
+
+function testStageYamlStructure() {
+  const stage = loadYaml('data/goblin_invasion/stages/gw_b1f/stage.yaml');
+  assert.ok(stage.grid, 'stage must have grid');
+  assert.ok(Array.isArray(stage.grid), 'grid must be an array');
+  assert.ok(stage.grid.length > 0, 'grid must not be empty');
+  assert.ok(stage.playerStart, 'stage must have playerStart');
+  assert.ok(typeof stage.playerStart.x === 'number', 'playerStart.x must be number');
+  assert.ok(typeof stage.playerStart.y === 'number', 'playerStart.y must be number');
+  assert.ok(Array.isArray(stage.encounters), 'stage must have encounters array');
+  // Every encounter must reference a creature and have x,y
+  for (const enc of stage.encounters) {
+    assert.ok(enc.creature, `encounter missing creature: ${JSON.stringify(enc)}`);
+    assert.ok(typeof enc.x === 'number', `encounter missing x`);
+    assert.ok(typeof enc.y === 'number', `encounter missing y`);
+  }
+}
+
+// ── Stealth system contracts ──
+
+function testStealthSystemContracts() {
+  const src = fs.readFileSync(path.join(root, 'js', 'systems', 'ability-system.js'), 'utf8');
+  assert.ok(src.includes('_breakStealth('), 'ability-system missing _breakStealth');
+  assert.ok(src.includes('_enterStealth('), 'ability-system missing _enterStealth');
+  assert.ok(src.includes('_stealthContestEnemy('), 'ability-system missing _stealthContestEnemy');
+  assert.ok(src.includes('checkStealthVsEnemies('), 'ability-system missing checkStealthVsEnemies');
+  assert.ok(src.includes('tryHideAction('), 'ability-system missing tryHideAction');
+  assert.ok(src.includes('tryHideInExplore('), 'ability-system missing tryHideInExplore');
+  // Stealth should NOT have render calls (extracted to sight-system)
+  assert.ok(!src.includes('setAlpha('), 'ability-system should not have setAlpha (render in sight-system)');
+  assert.ok(!src.includes('this.add.sprite('), 'ability-system should not create sprites (render in sight-system)');
+}
+
+function testStealthVisualsInSightSystem() {
+  const src = fs.readFileSync(path.join(root, 'js', 'systems', 'sight-system.js'), 'utf8');
+  assert.ok(src.includes('showStealthVisuals('), 'sight-system missing showStealthVisuals');
+  assert.ok(src.includes('clearStealthVisuals('), 'sight-system missing clearStealthVisuals');
+  assert.ok(src.includes('checkSight('), 'sight-system missing checkSight');
+  // checkSight should respect playerHidden
+  assert.ok(src.includes('this.playerHidden'), 'checkSight should check playerHidden');
+  assert.ok(src.includes('checkStealthVsEnemies'), 'checkSight should call checkStealthVsEnemies');
+}
+
+// ── Entity architecture contracts ──
+
+function testEntityArchitectureContracts() {
+  const entitySrc = fs.readFileSync(path.join(root, 'js', 'systems', 'entity-system.js'), 'utf8');
+  assert.ok(entitySrc.includes('_createEntitySprite('), 'entity-system missing _createEntitySprite');
+  assert.ok(entitySrc.includes('_updateEntitySprite('), 'entity-system missing _updateEntitySprite');
+  assert.ok(entitySrc.includes('_executeEntityAction('), 'entity-system missing _executeEntityAction');
+  assert.ok(entitySrc.includes('getEntitiesAt('), 'entity-system missing getEntitiesAt');
+
+  const doorSrc = fs.readFileSync(path.join(root, 'js', 'entities', 'door-entity.js'), 'utf8');
+  assert.ok(doorSrc.includes('blocksMovement('), 'door-entity missing blocksMovement');
+  assert.ok(doorSrc.includes('blocksSight('), 'door-entity missing blocksSight');
+
+  const chestSrc = fs.readFileSync(path.join(root, 'js', 'entities', 'chest-entity.js'), 'utf8');
+  assert.ok(chestSrc.includes('getTexture('), 'chest-entity missing getTexture');
+
+  const baseSrc = fs.readFileSync(path.join(root, 'js', 'entities', 'interactable-entity.js'), 'utf8');
+  assert.ok(baseSrc.includes('class InteractableEntity'), 'interactable-entity missing base class');
+  assert.ok(baseSrc.includes('interact('), 'interactable-entity missing interact method');
+}
+
+// ── Movement system contracts ──
+
+function testMovementSystemContracts() {
+  const src = fs.readFileSync(path.join(root, 'js', 'systems', 'movement-system.js'), 'utf8');
+  assert.ok(src.includes('setDestination('), 'movement-system missing setDestination');
+  assert.ok(src.includes('advancePath('), 'movement-system missing advancePath');
+  // Should NOT auto-break stealth on movement
+  assert.ok(!src.includes('playerHidden = false'), 'movement-system should not manually set playerHidden=false');
+}
+
 function testEngageAndAutoplayContracts() {
   const uiPath = path.join(root, 'js', 'ui', 'core-ui.js');
   const uiSrc = fs.readFileSync(uiPath, 'utf8');
@@ -136,6 +258,23 @@ function run() {
   testCombatInitSystemContracts();
   testExploreTurnBasedContracts();
   testEngageAndAutoplayContracts();
+
+  // Mod system tests
+  testModMetaYamlContracts();
+  testModSettingsStructure();
+  testCoreFirstDedup();
+  testGoblinInvasionMod();
+  testStageYamlStructure();
+
+  // Stealth system tests
+  testStealthSystemContracts();
+  testStealthVisualsInSightSystem();
+
+  // Entity architecture tests
+  testEntityArchitectureContracts();
+
+  // Movement system tests
+  testMovementSystemContracts();
 
   console.log('All tests passed.');
 }
