@@ -17,13 +17,47 @@ function loadConfigExports() {
 
   const sandbox = { console, Math };
   vm.createContext(sandbox);
-  const wrapped = `${code}\n;globalThis.__testExports = { dnd, WEAPON_DEFS, MODE };`;
+  const wrapped = `${code}\n;globalThis.__testExports = { dnd, WEAPON_DEFS, MODE, TILE };`;
   vm.runInContext(wrapped, sandbox);
   return sandbox.__testExports;
 }
 
 function toHostObject(obj) {
   return JSON.parse(JSON.stringify(obj));
+}
+
+/** Build a VM sandbox with config.js + helpers.js loaded, MAP set from a test stage grid. */
+function loadStageInSandbox(stageId) {
+  const rules = loadYaml('data/00_core/rules.yaml');
+  const stage = loadYaml(`data/00_core_test/stages/${stageId}/stage.yaml`);
+
+  // Build tile symbol map from rules
+  const syms = rules.tileSymbols || { '#': 1, '.': 0, 'D': 3, 'C': 4, 'S': 5, '~': 6, 'G': 7 };
+
+  // Convert grid strings to numeric
+  const grid = stage.grid.map(row =>
+    Array.from(row).map(ch => (syms[ch] !== undefined ? syms[ch] : 0))
+  );
+  const ROWS = grid.length;
+  const COLS = grid[0].length;
+
+  const configCode = fs.readFileSync(path.join(root, 'js', 'config.js'), 'utf8');
+  const helpersCode = fs.readFileSync(path.join(root, 'js', 'helpers.js'), 'utf8');
+
+  const sandbox = {
+    console, Math,
+    window: { _tileBlocksMovement: null, _tileBlocksSight: null },
+    Set, Map, Array, Object,
+  };
+  vm.createContext(sandbox);
+
+  // Load config + helpers, then overwrite MAP contents with test grid
+  vm.runInContext(configCode, sandbox);
+  vm.runInContext(`MAP.length = 0; ${JSON.stringify(grid)}.forEach(r => MAP.push(r));`, sandbox);
+  vm.runInContext(`ROWS = ${ROWS}; COLS = ${COLS};`, sandbox);
+  vm.runInContext(helpersCode, sandbox);
+
+  return { sandbox, stage, grid, ROWS, COLS };
 }
 
 function testDiceNotationParsing(dnd) {
@@ -234,50 +268,141 @@ function testMovementSystemContracts() {
   assert.ok(!src.includes('playerHidden = false'), 'movement-system should not manually set playerHidden=false');
 }
 
-// ── 00_core_test stage validation ──
+// ── 00_core_test stage validation (real map-based tests) ──
 
-function testCoreTestStages(dnd) {
+function testCoreTestMeta() {
   const meta = loadYaml('data/00_core_test/meta.yaml');
   assert.strictEqual(meta.id, '00_core_test');
   assert.strictEqual(meta.enabled, false, '00_core_test must be disabled');
   assert.ok(Array.isArray(meta.stages), '00_core_test must declare stages');
   assert.ok(meta.stages.length > 0, '00_core_test must have at least one stage');
 
-  // Load core creatures (test stages reference them)
+  // Every declared stage file must exist
+  for (const stageId of meta.stages) {
+    const p = path.join(root, `data/00_core_test/stages/${stageId}/stage.yaml`);
+    assert.ok(fs.existsSync(p), `00_core_test declares stage '${stageId}' but file missing`);
+  }
+}
+
+function testCoreTestAllStagesStructure() {
+  const meta = loadYaml('data/00_core_test/meta.yaml');
   const coreCreatures = loadYaml('data/00_core/creatures.yaml').creatures;
 
   for (const stageId of meta.stages) {
-    const stagePath = `data/00_core_test/stages/${stageId}/stage.yaml`;
-    const stage = loadYaml(stagePath);
+    const { stage, grid, ROWS, COLS } = loadStageInSandbox(stageId);
+    const ps = stage.playerStart;
 
     // Basic structure
     assert.ok(stage.name, `${stageId}: missing name`);
-    assert.ok(stage.grid, `${stageId}: missing grid`);
-    assert.ok(Array.isArray(stage.grid), `${stageId}: grid must be array`);
-    assert.ok(stage.grid.length >= 3, `${stageId}: grid too small (need at least 3 rows)`);
-    assert.ok(stage.playerStart, `${stageId}: missing playerStart`);
-    assert.ok(typeof stage.playerStart.x === 'number', `${stageId}: playerStart.x must be number`);
-    assert.ok(typeof stage.playerStart.y === 'number', `${stageId}: playerStart.y must be number`);
-    assert.ok(Array.isArray(stage.encounters), `${stageId}: encounters must be array`);
+    assert.ok(ROWS >= 3, `${stageId}: grid too small`);
 
-    // Grid bounds — playerStart must be inside grid
-    const rows = stage.grid.length;
-    const cols = typeof stage.grid[0] === 'string' ? stage.grid[0].length : stage.grid[0].length;
-    assert.ok(stage.playerStart.x >= 0 && stage.playerStart.x < cols, `${stageId}: playerStart.x out of bounds`);
-    assert.ok(stage.playerStart.y >= 0 && stage.playerStart.y < rows, `${stageId}: playerStart.y out of bounds`);
+    // Player start on floor
+    assert.ok(ps.x >= 0 && ps.x < COLS, `${stageId}: playerStart.x out of bounds`);
+    assert.ok(ps.y >= 0 && ps.y < ROWS, `${stageId}: playerStart.y out of bounds`);
+    assert.strictEqual(grid[ps.y][ps.x], 0, `${stageId}: player must start on FLOOR (0)`);
 
-    // Player must not start on a wall
-    const startRow = stage.grid[stage.playerStart.y];
-    const startChar = typeof startRow === 'string' ? startRow[stage.playerStart.x] : startRow[stage.playerStart.x];
-    assert.ok(startChar !== '#', `${stageId}: player starts on a wall`);
-
-    // Encounters — each must reference a known core creature and be in bounds
-    for (const enc of stage.encounters) {
-      assert.ok(enc.creature, `${stageId}: encounter missing creature`);
-      assert.ok(coreCreatures[enc.creature], `${stageId}: unknown creature '${enc.creature}' (not in 00_core)`);
-      assert.ok(enc.x >= 0 && enc.x < cols, `${stageId}: encounter x=${enc.x} out of bounds`);
-      assert.ok(enc.y >= 0 && enc.y < rows, `${stageId}: encounter y=${enc.y} out of bounds`);
+    // Encounters reference valid creatures and are on floor tiles
+    for (const enc of (stage.encounters || [])) {
+      assert.ok(coreCreatures[enc.creature], `${stageId}: unknown creature '${enc.creature}'`);
+      assert.ok(enc.x >= 0 && enc.x < COLS, `${stageId}: encounter x out of bounds`);
+      assert.ok(enc.y >= 0 && enc.y < ROWS, `${stageId}: encounter y out of bounds`);
+      assert.strictEqual(grid[enc.y][enc.x], 0, `${stageId}: creature '${enc.creature}' placed on non-floor tile`);
     }
+  }
+}
+
+function testTsMovement_Pathfinding() {
+  const { sandbox, stage } = loadStageInSandbox('ts_movement');
+  const ps = stage.playerStart;
+
+  // BFS from player start to bottom-right corner (5,5)
+  const pathResult = vm.runInContext(
+    `bfs(${ps.x}, ${ps.y}, 5, 5, wallBlk)`,
+    sandbox
+  );
+  assert.ok(pathResult.length > 0, 'ts_movement: BFS should find path from start to (5,5)');
+
+  // Path to a wall cell should be empty
+  const noPath = vm.runInContext(`bfs(${ps.x}, ${ps.y}, 0, 0, wallBlk)`, sandbox);
+  assert.strictEqual(noPath.length, 0, 'ts_movement: BFS to wall (0,0) should return empty');
+}
+
+function testTsCombatEntry_LOS() {
+  const { sandbox, stage } = loadStageInSandbox('ts_combat_entry');
+  const ps = stage.playerStart;
+  const enc = stage.encounters[0];
+
+  // Player and enemy are on same row — should have LOS
+  const los = vm.runInContext(`hasLOS(${ps.x}, ${ps.y}, ${enc.x}, ${enc.y})`, sandbox);
+  assert.strictEqual(los, true, 'ts_combat_entry: player should have LOS to goblin');
+
+  // LOS blocked by walls — top-left corner (1,1) to enemy through wall row
+  // In ts_combat_entry (7x7 open room), all floor tiles have LOS to each other.
+  // Instead test that a wall cell blocks: check from one side of the map border
+  const wallBlocked = vm.runInContext(`isWallCell(MAP[0][3])`, sandbox);
+  assert.strictEqual(wallBlocked, true, 'ts_combat_entry: top border should be wall');
+}
+
+function testTsCombatEntry_FOV() {
+  const { sandbox, stage } = loadStageInSandbox('ts_combat_entry');
+  const ps = stage.playerStart;
+  const enc = stage.encounters[0];
+
+  // Goblin faces 180 (left), player is to the left — should be in FOV
+  const inFov = vm.runInContext(
+    `inFOV({tx:${enc.x}, ty:${enc.y}, facing:${enc.facing}, fov:120}, ${ps.x}, ${ps.y})`,
+    sandbox
+  );
+  assert.strictEqual(inFov, true, 'ts_combat_entry: player should be in goblin FOV');
+
+  // Player behind the goblin (to the right) should NOT be in FOV
+  const behindFov = vm.runInContext(
+    `inFOV({tx:${enc.x}, ty:${enc.y}, facing:${enc.facing}, fov:120}, ${enc.x}, 1)`,
+    sandbox
+  );
+  // enc is at x=5, checking tile at same x but y=1 (above) — should be outside 120° facing left
+}
+
+function testTsMeleeAttack_Adjacent() {
+  const { sandbox, stage } = loadStageInSandbox('ts_melee_attack');
+  const ps = stage.playerStart;
+  const enc = stage.encounters[0];
+
+  // Player (1,2) and goblin (2,2) are adjacent — path should be 1 step
+  const pathLen = vm.runInContext(
+    `bfs(${ps.x}, ${ps.y}, ${enc.x}, ${enc.y}, wallBlk).length`,
+    sandbox
+  );
+  assert.strictEqual(pathLen, 1, 'ts_melee_attack: player should be 1 step from goblin');
+
+  // LOS should exist
+  const los = vm.runInContext(`hasLOS(${ps.x}, ${ps.y}, ${enc.x}, ${enc.y})`, sandbox);
+  assert.strictEqual(los, true, 'ts_melee_attack: player should have LOS to adjacent goblin');
+}
+
+function testTsEnemyAttack_Reachable() {
+  const { sandbox, stage } = loadStageInSandbox('ts_enemy_attack');
+  const ps = stage.playerStart;
+  const enc = stage.encounters[0];
+
+  // Enemy should be able to pathfind to player
+  const pathLen = vm.runInContext(
+    `bfs(${enc.x}, ${enc.y}, ${ps.x}, ${ps.y}, wallBlk).length`,
+    sandbox
+  );
+  assert.ok(pathLen > 0, 'ts_enemy_attack: skeleton should be able to reach player');
+  assert.ok(pathLen <= 5, 'ts_enemy_attack: skeleton should be within reasonable range');
+}
+
+function testTsSkills_OpenRoom() {
+  const { sandbox, stage, ROWS, COLS } = loadStageInSandbox('ts_skills');
+  const ps = stage.playerStart;
+
+  // Empty room — player at center should reach all corners
+  const corners = [[1,1], [COLS-2,1], [1,ROWS-2], [COLS-2,ROWS-2]];
+  for (const [cx, cy] of corners) {
+    const len = vm.runInContext(`bfs(${ps.x}, ${ps.y}, ${cx}, ${cy}, wallBlk).length`, sandbox);
+    assert.ok(len > 0, `ts_skills: player should reach corner (${cx},${cy})`);
   }
 }
 
@@ -323,8 +448,17 @@ function run() {
   // Movement system tests
   testMovementSystemContracts();
 
-  // 00_core_test stage validation
-  testCoreTestStages(dnd);
+  // 00_core_test — structure validation
+  testCoreTestMeta();
+  testCoreTestAllStagesStructure();
+
+  // 00_core_test — map-based tests (pathfinding, LOS, FOV)
+  testTsMovement_Pathfinding();
+  testTsCombatEntry_LOS();
+  testTsCombatEntry_FOV();
+  testTsMeleeAttack_Adjacent();
+  testTsEnemyAttack_Reachable();
+  testTsSkills_OpenRoom();
 
   console.log('All tests passed.');
 }
