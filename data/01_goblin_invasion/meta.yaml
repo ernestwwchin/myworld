@@ -2,7 +2,7 @@
 # Adds the goblin warren dungeon: creatures, stages, and items
 # specific to the goblin invasion story arc.
 
-id: goblin_invasion
+id: 01_goblin_invasion
 name: Goblin Invasion
 author: MyWorld
 version: 1.0.0
