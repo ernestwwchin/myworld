@@ -1,0 +1,20 @@
+# Test mod — automated test stages only.
+# Disabled by default so test stages never load during normal gameplay.
+# The test runner (tests/run-tests.js) reads these files directly by path.
+
+id: test
+name: Test Stages
+author: MyWorld
+version: 1.0.0
+description: Automated test stages for the test runner.
+enabled: false
+
+includes: []
+
+stages:
+  - ts_combat_entry
+  - ts_enemy_attack
+  - ts_level_up
+  - ts_melee_attack
+  - ts_movement
+  - ts_skills
