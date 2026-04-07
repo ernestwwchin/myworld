@@ -225,6 +225,24 @@ const GameSceneDebugLogger = {
         }
         return { error: 'Missing enemyIndex' };
 
+      case 'tap':
+        if(args.x != null && args.y != null){
+          const fakePtr = { worldX: args.x * S + S / 2, worldY: args.y * S + S / 2 };
+          this.onTap(fakePtr);
+          return { ok: true, tile: { x: args.x, y: args.y }, mode: this.mode };
+        }
+        return { error: 'Missing x/y tile coordinates' };
+
+      case 'tapEnemy':
+        if(args.enemyIndex != null){
+          const e = this.enemies?.[args.enemyIndex];
+          if(!e?.alive) return { error: 'Enemy not found or dead' };
+          const fakePtr = { worldX: e.tx * S + S / 2, worldY: e.ty * S + S / 2 };
+          this.onTap(fakePtr);
+          return { ok: true, enemy: e.type, tile: { x: e.tx, y: e.ty } };
+        }
+        return { error: 'Missing enemyIndex' };
+
       case 'dismissDice':
         this._handleDiceDismiss();
         return { ok: true };
