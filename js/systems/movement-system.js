@@ -88,9 +88,10 @@ Object.assign(GameScene.prototype, {
           this.isMoving=false; this.movePath=[]; this.clearPathDots(); this._movingToAttack=false;
           return;
         }
-        if(this.isExploreMode()&&!this._suppressExploreSightChecks) this.checkSight();
-        // Stop path if stealth was just broken (combat may have started)
-        if(this.mode===MODE.COMBAT){ this.isMoving=false; this.movePath=[]; this.clearPathDots(); this._movingToAttack=false; return; }
+        const wasExplore=this.isExploreMode();
+        if(wasExplore&&!this._suppressExploreSightChecks) this.checkSight();
+        // Stop path only if combat was just entered from explore (stealth broken / enemy spotted)
+        if(wasExplore&&this.mode===MODE.COMBAT){ this.isMoving=false; this.movePath=[]; this.clearPathDots(); this._movingToAttack=false; return; }
         if(!this.movePath.length) this.playActorIdle(this.player,'player');
         this.advancePath();
       }
