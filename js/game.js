@@ -197,6 +197,7 @@ class GameScene extends Phaser.Scene {
 
     // Initialize debug logger for AI analysis
     this.initDebugLogger();
+    this.initDebugBridge();
     this.sessionStartTime = Date.now();
     this.logEvent('GAME', 'SESSION_START', { mode: this.mode });
 
