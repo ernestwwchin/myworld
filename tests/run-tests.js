@@ -394,16 +394,77 @@ function testTsEnemyAttack_Reachable() {
   assert.ok(pathLen <= 5, 'ts_enemy_attack: skeleton should be within reasonable range');
 }
 
-function testTsSkills_OpenRoom() {
-  const { sandbox, stage, ROWS, COLS } = loadStageInSandbox('ts_skills');
-  const ps = stage.playerStart;
+function testTsSkills_SkillMod(dnd) {
+  // Rogue with 16 DEX, proficient in stealth, expertise in stealth, level 1
+  const stats = {
+    str: 8, dex: 16, con: 12, int: 14, wis: 10, cha: 8,
+    level: 1,
+    skillProficiencies: new Set(['stealth', 'acrobatics', 'perception']),
+    expertiseSkills: new Set(['stealth']),
+  };
 
-  // Empty room — player at center should reach all corners
-  const corners = [[1,1], [COLS-2,1], [1,ROWS-2], [COLS-2,ROWS-2]];
-  for (const [cx, cy] of corners) {
-    const len = vm.runInContext(`bfs(${ps.x}, ${ps.y}, ${cx}, ${cy}, wallBlk).length`, sandbox);
-    assert.ok(len > 0, `ts_skills: player should reach corner (${cx},${cy})`);
+  // stealth → DEX-based: mod(16)=+3, profBonus(1)=+2, expertise x2=+4 → total +7
+  const stealthMod = dnd.skillMod('stealth', stats);
+  assert.strictEqual(stealthMod, 7, 'stealth mod: DEX(+3) + expertise(+4) = +7');
+
+  // acrobatics → DEX-based: mod(16)=+3, profBonus(1)=+2 → total +5
+  const acroMod = dnd.skillMod('acrobatics', stats);
+  assert.strictEqual(acroMod, 5, 'acrobatics mod: DEX(+3) + prof(+2) = +5');
+
+  // athletics → STR-based, NOT proficient: mod(8)=-1, no prof → -1
+  const athMod = dnd.skillMod('athletics', stats);
+  assert.strictEqual(athMod, -1, 'athletics mod: STR(-1) no prof = -1');
+
+  // perception → WIS-based, proficient: mod(10)=+0, prof=+2 → +2
+  const percMod = dnd.skillMod('perception', stats);
+  assert.strictEqual(percMod, 2, 'perception mod: WIS(+0) + prof(+2) = +2');
+}
+
+function testTsSkills_PassiveSkill(dnd) {
+  const stats = {
+    str: 8, dex: 16, con: 12, int: 14, wis: 10, cha: 8,
+    level: 1,
+    skillProficiencies: new Set(['stealth', 'perception']),
+    expertiseSkills: new Set(['stealth']),
+  };
+
+  // passive perception: 10 + perception mod(+2) = 12
+  const passivePerc = dnd.passiveSkill('perception', stats);
+  assert.strictEqual(passivePerc, 12, 'passive perception: 10 + WIS(0) + prof(2) = 12');
+
+  // passive stealth: 10 + stealth mod(+7) = 17
+  const passiveStealth = dnd.passiveSkill('stealth', stats);
+  assert.strictEqual(passiveStealth, 17, 'passive stealth: 10 + DEX(3) + expertise(4) = 17');
+}
+
+function testTsSkills_SkillCheck(dnd) {
+  const stats = {
+    str: 10, dex: 14, con: 10, int: 10, wis: 10, cha: 10,
+    level: 1,
+    skillProficiencies: new Set(['stealth']),
+    expertiseSkills: new Set(),
+  };
+
+  // Run 100 skill checks — verify range and structure
+  for (let i = 0; i < 100; i++) {
+    const result = dnd.skillCheck('stealth', stats, 15);
+    assert.ok(result.roll >= 1 && result.roll <= 20, `roll out of range: ${result.roll}`);
+    // stealth mod: DEX(+2) + prof(+2) = +4
+    assert.strictEqual(result.mod, 4, 'stealth check mod should be +4');
+    assert.strictEqual(result.total, result.roll + result.mod, 'total = roll + mod');
+    assert.strictEqual(result.success, result.total >= 15, 'success = total >= DC');
+    assert.ok(result.skill, 'result should have skill label');
   }
+}
+
+function testTsSkills_ProfBonusScaling(dnd) {
+  // Prof bonus scales with level: 1-4=+2, 5-8=+3, 9-12=+4, 13-16=+5, 17-20=+6
+  assert.strictEqual(dnd.profBonus(1), 2);
+  assert.strictEqual(dnd.profBonus(4), 2);
+  assert.strictEqual(dnd.profBonus(5), 3);
+  assert.strictEqual(dnd.profBonus(9), 4);
+  assert.strictEqual(dnd.profBonus(13), 5);
+  assert.strictEqual(dnd.profBonus(17), 6);
 }
 
 function testEngageAndAutoplayContracts() {
@@ -458,7 +519,10 @@ function run() {
   testTsCombatEntry_FOV();
   testTsMeleeAttack_Adjacent();
   testTsEnemyAttack_Reachable();
-  testTsSkills_OpenRoom();
+  testTsSkills_SkillMod(dnd);
+  testTsSkills_PassiveSkill(dnd);
+  testTsSkills_SkillCheck(dnd);
+  testTsSkills_ProfBonusScaling(dnd);
 
   console.log('All tests passed.');
 }
