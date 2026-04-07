@@ -1,12 +1,17 @@
 # Core module metadata
+# Core is the mandatory base mod — always loaded first, cannot be disabled.
+# It defines shared rules, base creature stat blocks, weapons, abilities, etc.
+# Content mods (goblin_invasion, etc.) layer on top and declare their own startMap.
 
 id: core
-name: Core Module
+name: Core
 author: MyWorld
 version: 1.0.0
-description: Base game data — maps, classes, creatures, and rules.
-loadOrder: 0
+description: Base game rules, creatures, weapons, abilities, and classes.
 enabled: true
+
+# No startMap — core does not decide the opening stage.
+# Test stages live in data/stages/test_stage/ (legacy path, no declaration needed).
 
 includes:
   - rules.yaml
