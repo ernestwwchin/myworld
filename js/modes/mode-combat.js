@@ -319,6 +319,8 @@ Object.assign(GameScene.prototype, {
     document.getElementById('vignette').classList.add('combat');
     document.getElementById('mode-badge').className = 'turnbased';
     document.getElementById('mode-badge').textContent = '⚔ COMBAT';
+    const esp=document.getElementById('enemy-stat-popup'); if(esp) esp.style.display='none';
+    this._statPopupEnemy=null;
     this.cameras.main.shake(400, 0.008);
     this.clearSightOverlays();
     this.syncEnemySightRings(false);
