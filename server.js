@@ -203,6 +203,77 @@ if (DEBUG_TOOLS) {
     res.json({ connected: debugClients.size });
   });
   registerRoute('GET', '/_debug/clients');
+
+  // JS error reporting from frontend
+  app.post('/_debug/jserror', express.json(), (req, res) => {
+    const { msg, src, line, col, stack } = req.body || {};
+    console.error(`\n[JS ERROR] ${msg}\n  at ${src}:${line}:${col}\n  ${stack || ''}\n`);
+    res.json({ ok: true });
+  });
+  registerRoute('POST', '/_debug/jserror');
+
+  // ── Console log forwarding ──
+  // Frontend POSTs batches of console output; server stores ring buffer + prints.
+  const consoleLogs = [];       // ring buffer of {t, l, m}
+  const MAX_CONSOLE_LOGS = 500;
+  const LEVEL_STYLE = { log: '\x1b[37m', warn: '\x1b[33m', error: '\x1b[31m', info: '\x1b[36m' };
+  const RESET = '\x1b[0m';
+
+  app.post('/_debug/console', express.json({ limit: '256kb' }), (req, res) => {
+    const { logs } = req.body || {};
+    if (!Array.isArray(logs)) return res.status(400).json({ error: 'expected logs[]' });
+    for (const entry of logs) {
+      const { t, l, m } = entry;
+      consoleLogs.push({ t, l, m });
+      if (consoleLogs.length > MAX_CONSOLE_LOGS) consoleLogs.shift();
+      const color = LEVEL_STYLE[l] || '';
+      const tag = `[FE:${(l || 'log').toUpperCase()}]`;
+      process.stdout.write(`${color}${tag}${RESET} ${m}\n`);
+    }
+    res.json({ ok: true, count: logs.length });
+  });
+  registerRoute('POST', '/_debug/console');
+
+  // Read forwarded console logs
+  app.get('/_debug/console', (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 100, MAX_CONSOLE_LOGS);
+    const level = req.query.level || null; // optional filter: log|warn|error|info
+    let result = consoleLogs;
+    if (level) result = result.filter(e => e.l === level);
+    res.json({ logs: result.slice(-limit), total: consoleLogs.length });
+  });
+  registerRoute('GET', '/_debug/console');
+
+  // Clear console log buffer
+  app.delete('/_debug/console', (_req, res) => {
+    consoleLogs.length = 0;
+    res.json({ ok: true });
+  });
+  registerRoute('DELETE', '/_debug/console');
+
+  // ── Eval shortcut ── 
+  // POST /_debug/eval {expr: "..."} → sends eval command through the bridge
+  app.post('/_debug/eval', express.json(), async (req, res) => {
+    const { expr, timeout } = req.body || {};
+    if (!expr) return res.status(400).json({ error: 'Missing expr' });
+    if (debugClients.size === 0) return res.status(503).json({ error: 'No frontend connected' });
+
+    const id = `cmd_${++cmdSeq}`;
+    const waitMs = Math.min(Number(timeout) || 10000, 30000);
+    let resolver;
+    const promise = new Promise(resolve => { resolver = resolve; });
+    const timer = setTimeout(() => {
+      pendingResults.delete(id);
+      resolver({ error: 'timeout', id });
+    }, waitMs);
+    pendingResults.set(id, { resolve: resolver, timer });
+
+    broadcastCmd({ type: 'exec', id, cmd: 'eval', args: { expr } });
+    console.log(`[DebugBridge] → eval(${expr.slice(0, 80)}) [${id}]`);
+
+    promise.then(result => res.json({ id, ...result }));
+  });
+  registerRoute('POST', '/_debug/eval');
 }
 
 app.use(express.static(path.join(__dirname)));

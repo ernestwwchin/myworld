@@ -222,6 +222,56 @@ curl -s -X POST http://localhost:3000/_debug/exec \
 
 | File | Role |
 |------|------|
-| `server.js` (lines 118–206) | SSE channel, exec endpoint, response collection |
+| `server.js` (lines 118–260) | SSE channel, exec endpoint, response collection, console log buffer, eval shortcut |
 | `js/systems/debug-logger.js` (lines 109–297) | SSE client, command executor (`_execDebugCmd`) |
 | `js/game.js` (line 200) | `initDebugBridge()` call in `create()` |
+| `index.html` (inline script) | Console interceptor — forwards all log/warn/error/info to server |
+
+---
+
+## Console Log Forwarding
+
+The frontend intercepts `console.log`, `console.warn`, `console.error`, and `console.info`.
+Logs are batched (every 300ms or 50 entries) and POSTed to the server.
+The server prints them to the terminal with color-coded tags and stores them in a ring buffer (500 entries).
+
+**This works without SSE** — even if the debug bridge SSE channel isn't connected, all console output is forwarded.
+
+### Read forwarded logs
+
+```bash
+# Last 100 logs (default)
+curl -s http://localhost:3000/_debug/console | python3 -m json.tool
+
+# Last 20 error-level logs
+curl -s 'http://localhost:3000/_debug/console?limit=20&level=error'
+
+# Clear log buffer
+curl -s -X DELETE http://localhost:3000/_debug/console
+```
+
+### Eval shortcut
+
+Send arbitrary JS to the frontend (shortcut for `/_debug/exec` with `cmd:eval`):
+
+```bash
+# Quick eval — no need to wrap in cmd/args
+curl -s -X POST http://localhost:3000/_debug/eval \
+  -H "Content-Type: application/json" \
+  -d '{"expr":"document.title"}'
+
+# Check Phaser version
+curl -s -X POST http://localhost:3000/_debug/eval \
+  -H "Content-Type: application/json" \
+  -d '{"expr":"Phaser.VERSION"}'
+
+# Inspect game scene state
+curl -s -X POST http://localhost:3000/_debug/eval \
+  -H "Content-Type: application/json" \
+  -d '{"expr":"scene.mode + \" HP:\" + scene.playerHP"}'
+
+# Manipulate game
+curl -s -X POST http://localhost:3000/_debug/eval \
+  -H "Content-Type: application/json" \
+  -d '{"expr":"(scene.playerHP = 999, \"godmode\")"}'
+```

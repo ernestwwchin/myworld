@@ -539,8 +539,7 @@ function testGoblinInvasionFlags() {
 function testEngageAndAutoplayContracts() {
   const uiPath = path.join(root, 'js', 'ui', 'core-ui.js');
   const uiSrc = fs.readFileSync(uiPath, 'utf8');
-  assert.ok(uiSrc.includes('tryEngageEnemyFromExplore'), 'core-ui engage should use tryEngageEnemyFromExplore');
-  assert.ok(!uiSrc.includes('const snap = s.lastCompletedTile'), 'core-ui engage should not snap to stale lastCompletedTile');
+  assert.ok(uiSrc.includes('_showEnemyInfoPopup'), 'core-ui should have unified info popup');
 
   const autoplayPath = path.join(root, 'js', 'autoplay.js');
   const autoplaySrc = fs.readFileSync(autoplayPath, 'utf8');
@@ -548,6 +547,51 @@ function testEngageAndAutoplayContracts() {
   assert.ok(autoplaySrc.includes('test_engage_adjacent'), 'autoplay missing engage_adjacent scenario');
   assert.ok(autoplaySrc.includes('test_explore_turn_based'), 'autoplay missing explore_turn_based scenario');
   assert.ok(autoplaySrc.includes('test_alert_locality'), 'autoplay missing alert_locality scenario');
+}
+
+function testAutoTBTargetingContracts() {
+  const combatSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'mode-combat.js'), 'utf8');
+
+  // selectAction must auto-switch to TB when entering attack targeting in explore
+  assert.ok(combatSrc.includes('this._targetingAutoTB=true;'),
+    'selectAction should set _targetingAutoTB flag before switching to TB');
+  assert.ok(combatSrc.includes('this.toggleExploreTurnBased();'),
+    'selectAction should call toggleExploreTurnBased when auto-switching');
+  // Must only auto-switch from real-time explore, not if already in TB
+  assert.ok(combatSrc.includes('if(this.mode===MODE.EXPLORE){'),
+    'auto-TB should only trigger from real-time explore mode');
+
+  // clearPendingAction must revert to real-time explore if auto-TB was set
+  assert.ok(combatSrc.includes('this._targetingAutoTB && this.mode===MODE.EXPLORE_TB'),
+    'clearPendingAction should check _targetingAutoTB and current mode before reverting');
+  // Flag must be cleared regardless
+  const clearBlock = combatSrc.substring(combatSrc.indexOf('clearPendingAction()'));
+  assert.ok(clearBlock.includes('this._targetingAutoTB=false;'),
+    'clearPendingAction must always clear _targetingAutoTB flag');
+
+  // explore-tb toggleExploreTurnBased must clear _targetingAutoTB on manual toggle
+  const etbSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'mode-explore-tb.js'), 'utf8');
+  assert.ok(etbSrc.includes('this._targetingAutoTB') && etbSrc.includes('this._targetingAutoTB=false'),
+    'toggleExploreTurnBased should clear _targetingAutoTB on manual toggle');
+}
+
+function testCommandStripTBButton() {
+  const htmlSrc = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  // TB button must exist in command strip
+  assert.ok(htmlSrc.includes('id="cmd-tb"'), 'command strip missing TB toggle button');
+  assert.ok(htmlSrc.includes("Hotbar._cmd('toggle_tb')"), 'TB button must call toggle_tb command');
+
+  // Hotbar must handle toggle_tb command
+  const hotbarSrc = fs.readFileSync(path.join(root, 'js', 'ui', 'hotbar.js'), 'utf8');
+  assert.ok(hotbarSrc.includes("'toggle_tb'"), 'hotbar _cmd missing toggle_tb handler');
+  assert.ok(hotbarSrc.includes('toggleExploreTurnBased'), 'toggle_tb handler must call toggleExploreTurnBased');
+
+  // syncCommandStrip must manage TB button visibility and active state
+  assert.ok(hotbarSrc.includes('cmd-tb'), 'syncCommandStrip must reference cmd-tb button');
+  assert.ok(hotbarSrc.includes('MODE.EXPLORE_TB'), 'syncCommandStrip must check EXPLORE_TB for TB active state');
+
+  // CSS must have active style for sys buttons
+  assert.ok(htmlSrc.includes('.cmd-btn.sys.active'), 'CSS missing active style for sys command buttons');
 }
 
 function run() {
@@ -560,6 +604,8 @@ function run() {
   testCombatInitSystemContracts();
   testExploreTurnBasedContracts();
   testEngageAndAutoplayContracts();
+  testAutoTBTargetingContracts();
+  testCommandStripTBButton();
 
   // Mod system tests
   testModMetaYamlContracts();

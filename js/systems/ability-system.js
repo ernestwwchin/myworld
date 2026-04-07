@@ -212,7 +212,7 @@ const GameSceneAbilitySystem = {
     if (spotters.length) {
       const names = spotters.map(s => {
         const tag = s.reason === 'bright_light' ? 'bright light' : `Perception ${s.perception}`;
-        return `${s.enemy.type} (${tag})`;
+        return `${s.enemy.displayName||s.enemy.type} (${tag})`;
       }).join(', ');
       this._breakStealth(`Spotted! (Stealth ${this.playerStealthRoll}) by: ${names}`);
       return { broken: true, spotters };
@@ -222,7 +222,7 @@ const GameSceneAbilitySystem = {
 
   // ── Combat: Hide action (costs action) ──
   tryHideAction() {
-    if (!this.isPlayerTurn()) { this.showStatus('Not your turn yet.'); return; }
+    if (!this.isPlayerTurn()) return;
     if (this.playerHidden) { this.showStatus('Already hidden.'); return; }
     if (this.playerAP <= 0) { this.showStatus('Action already used.'); return; }
 
@@ -243,7 +243,7 @@ const GameSceneAbilitySystem = {
       const perception = this.getEnemyPassivePerception(enemy);
       if (stealthRoll.total < perception) {
         spotted = true;
-        spottersList.push(`${enemy.type} (Perception ${perception})`);
+        spottersList.push(`${enemy.displayName||enemy.type} (Perception ${perception})`);
       }
     }
 
@@ -311,7 +311,7 @@ const GameSceneAbilitySystem = {
       const perception = this.getEnemyPassivePerception(enemy);
       if (stealthTotal < perception) {
         spotted = true;
-        spottersList.push(`${enemy.type} (Perception ${perception})`);
+        spottersList.push(`${enemy.displayName||enemy.type} (Perception ${perception})`);
       }
     }
 

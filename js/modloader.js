@@ -281,7 +281,7 @@ const ModLoader = {
           features[parseInt(lvl)] = feats;
         }
       }
-      FIGHTER_FEATURES_DATA[id] = { ...cls, features };
+      CLASSES_DATA[id] = { ...cls, features };
     }
   },
 
@@ -398,7 +398,7 @@ const ModLoader = {
       globalLight: mapDef.globalLight || 'dark',
       doors: mapDef.doors || [],
       interactables: mapDef.interactables || [],
-      lootTables: { ...modData.lootTables, ...(mapDef.lootTables || {}) },
+      lootTables: { ...(data.lootTables || {}), ...(mapDef.lootTables || {}) },
       stageSprites: mapDef.stageSprites || mapDef.sprites || [],
       tileAnimations: mapDef.tileAnimations || {},
     };
@@ -418,7 +418,8 @@ const ModLoader = {
 
       ENEMY_DEFS.push({
         tx: enc.x, ty: enc.y,
-        type: tmpl.type, hp: tmpl.hp, maxHp: tmpl.hp,
+        type: tmpl.type, name: enc.name || tmpl.name || null,
+        hp: tmpl.hp, maxHp: tmpl.hp,
         sight: tmpl.sight, spd: tmpl.speed, icon: tmpl.icon,
         facing: enc.facing, fov: tmpl.fov, group: enc.group,
         stats: { ...tmpl.stats },

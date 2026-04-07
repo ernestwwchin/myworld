@@ -95,12 +95,14 @@ Object.assign(GameScene.prototype, {
     const seeds = (triggers || []).filter((e) => e && e.alive);
     const alerted = new Set(seeds);
 
+    // 1. Same group as opener target
     if (opts.openerGroup) {
       for (const e of this.enemies) {
         if (e.alive && e.group && e.group === opts.openerGroup) alerted.add(e);
       }
     }
 
+    // 2. All scripted groups
     const scriptedGroups = new Set([...alerted].map((e) => e.group).filter(Boolean));
     if (scriptedGroups.size) {
       for (const e of this.enemies) {
@@ -108,29 +110,49 @@ Object.assign(GameScene.prototype, {
       }
     }
 
-    const localSeeds = [...alerted];
-    const roomMax = Math.max(1, Number(COMBAT_RULES.roomAlertMaxDistance || 8));
-    const nearAnySeed = (e) => localSeeds.some((s) => Math.abs(e.tx - s.tx) + Math.abs(e.ty - s.ty) <= roomMax);
+    // 3. Enemies in the same room as the player or any alerted enemy
+    //    Must have LOS to the player OR to any alerted enemy (can see the fight)
+    const alertedRooms = new Set();
+    alertedRooms.add(roomIdAt(this.playerTile.x, this.playerTile.y));
+    for (const a of alerted) {
+      alertedRooms.add(roomIdAt(a.tx, a.ty));
+    }
+    alertedRooms.delete(null);
 
     for (const e of this.enemies) {
       if (!e.alive || alerted.has(e)) continue;
-      if (!nearAnySeed(e)) continue;
-      const dist = Math.sqrt((e.tx - this.playerTile.x) ** 2 + (e.ty - this.playerTile.y) ** 2);
-      if (dist <= this.effectiveEnemySight(e) && inFOV(e, this.playerTile.x, this.playerTile.y) && hasLOS(e.tx, e.ty, this.playerTile.x, this.playerTile.y)) {
-        alerted.add(e);
+      const eRoom = roomIdAt(e.tx, e.ty);
+      if (eRoom === null || !alertedRooms.has(eRoom)) continue;
+      // Same room but must be able to perceive the combat:
+      // LOS to player, or LOS to any alerted enemy, within hearing range
+      const hearRange = Math.max(this.effectiveEnemySight(e), 10);
+      const distToPlayer = Math.abs(e.tx - this.playerTile.x) + Math.abs(e.ty - this.playerTile.y);
+      if (distToPlayer <= hearRange && hasLOS(e.tx, e.ty, this.playerTile.x, this.playerTile.y)) {
+        alerted.add(e); continue;
+      }
+      // Can see any alerted enemy (heard combat sounds)
+      for (const a of [...alerted]) {
+        const dA = Math.abs(e.tx - a.tx) + Math.abs(e.ty - a.ty);
+        if (dA <= hearRange && hasLOS(e.tx, e.ty, a.tx, a.ty)) {
+          alerted.add(e); break;
+        }
       }
     }
 
-    const isSideNeighbor = (a, b) => Math.abs(a.tx - b.tx) + Math.abs(a.ty - b.ty) === 1;
+    // 4. Enemies in side rooms (through doors) that have LOS to player
+    const roomMax = Math.max(1, Number(COMBAT_RULES.roomAlertMaxDistance || 8));
     for (const e of this.enemies) {
       if (!e.alive || alerted.has(e)) continue;
-      if (!nearAnySeed(e)) continue;
-      const shouldAlert = localSeeds.some((a) =>
-        (sameRoom(e.tx, e.ty, a.tx, a.ty) && sameOpenArea(e.tx, e.ty, a.tx, a.ty, roomMax)) ||
-        sideRoom(e.tx, e.ty, a.tx, a.ty) ||
-        isSideNeighbor(e, a)
-      );
-      if (shouldAlert) {
+      const eRoom = roomIdAt(e.tx, e.ty);
+      if (eRoom === null) continue;
+      // Check if this enemy's room is a side room of any alerted room
+      const topo = _getRoomTopology();
+      const adj = topo.sideByRoom.get(eRoom);
+      const inSideRoom = adj && [...alertedRooms].some(r => adj.has(r));
+      if (!inSideRoom) continue;
+      // Side room enemy: only joins if can see/hear (LOS + range)
+      const dist = Math.sqrt((e.tx - this.playerTile.x) ** 2 + (e.ty - this.playerTile.y) ** 2);
+      if (dist <= Math.max(this.effectiveEnemySight(e), roomMax) && hasLOS(e.tx, e.ty, this.playerTile.x, this.playerTile.y)) {
         alerted.add(e);
       }
     }
@@ -202,7 +224,14 @@ Object.assign(GameScene.prototype, {
       this.applyAbilityOnHitStatuses('attack', 'player', enemy);
 
       this.tweens.add({ targets: enemy.img, alpha: 0.15, duration: 80, yoyo: true, repeat: 3 });
-      this.spawnFloat(enemy.tx * S + S / 2, enemy.ty * S, isCrit ? `CRIT ${dmg}` : `-${dmg}`, '#ffdd57');
+      const wpn=WEAPON_DEFS[this.pStats.weaponId];
+      const fColor=this.dmgColor(wpn&&wpn.damageType);
+      this.spawnFloat(enemy.tx * S + S / 2, enemy.ty * S, isCrit ? `💥${dmg}` : `-${dmg}`, isCrit?'#f39c12':fColor);
+
+      const opRollLine=this.formatRollLine(atkRoll,strMod+this.pStats.profBonus,atkTotal,enemy.ac);
+      const opDmgText=this.formatDamageBreakdown(dr.str);
+      const opDmgType=wpn?wpn.damageType:'';
+      CombatLog.logRoll({actor:'You',target:enemy.displayName,result:isCrit?'crit':'hit',damage:dmg,rollDetail:opRollLine,dmgDetail:`${opDmgText}${opDmgType?' '+opDmgType:''}`,extra:'opener'});
 
       const ratio = Math.max(0, enemy.hp / enemy.maxHp);
       if (enemy.hpFg) {
@@ -225,16 +254,44 @@ Object.assign(GameScene.prototype, {
           },
         });
         if (enemy.fa) this.tweens.add({ targets: enemy.fa, alpha: 0, duration: 300 });
-        this.spawnFloat(enemy.tx * S + S / 2, enemy.ty * S - 10, 'DEFEATED!', '#f0c060');
+        this.spawnFloat(enemy.tx * S + S / 2, enemy.ty * S - 10, 'DEFEATED!', '#f0c060', 700);
         this.pStats.xp += enemy.xp || 50;
         this.checkLevelUp();
-        this.showStatus(`${isCrit ? 'CRIT! ' : ''}Opener kill ${enemy.type}! Entering combat...`);
+
+        // BG3: one-shot kill — check if anyone noticed.
+        // Silent kill only if player was hidden, or no enemy has LOS to player.
+        const wasHiddenKill = this.playerHidden;
+        const witnesses = this.enemies.filter(e => {
+          if (!e.alive || e === enemy) return false;
+          const sight = this.effectiveEnemySight(e);
+          // Can see the player?
+          const dist = Math.sqrt((e.tx - this.playerTile.x) ** 2 + (e.ty - this.playerTile.y) ** 2);
+          if (dist <= sight && inFOV(e, this.playerTile.x, this.playerTile.y) && hasLOS(e.tx, e.ty, this.playerTile.x, this.playerTile.y)) return true;
+          // Can see the kill location? (heard the body drop)
+          const dKill = Math.sqrt((e.tx - enemy.tx) ** 2 + (e.ty - enemy.ty) ** 2);
+          if (dKill <= sight && hasLOS(e.tx, e.ty, enemy.tx, enemy.ty)) return true;
+          return false;
+        });
+
+        if (witnesses.length === 0) {
+          this.showStatus(`${isCrit ? 'CRIT! ' : ''}Silent kill — ${enemy.displayName} defeated!`);
+          this.flashBanner('SILENT KILL', 'explore');
+          return; // No combat — clean kill
+        }
+        if (wasHiddenKill) {
+          // Player was hidden — witnesses investigate but player stays hidden
+          this.showStatus(`${isCrit ? 'CRIT! ' : ''}Kill from stealth! ${witnesses.length} enemies alerted.`);
+        } else {
+          this.showStatus(`${isCrit ? 'CRIT! ' : ''}Opener kill ${enemy.displayName}! ${witnesses.length} alerted!`);
+        }
       } else {
-        this.showStatus(`${isCrit ? 'CRIT! ' : ''}Opener hit ${enemy.type} for ${dmg}. Rolling initiative...`);
+        this.showStatus(`${isCrit ? 'CRIT! ' : ''}Opener hit ${enemy.displayName} for ${dmg}. Rolling initiative...`);
       }
     } else {
       this.tweens.add({ targets: enemy.img, x: enemy.img.x + 6, duration: 60, yoyo: true, repeat: 1 });
       this.showStatus(`Opener missed! Rolling initiative...`);
+      const opMissLine=this.formatRollLine(atkRoll,strMod+this.pStats.profBonus,atkTotal,enemy.ac);
+      CombatLog.logRoll({actor:'You',target:enemy.displayName,result:'miss',rollDetail:opMissLine,extra:'opener'});
     }
 
     this.enterCombat([enemy], { openerGroup: enemy.group, surpriseFromOpener: true });
@@ -325,6 +382,8 @@ Object.assign(GameScene.prototype, {
     this.clearSightOverlays();
     this.syncEnemySightRings(false);
     this.updateFogOfWar();
+    CombatLog.logSep('COMBAT');
+    CombatLog.log(`Combat started — ${alerted.length} enemies`, 'system', 'combat');
     this.time.delayedCall(700, () => { this.buildInitBar(); this.startNextTurn(); });
   },
 
@@ -351,14 +410,19 @@ Object.assign(GameScene.prototype, {
     }
     document.getElementById('init-bar').classList.remove('show');
     document.getElementById('action-bar').classList.remove('show');
-    document.getElementById('res-bar').classList.remove('show');
+    document.getElementById('res-pips').classList.remove('show');
     if(reason==='flee'){
       this.flashBanner('FLED COMBAT','explore');
       this.showStatus('Escaped combat. Stay hidden to avoid re-engage.');
+      CombatLog.log('Fled combat!', 'system', 'combat');
+    }else if(reason==='escape'){
+      CombatLog.log('Escaped — enemies lost you.', 'system', 'combat');
     }else{
       this.flashBanner('COMBAT OVER','explore');
       this.showStatus('Victory! Continue exploring.');
+      CombatLog.log('Victory!', 'player', 'combat');
     }
+    CombatLog.logSep();
     this.time.delayedCall(300,()=>{ this.drawSightOverlays(); this.updateFogOfWar(); });
   },
 
@@ -367,7 +431,7 @@ Object.assign(GameScene.prototype, {
   // ─────────────────────────────────────────
   onTapCombat(tx,ty,enemy){
     if(this._movingToAttack) return;
-    if(!this.isPlayerTurn()){ this.showStatus('Not your turn yet.'); return; }
+    if(!this.isPlayerTurn()) return;
 
     // Door interaction — but only if no alive enemy is standing on it
     if(this.isDoorTile(tx,ty)&&!(enemy&&enemy.alive)){
@@ -377,19 +441,25 @@ Object.assign(GameScene.prototype, {
       return;
     }
 
+    // BG3 flow: Attack selected → click enemy → auto-move into range + attack
     if(this.pendingAction==='attack'){
-      if(enemy&&this.combatGroup.includes(enemy)) this.playerAttackEnemy(enemy);
-      else this.showStatus('Tap a highlighted enemy to attack.');
+      if(enemy&&this.combatGroup.includes(enemy)){
+        const dx=Math.abs(this.playerTile.x-enemy.tx), dy=Math.abs(this.playerTile.y-enemy.ty);
+        if(dx<=1&&dy<=1){
+          this.playerAttackEnemy(enemy);
+        } else if(this.playerMoves>0){
+          this.tryMoveAndAttack(enemy);
+        } else {
+          this.showStatus('No movement left to reach this enemy.');
+        }
+      } else {
+        this.showStatus('Select an enemy in this combat.');
+      }
       return;
     }
 
+    // No action selected: click enemy → show info popup
     if(enemy&&this.combatGroup.includes(enemy)){
-      const dx=Math.abs(this.playerTile.x-enemy.tx), dy=Math.abs(this.playerTile.y-enemy.ty);
-      const isAdj=dx<=1&&dy<=1;
-      if(!isAdj && this.playerAP>0 && this.playerMoves>0){
-        this.tryMoveAndAttack(enemy);
-        return;
-      }
       this.showCombatEnemyPopup(enemy);
       return;
     }
@@ -400,7 +470,8 @@ Object.assign(GameScene.prototype, {
     }
 
     if(!this.isWallTile(tx,ty)){
-      if(this.playerMoves<=0){ this.showStatus('No movement left — Attack or End Turn.'); return; }
+      if(this.ui) this.ui.dismissEnemyPopup();
+      if(this.playerMoves<=0){ this.showStatus('No movement left.'); return; }
       if(this.enemies.some(e=>e.alive&&e.tx===tx&&e.ty===ty)){ this.showStatus('Cannot move onto an enemy tile.'); return; }
       const path=bfs(this.playerTile.x,this.playerTile.y,tx,ty,wallBlk);
       if(!path.length){ this.showStatus('Cannot reach that tile.'); return; }
@@ -417,7 +488,6 @@ Object.assign(GameScene.prototype, {
         this.updateResBar();
         if(this.playerMoves>0) this.showMoveRange();
         if(this.playerMoves<=0&&this.playerAP<=0) this.endPlayerTurn();
-        else this.showStatus(`${this.playerMoves} moves · ${this.playerAP>0?'Action ready':'No action'} · End Turn when done.`);
       });
     }
   },
@@ -441,7 +511,7 @@ Object.assign(GameScene.prototype, {
 
     if(cur.surprised){
       cur.surprised=false;
-      this.showStatus(`${cur.id==='player'?'You are':cur.enemy.type+' is'} surprised and loses this turn!`);
+      this.showStatus(`${cur.id==='player'?'You are':cur.enemy.displayName+' is'} surprised and loses this turn!`);
       if(cur.id==='player') this.time.delayedCall(220,()=>this.endPlayerTurn(true));
       else this.time.delayedCall(220,()=>this.endEnemyTurn(cur.enemy));
       return;
@@ -452,7 +522,7 @@ Object.assign(GameScene.prototype, {
       if(st.skipTurn){
         this.turnHL.setAlpha(0); this.tweens.killTweensOf(this.turnHL);
         document.getElementById('action-bar').classList.remove('show');
-        document.getElementById('res-bar').classList.remove('show');
+        document.getElementById('res-pips').classList.remove('show');
         this.time.delayedCall(250,()=>this.endPlayerTurn(true));
         return;
       }
@@ -462,9 +532,10 @@ Object.assign(GameScene.prototype, {
       this.pendingAction=null;
       this.clearMoveRange(); this.clearAtkRange();
       document.getElementById('action-bar').classList.add('show');
-      document.getElementById('res-bar').classList.add('show');
+      document.getElementById('res-pips').classList.add('show');
       this.initActionButtons();
       this.resetActionButtons();
+      if (typeof Hotbar !== 'undefined') { Hotbar.setExpanded(true); Hotbar.resetUsed(); }
       this.turnHL.setPosition(this.player.x,this.player.y).setAlpha(1);
       this.tweens.add({targets:this.turnHL,alpha:0.35,duration:600,yoyo:true,repeat:-1});
       this.updateResBar();
@@ -472,34 +543,32 @@ Object.assign(GameScene.prototype, {
       const engageTarget=this._queuedEngageEnemy;
       this._queuedEngageEnemy=null;
       if(engageTarget&&engageTarget.alive&&this.combatGroup.includes(engageTarget)){
-        this.showStatus(`Engaging ${engageTarget.type}...`);
+        this.showStatus(`Engaging ${engageTarget.displayName}...`);
         this.time.delayedCall(180,()=>{
           if(this.mode===MODE.COMBAT&&this.isPlayerTurn()&&engageTarget.alive) this.tryMoveAndAttack(engageTarget);
         });
-      }else{
-        this.showStatus('Your turn! Move freely · Attack, Dash, Hide, or Flee as your action.');
       }
     } else {
       const st=this.processStatusEffectsForActor(cur.enemy,'turn_start');
       if(st.skipTurn){ this.time.delayedCall(220,()=>this.endEnemyTurn(cur.enemy)); return; }
       document.getElementById('action-bar').classList.remove('show');
-      document.getElementById('res-bar').classList.remove('show');
+      document.getElementById('res-pips').classList.remove('show');
       this.turnHL.setAlpha(0); this.tweens.killTweensOf(this.turnHL);
       this.clearMoveRange();
-      this.showStatus(`${cur.enemy.type}'s turn...`);
       this.time.delayedCall(400,()=>this.doEnemyTurn(cur.enemy));
     }
   },
 
   endPlayerTurn(fromStatusSkip=false){
     if(this.mode!==MODE.COMBAT) return;
+    if(this.ui) this.ui.dismissEnemyPopup();
     if(!fromStatusSkip) this.processStatusEffectsForActor('player','turn_end');
     this.playerMoves=0; this.playerAP=0;
     this.diceWaiting=false; this._afterPlayerDice=null; this._movingToAttack=false;
     this.clearPendingAction(); this.clearMoveRange(); this.clearAtkRange();
     this.turnHL.setAlpha(0); this.tweens.killTweensOf(this.turnHL);
     document.getElementById('action-bar').classList.remove('show');
-    document.getElementById('res-bar').classList.remove('show');
+    document.getElementById('res-pips').classList.remove('show');
     this.turnIndex++;
     this.time.delayedCall(200,()=>this.startNextTurn());
   },
@@ -558,7 +627,7 @@ Object.assign(GameScene.prototype, {
     if(this.playerHidden && enemy.searchTurnsRemaining > 0) {
       enemy.searchTurnsRemaining--;
       if(enemy.searchTurnsRemaining === 0) {
-        this.showStatus(`${enemy.type} gives up searching.`);
+        this.showStatus(`${enemy.displayName} gives up searching.`);
         const anySearching = this.combatGroup.some(e => e.alive && e.searchTurnsRemaining > 0);
         if(!anySearching && this._shadowPlayer) {
           this._shadowPlayer.destroy();
@@ -614,7 +683,7 @@ Object.assign(GameScene.prototype, {
     const atkTotal=atkRoll+atkMod;
     const isCrit=atkRoll===20;
     const isMiss=atkRoll===1||(!isCrit&&atkTotal<this.pStats.ac);
-    this.diceWaiting='enemy';
+    const rollLine=this.formatRollLine(atkRoll,atkMod,atkTotal,this.pStats.ac);
     this._pendingEnemyTurnActor=enemy;
 
     if(this.logEvent) this.logEvent('COMBAT', 'ENEMY_ATTACK', {
@@ -623,10 +692,16 @@ Object.assign(GameScene.prototype, {
     });
 
     if(isMiss){
-      this.spawnFloat(this.player.x,this.player.y-10,'Blocked!','#7fc8f8');
-      const rollLine=this.formatRollLine(atkRoll,atkMod,atkTotal,this.pStats.ac,'Str');
-      this.showStatus(`${enemy.type} missed! (${rollLine})`);
-      this.showDicePopup(rollLine,'Miss!','miss',[{sides:20,value:atkRoll,kind:'d20'}]);
+      this.spawnFloat(this.player.x,this.player.y-10,atkRoll===1?'NAT 1!':'MISS','#7fc8f8');
+      this.showStatus(`${enemy.displayName} missed! ${rollLine}`);
+      CombatLog.logRoll({actor:enemy.displayName,target:'You',result:atkRoll===1?'crit':'miss',rollDetail:rollLine});
+      // Nat 1 → dramatic dice overlay; normal miss → just log
+      if(atkRoll===1){
+        this.diceWaiting='enemy';
+        this.showDicePopup(rollLine,'Natural 1 — Critical Miss!','miss',[{sides:20,value:atkRoll,kind:'d20'}]);
+      } else {
+        this._finishEnemyTurn(enemy);
+      }
       return;
     }
     const dr=dnd.rollDamageSpec(enemy.damageFormula,isCrit);
@@ -634,15 +709,22 @@ Object.assign(GameScene.prototype, {
     this.playerHP=Math.max(0,this.playerHP-dmg);
     this.cameras.main.shake(180,0.006);
     this.tweens.add({targets:this.player,alpha:0.3,duration:80,yoyo:true,repeat:2});
-    this.spawnFloat(this.player.x,this.player.y-10,`-${dmg}`,'#e74c3c');
-    const dmgText=this.formatDamageBreakdown(dr.str,'Str');
-    this.showStatus(`${enemy.type}${isCrit?' CRITS':' hits'} for ${dmg}! (${dmgText})`);
+    this.spawnFloat(this.player.x,this.player.y-10,isCrit?`💥${dmg}`:`-${dmg}`,'#e74c3c');
+    const dmgText=this.formatDamageBreakdown(dr.str);
+    this.showStatus(`${enemy.displayName}${isCrit?' CRITS':' hits'} for ${dmg}! ${dmgText}`);
+    const eWpn=enemy.weaponId?WEAPON_DEFS[enemy.weaponId]:null;
+    const eDmgType=eWpn?eWpn.damageType:'';
+    CombatLog.logRoll({actor:enemy.displayName,target:'You',result:isCrit?'crit':'hit',damage:dmg,rollDetail:rollLine,dmgDetail:`${dmgText}${eDmgType?' '+eDmgType:''}`});
     this.updateHUD();
-    if(this.playerHP<=0) this.showStatus('You have been defeated...');
-    const enemyDetail=isCrit
-      ? `${enemy.type} critical hit: damage dice doubled (${dmgText})`
-      : `${enemy.type} damage: ${dmgText}`;
-    this.showDicePopup(this.formatRollLine(atkRoll,atkMod,atkTotal,this.pStats.ac,'Str'),enemyDetail,isCrit?'crit':'hit',[{sides:20,value:atkRoll,kind:'d20'},...dr.diceValues]);
+    if(this.playerHP<=0){ this.showStatus('You have been defeated...'); CombatLog.log('You have been defeated...','enemy','combat'); }
+    // Crit → dramatic dice overlay; normal hit → just log
+    if(isCrit){
+      this.diceWaiting='enemy';
+      const enemyDetail=`${enemy.displayName} critical hit: damage dice doubled ${dmgText}`;
+      this.showDicePopup(rollLine,enemyDetail,'crit',[{sides:20,value:atkRoll,kind:'d20'},...dr.diceValues]);
+    } else {
+      this._finishEnemyTurn(enemy);
+    }
   },
 
   animEnemyMove(enemy,path,onDone,_prevTx,_prevTy){
@@ -667,23 +749,53 @@ Object.assign(GameScene.prototype, {
   // PLAYER ACTIONS
   // ─────────────────────────────────────────
   selectAction(action){
+    // Dismiss enemy popup on any action selection
+    if(this.ui) this.ui.dismissEnemyPopup();
+    // Allow attack targeting in explore (to initiate combat)
+    if(this.isExploreMode() && action==='attack'){
+      if(this.pendingAction==='attack'){
+        this.clearPendingAction();
+        this.showStatus('Attack cancelled.');
+        return;
+      }
+      // Auto-switch to turn-based so player can plan approach
+      if(this.mode===MODE.EXPLORE){
+        this._targetingAutoTB=true;
+        this.toggleExploreTurnBased();
+      }
+      this.pendingAction='attack';
+      if (typeof Hotbar !== 'undefined') Hotbar.setSelected('attack');
+      this.showStatus('Select an enemy to attack. Click empty tile to cancel.');
+      return;
+    }
+    if(this.mode!==MODE.COMBAT){ this.showStatus('Enter combat first.'); return; }
     if(!this.isPlayerTurn()) return;
     if(action==='attack'){
       if(this.playerAP<=0){ this.showStatus('Action already used.'); return; }
+      // Toggle: clicking attack again deselects it
+      if(this.pendingAction==='attack'){
+        this.clearPendingAction();
+        this.showMoveRange();
+        this.showStatus('Attack cancelled.');
+        return;
+      }
       this.pendingAction='attack';
       this.setSelectedActionButton('attack');
+      if (typeof Hotbar !== 'undefined') Hotbar.setSelected('attack');
       this.clearMoveRange(); this.showAtkRange();
-      this.showStatus('Tap a highlighted enemy to attack.');
+      this.showStatus('Select an enemy to attack.');
     } else if(action==='sleep_cloud'){
       this.showStatus('Sleep Cloud action setup is not wired to a targeting flow yet.');
       this.pendingAction=null;
       this.setSelectedActionButton('');
+      if (typeof Hotbar !== 'undefined') Hotbar.clearSelection();
     } else if(action==='dash'){
       if(this.playerAP<=0){ this.showStatus('Action already used.'); return; }
       this.playerAP=0; this.playerMoves+=Number(COMBAT_RULES.dashMoveBonus||4);
       this.processStatusEffectsForActor('player','on_action',{actionId:'dash'});
       this.pendingAction=null;
       this.setActionButtonsUsed(true);
+      if (typeof Hotbar !== 'undefined') Hotbar.markAllUsed(true);
       this.updateResBar(); this.clearMoveRange(); this.showMoveRange();
       this.showStatus(`Dashed! ${this.playerMoves} tiles of movement remaining.`);
     } else if(action==='hide'){
@@ -696,11 +808,19 @@ Object.assign(GameScene.prototype, {
   clearPendingAction(){
     this.pendingAction=null;
     this.setSelectedActionButton('');
+    if (typeof Hotbar !== 'undefined') Hotbar.clearSelection();
     this.clearAtkRange();
+    // If we auto-switched to TB for targeting, revert to real-time explore
+    if(this._targetingAutoTB && this.mode===MODE.EXPLORE_TB){
+      this._targetingAutoTB=false;
+      this.toggleExploreTurnBased();
+    }
+    this._targetingAutoTB=false;
   },
 
   playerAttackEnemy(enemy){
     if(!this.isPlayerTurn()||this.playerAP<=0) return;
+    if(this.ui) this.ui.dismissEnemyPopup();
 
     const wasHidden = this.playerHidden;
     if (wasHidden) this._breakStealth(null); // silent — attack message shown separately
@@ -731,20 +851,27 @@ Object.assign(GameScene.prototype, {
     });
 
     this.setActionButtonsUsed(true);
+    if (typeof Hotbar !== 'undefined') Hotbar.markAllUsed(true);
     this.updateResBar();
 
     if(!hits){
-      this.diceWaiting='player';
-      this._afterPlayerDice=()=>{
-        if(wasHidden) this.showStatus(`Missed! Can still Hide. ${this.playerMoves>0?this.playerMoves+' moves left.':''}`);
-        else this.showStatus(`Missed! ${this.playerMoves>0?this.playerMoves+' moves left.':''} End Turn when done.`);
-      };
       this.tweens.add({targets:enemy.img,x:enemy.img.x+6,duration:60,yoyo:true,repeat:1});
+      this.spawnFloat(enemy.tx*S+S/2,enemy.ty*S,isMiss?'NAT 1!':'MISS','#7fc8f8');
+      const totalMod=strMod+this.pStats.profBonus;
       const rollDisplay = wasHidden
-        ? `d20[${atkRoll2}|${atkRoll}↑] + ${strMod+this.pStats.profBonus} = ${atkTotal} vs AC${enemy.ac}`
-        : this.formatRollLine(atkRoll,strMod+this.pStats.profBonus,atkTotal,enemy.ac,`Str${this.fmtSigned(strMod)}+Prof(${this.fmtSigned(this.pStats.profBonus)})`)
-      this.showDicePopup(rollDisplay, isMiss?'Natural 1 — Critical Miss!': (wasHidden?'Sneak Attack Missed!':'Miss!'), 'miss', [{sides:20,value:atkRoll,kind:'d20'}, ...(atkRoll2!==null ? [{sides:20,value:atkRoll2,kind:'d20'}] : [])]);
-      this.showStatus(`Missed ${enemy.type}!${wasHidden?' (Hidden attack)':''}`);
+        ? `d20(${atkRoll2}|${atkRoll}↑) ${totalMod>=0?'+ '+totalMod:'- '+Math.abs(totalMod)} = ${atkTotal} | AC ${enemy.ac}`
+        : this.formatRollLine(atkRoll,totalMod,atkTotal,enemy.ac);
+      this.showStatus(`Missed ${enemy.displayName}! ${rollDisplay}`);
+      CombatLog.logRoll({actor:'You',target:enemy.displayName,result:isMiss?'crit':'miss',rollDetail:rollDisplay,extra:wasHidden?'advantage':'',});
+      // Nat 1 → dramatic dice overlay; normal miss → just log + continue
+      if(isMiss){
+        this.diceWaiting='player';
+        this._afterPlayerDice=null;
+        this.showDicePopup(rollDisplay,'Natural 1 — Critical Miss!','miss',[{sides:20,value:atkRoll,kind:'d20'}, ...(atkRoll2!==null?[{sides:20,value:atkRoll2,kind:'d20'}]:[])]);
+      } else {
+        this._afterPlayerDice=null;
+        this._finishPlayerAction();
+      }
       return;
     }
 
@@ -753,43 +880,56 @@ Object.assign(GameScene.prototype, {
     enemy.hp-=dmg;
     this.applyAbilityOnHitStatuses('attack','player',enemy);
 
+    // Damage type color from weapon
+    const wpn=WEAPON_DEFS[this.pStats.weaponId];
+    const floatColor=this.dmgColor(wpn&&wpn.damageType);
+
     this.tweens.add({targets:enemy.img,alpha:0.15,duration:80,yoyo:true,repeat:3});
-    this.spawnFloat(enemy.tx*S+S/2,enemy.ty*S,isCrit?`💥${dmg}`:`-${dmg}`,'#ffdd57');
+    this.spawnFloat(enemy.tx*S+S/2,enemy.ty*S,isCrit?`💥${dmg}`:`-${dmg}`,isCrit?'#f39c12':floatColor);
     const ratio=Math.max(0,enemy.hp/enemy.maxHp);
     enemy.hpFg.setDisplaySize((S-8)*ratio,5);
     if(ratio<0.4) enemy.hpFg.setFillStyle(0xe67e22);
     if(ratio<0.15) enemy.hpFg.setFillStyle(0xe74c3c);
-    this.showStatus(`${isCrit?'CRIT! ':''}${wasHidden?'SNEAK ':''}Hit ${enemy.type} for ${dmg}!${wasHidden?' (Can re-hide)':''}`);
 
-    this.diceWaiting='player';
+    const dmgText=this.formatDamageBreakdown(dr.str);
+    const totalMod2=strMod+this.pStats.profBonus;
+    const rollDisplay = wasHidden
+      ? `d20(${atkRoll2}|${atkRoll}↑) ${totalMod2>=0?'+ '+totalMod2:'- '+Math.abs(totalMod2)} = ${atkTotal} | AC ${enemy.ac}`
+      : this.formatRollLine(atkRoll,totalMod2,atkTotal,enemy.ac);
+    this.showStatus(`${isCrit?'CRIT! ':''}${wasHidden?'SNEAK ':''}Hit ${enemy.displayName} for ${dmg}! ${rollDisplay} | ${dmgText}`);
+    const pWpn=WEAPON_DEFS[this.pStats.weaponId];
+    const pDmgType=pWpn?pWpn.damageType:'';
+    CombatLog.logRoll({actor:'You',target:enemy.displayName,result:isCrit?'crit':'hit',damage:dmg,rollDetail:rollDisplay,dmgDetail:`${dmgText}${pDmgType?' '+pDmgType:''}`,extra:wasHidden?'sneak attack':''});
+
     this._afterPlayerDice=()=>{
       if(enemy.hp<=0){
         enemy.alive=false; enemy.inCombat=false;
         this.tweens.add({targets:[enemy.img,enemy.hpBg,enemy.hpFg,enemy.lbl,enemy.sightRing],alpha:0,duration:500,onComplete:()=>{[enemy.img,enemy.hpBg,enemy.hpFg,enemy.lbl,enemy.sightRing,enemy.fa].forEach(o=>{if(o&&o.destroy)o.destroy();});}});
         if(enemy.fa) this.tweens.add({targets:enemy.fa,alpha:0,duration:300});
-        this.spawnFloat(enemy.tx*S+S/2,enemy.ty*S-10,'DEFEATED!','#f0c060');
+        this.spawnFloat(enemy.tx*S+S/2,enemy.ty*S-10,'DEFEATED!','#f0c060',700);
+        CombatLog.log(`${enemy.displayName} defeated! +${enemy.xp||50} XP`,'player','combat');
         this.pStats.xp+=enemy.xp||50; this.checkLevelUp();
         if(this.combatGroup.every(e=>!e.alive)){ this.time.delayedCall(600,()=>this.exitCombat()); return; }
       }
       this.showMoveRange();
-      this.showStatus(`${this.playerMoves>0?this.playerMoves+' moves left — ':''} End Turn when done.${wasHidden?' (Press H to re-hide)':''}`);
     };
 
-    const playerDetail=isCrit
-      ? `Critical hit: damage dice doubled (${this.formatDamageBreakdown(dr.str,'Str')})`
-      : `${wasHidden?'Sneak Attack! ':''}Damage: ${this.formatDamageBreakdown(dr.str,'Str')}`;
-    const rollDisplay = wasHidden
-      ? `d20[${atkRoll2}|${atkRoll}↑] + ${strMod+this.pStats.profBonus} = ${atkTotal} vs AC${enemy.ac}`
-      : this.formatRollLine(atkRoll,strMod+this.pStats.profBonus,atkTotal,enemy.ac,`Str${this.fmtSigned(strMod)}+Prof(${this.fmtSigned(this.pStats.profBonus)})`)
-    const diceArray = wasHidden
-      ? [{sides:20,value:atkRoll2,kind:'d20'}, {sides:20,value:atkRoll,kind:'d20'},...dr.diceValues]
-      : [{sides:20,value:atkRoll,kind:'d20'},...dr.diceValues];
-    this.showDicePopup(rollDisplay,playerDetail,isCrit?'crit':'hit',diceArray);
+    // Crit → dramatic dice overlay; normal hit → just float + log
+    if(isCrit){
+      this.diceWaiting='player';
+      const playerDetail=`Critical hit: damage dice doubled (${dmgText})`;
+      const diceArray = wasHidden
+        ? [{sides:20,value:atkRoll2,kind:'d20'},{sides:20,value:atkRoll,kind:'d20'},...dr.diceValues]
+        : [{sides:20,value:atkRoll,kind:'d20'},...dr.diceValues];
+      this.showDicePopup(rollDisplay,playerDetail,'crit',diceArray);
+    } else {
+      this._finishPlayerAction();
+    }
   },
 
   tryMoveAndAttack(enemy){
     if(!enemy||!enemy.alive||!this.combatGroup.includes(enemy)) return;
-    if(!this.isPlayerTurn()){ this.showStatus('Not your turn yet.'); return; }
+    if(!this.isPlayerTurn()) return;
     if(this.playerAP<=0){ this.showStatus('Action already used.'); return; }
     if(this.playerMoves<=0){ this.showStatus('No movement left.'); return; }
 
@@ -824,7 +964,6 @@ Object.assign(GameScene.prototype, {
           this.time.delayedCall(100,()=>this.playerAttackEnemy(targetEnemy));
         } else {
           if(this.playerMoves>0) this.showMoveRange();
-          this.showStatus(`Moved. ${this.playerMoves} moves left.`);
         }
       });
       return;
@@ -854,10 +993,8 @@ Object.assign(GameScene.prototype, {
       if(this.playerMoves>0) this.showMoveRange();
       const dx=Math.abs(this.playerTile.x-targetEnemy.tx), dy=Math.abs(this.playerTile.y-targetEnemy.ty);
       const inRange=dx<=1&&dy<=1;
-      if(inRange&&this.playerAP>0){
-        this.showStatus('Moved into range. Action ready.');
-      }else{
-        this.showStatus(`Moved closer. Out of range, ${this.playerMoves} moves left.`);
+      if(inRange&&this.playerAP>0&&targetEnemy.alive){
+        this.time.delayedCall(100,()=>this.playerAttackEnemy(targetEnemy));
       }
     });
   },
@@ -885,7 +1022,7 @@ Object.assign(GameScene.prototype, {
   },
 
   tryFleeCombat(){
-    if(!this.isPlayerTurn()){ this.showStatus('Not your turn yet.'); return; }
+    if(!this.isPlayerTurn()) return;
     if(this.playerAP<=0){ this.showStatus('Action already used.'); return; }
 
     const chk=this.canFleeCombat();
@@ -900,6 +1037,7 @@ Object.assign(GameScene.prototype, {
     this.clearPendingAction();
     this.updateResBar();
     this.setActionButtonsUsed(true);
+    if (typeof Hotbar !== 'undefined') Hotbar.markAllUsed(true);
     this.showStatus('Flee successful. Breaking away...');
     this.time.delayedCall(140,()=>this.exitCombat('flee'));
   },
@@ -907,6 +1045,21 @@ Object.assign(GameScene.prototype, {
   // ─────────────────────────────────────────
   // DICE
   // ─────────────────────────────────────────
+
+  /** Finish enemy turn without dice overlay (normal hit/miss) */
+  _finishEnemyTurn(enemy){
+    if(this._pendingEnemyTurnActor){
+      this.processStatusEffectsForActor(this._pendingEnemyTurnActor,'turn_end');
+      this._pendingEnemyTurnActor=null;
+    }
+    this.time.delayedCall(400,()=>this.advanceEnemyTurn());
+  },
+
+  /** Finish player action without dice overlay (normal hit/miss) */
+  _finishPlayerAction(){
+    if(this._afterPlayerDice){ const cb=this._afterPlayerDice; this._afterPlayerDice=null; cb(); }
+  },
+
   _handleDiceDismiss(){
     clearTimeout(this._diceAutoTimer);
     const ov=document.getElementById('dice-ov');
@@ -954,26 +1107,64 @@ Object.assign(GameScene.prototype, {
   showAtkRange(){
     this.clearAtkRange();
     if(!this.combatGroup||!this.combatGroup.length) return;
-    const px=this.playerTile.x, py=this.playerTile.y, range=this.pStats.atkRange||1;
-    let any=false;
-    for(let dy=-range;dy<=range;dy++) for(let dx=-range;dx<=range;dx++){
-      if(!dx&&!dy) continue;
-      const tx=px+dx, ty=py+dy;
-      if(tx<0||ty<0||tx>=COLS||ty>=ROWS) continue;
-      if(this.isWallTile(tx,ty)) continue;
-      if(this.combatGroup.some(e=>e.alive&&e.img&&e.tx===tx&&e.ty===ty)){
-        const o=this.add.image(tx*S+S/2,ty*S+S/2,'t_atk').setDisplaySize(S,S).setDepth(4);
-        this.atkRangeTiles.push(o); any=true;
+    const px=this.playerTile.x, py=this.playerTile.y;
+    const atkRange=this.pStats.atkRange||1;
+    const moves=this.playerMoves||0;
+    const moveBlk=(x,y)=>this.isWallTile(x,y)||this.enemies.some(e=>e.alive&&e.tx===x&&e.ty===y);
+
+    // BFS to find all reachable tiles within movement range
+    const reachable=new Map(); // key "x,y" → cost
+    reachable.set(`${px},${py}`, 0);
+    if(moves>0){
+      const queue=[{x:px,y:py,cost:0}];
+      const dirs=[{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+      while(queue.length){
+        const cur=queue.shift();
+        for(const d of dirs){
+          const nx=cur.x+d.x, ny=cur.y+d.y, nc=cur.cost+1;
+          if(nx<0||ny<0||nx>=COLS||ny>=ROWS) continue;
+          if(nc>moves) continue;
+          if(moveBlk(nx,ny)) continue;
+          const key=`${nx},${ny}`;
+          if(!reachable.has(key)||reachable.get(key)>nc){
+            reachable.set(key, nc);
+            queue.push({x:nx,y:ny,cost:nc});
+          }
+        }
       }
     }
-    if(any){ this.showStatus('Tap a red enemy to attack.'); }
-    else{
-      for(const e of this.combatGroup){
-        if(!e.alive) continue;
-        try{ const g=this.add.graphics().setDepth(4); g.lineStyle(2,0xe74c3c,0.5); g.strokeRect(e.tx*S+2,e.ty*S+2,S-4,S-4); this.atkRangeTiles.push(g); }catch(err){}
-      }
-      this.showStatus('No enemies in range — move closer.');
+
+    // Show blue movement tiles (lighter than normal move range)
+    for(const [key] of reachable){
+      const [tx,ty]=key.split(',').map(Number);
+      if(tx===px&&ty===py) continue;
+      const o=this.add.image(tx*S+S/2,ty*S+S/2,'t_move').setDisplaySize(S,S).setDepth(3).setAlpha(0.35);
+      this.atkRangeTiles.push(o);
     }
+
+    // For each reachable tile, check if any enemy is within atkRange
+    // Collect attackable tiles (adjacent to reachable tiles)
+    const attackableTiles=new Set();
+    for(const [key] of reachable){
+      const [rx,ry]=key.split(',').map(Number);
+      for(let dy=-atkRange;dy<=atkRange;dy++) for(let dx=-atkRange;dx<=atkRange;dx++){
+        const ax=rx+dx, ay=ry+dy;
+        if(ax<0||ay<0||ax>=COLS||ay>=ROWS) continue;
+        attackableTiles.add(`${ax},${ay}`);
+      }
+    }
+
+    // Highlight enemies: bright red if attackable, dim outline otherwise
+    for(const e of this.combatGroup){
+      if(!e.alive||!e.img) continue;
+      if(attackableTiles.has(`${e.tx},${e.ty}`)){
+        const bright=this.add.image(e.tx*S+S/2,e.ty*S+S/2,'t_atk').setDisplaySize(S,S).setDepth(5).setAlpha(1);
+        this.atkRangeTiles.push(bright);
+      } else {
+        try{ const g=this.add.graphics().setDepth(5); g.lineStyle(2,0xe74c3c,0.3); g.strokeRect(e.tx*S+2,e.ty*S+2,S-4,S-4); this.atkRangeTiles.push(g); }catch(err){}
+      }
+    }
+    this.showStatus('Select an enemy to attack.');
   },
   clearAtkRange(){ this.atkRangeTiles.forEach(o=>o.destroy()); this.atkRangeTiles=[]; },
 

@@ -60,7 +60,7 @@ function devExec(cmd) {
       return `Teleported to (${x},${y})`;
     },
     enemyList: () => {
-      s.enemies.forEach((e, i) => devLog(`[${i}] ${e.type} (${e.tx},${e.ty}) HP:${e.hp}/${e.maxHp} alive:${e.alive}`));
+      s.enemies.forEach((e, i) => devLog(`[${i}] ${e.displayName||e.type} (${e.tx},${e.ty}) HP:${e.hp}/${e.maxHp} alive:${e.alive}`));
       return s.enemies.length + ' enemies';
     },
     enemyKill: (i) => {
@@ -71,7 +71,7 @@ function devExec(cmd) {
     },
     giveXP: (n) => { s.pStats.xp += Number(n); s.checkLevelUp(); return `XP: ${s.pStats.xp}`; },
     godMode: () => { s.playerHP = 9999; s.playerMaxHP = 9999; s.updateHUD(); return 'God mode ON'; },
-    combat: () => `mode:${s.mode} turnIdx:${s.turnIndex} order:${s.turnOrder.map(t => t.id === 'player' ? 'P' : t.enemy.type).join(',')} moves:${s.playerMoves} ap:${s.playerAP}`,
+    combat: () => `mode:${s.mode} turnIdx:${s.turnIndex} order:${s.turnOrder.map(t => t.id === 'player' ? 'P' : (t.enemy.displayName||t.enemy.type)).join(',')} moves:${s.playerMoves} ap:${s.playerAP}`,
   };
   const m = cmd.match(/^(\w+)\s*\(?([^)]*)\)?/);
   if (!m) return undefined;
@@ -103,6 +103,12 @@ function handleDiceClick() {
 
 // ── STATS PANEL ──────────────────────────────────────
 function toggleStats() {
+  // Toggle side panel visibility
+  if (typeof SidePanel !== 'undefined') {
+    SidePanel.toggleCollapse();
+    return;
+  }
+  // Legacy fallback
   document.getElementById('stats-panel').classList.toggle('open');
 }
 
@@ -162,107 +168,84 @@ class GameUIController {
     return (v >= 0 ? '+' : '') + v;
   }
 
-  showCombatEnemyPopup(enemy) {
-    const s = this.scene;
+  dismissEnemyPopup() {
     const pop = document.getElementById('enemy-stat-popup');
-    if (!pop) return;
-    const dx = Math.abs(s.playerTile.x - enemy.tx), dy = Math.abs(s.playerTile.y - enemy.ty);
-    const isAdj = dx <= 1 && dy <= 1;
-    const hasAP = s.playerAP > 0;
-    const hasMoves = s.playerMoves > 0;
+    if (pop) pop.style.display = 'none';
+    if (this.scene) this.scene._statPopupEnemy = null;
+  }
 
-    if (window.U) U.text('esp-name', `${enemy.icon} ${enemy.type.toUpperCase()} (CR ${enemy.cr})`);
-    else document.getElementById('esp-name').textContent = `${enemy.icon} ${enemy.type.toUpperCase()} (CR ${enemy.cr})`;
-
-    const statsHtml = `
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
-        ${['str','dex','con','int','wis','cha'].map(k=>`<div style="text-align:center"><div style="color:#c9a84c;font-size:9px">${k.toUpperCase()}</div><div>${enemy.stats[k]}</div><div style="color:#7fc8f8;font-size:9px">${this._mod(enemy.stats[k])}</div></div>`).join('')}
-      </div>
-      <div style="color:#aaa;font-size:10px">AC ${enemy.ac} · HP ${enemy.hp}/${enemy.maxHp}</div>
-      <div style="color:#e74c3c;font-size:10px;margin-top:2px">ATK ${dnd.damageSpecToString(enemy.damageFormula)} · d20${this._mod(enemy.stats.str)}</div>
-      <div style="display:flex;gap:6px;margin-top:8px">
-        ${hasAP&&isAdj?`<div onclick="window._combatAct&&window._combatAct('attack')" style="flex:1;text-align:center;background:rgba(231,76,60,0.25);border:1px solid rgba(231,76,60,0.6);color:#e74c3c;padding:5px 6px;border-radius:4px;cursor:pointer;font-size:10px;pointer-events:all">⚔ Attack</div>`:''}
-        ${hasAP&&!isAdj&&hasMoves?`<div onclick="window._combatAct&&window._combatAct('moveattack')" style="flex:1;text-align:center;background:rgba(243,156,18,0.2);border:1px solid rgba(243,156,18,0.5);color:#f39c12;padding:5px 6px;border-radius:4px;cursor:pointer;font-size:10px;pointer-events:all">🏃 Move & Attack</div>`:''}
-        ${!hasAP?`<div style="flex:1;text-align:center;color:#546e7a;padding:5px 6px;font-size:10px">No action left</div>`:''}
-        <div onclick="window._combatAct&&window._combatAct('cancel')" style="text-align:center;background:rgba(52,73,94,0.5);border:1px solid #333;color:#aaa;padding:5px 8px;border-radius:4px;cursor:pointer;font-size:10px;pointer-events:all">✕</div>
-      </div>`;
-    if (window.U) U.html('esp-stats', statsHtml);
-    else document.getElementById('esp-stats').innerHTML = statsHtml;
-
-    pop.style.display = 'block';
-    pop.style.left = '50%';
-    pop.style.top = '50%';
-    pop.style.transform = 'translate(-50%,-50%)';
-
-    window._combatAct = (action) => {
-      pop.style.display = 'none';
-      window._combatAct = null;
-      if (action === 'attack') s.playerAttackEnemy(enemy);
-      else if (action === 'moveattack') s.tryMoveAndAttack(enemy);
-    };
+  showCombatEnemyPopup(enemy) {
+    this._showEnemyInfoPopup(enemy, true);
   }
 
   showEnemyStatPopup(enemy) {
+    this._showEnemyInfoPopup(enemy, false);
+  }
+
+  // Unified info-only popup for both explore and combat
+  _showEnemyInfoPopup(enemy, inCombat) {
     const s = this.scene;
     const pop = document.getElementById('enemy-stat-popup');
     if (!pop) return;
 
-    if (window.U) U.text('esp-name', `${enemy.icon} ${enemy.type.toUpperCase()} (CR ${enemy.cr})`);
-    else document.getElementById('esp-name').textContent = `${enemy.icon} ${enemy.type.toUpperCase()} (CR ${enemy.cr})`;
+    // Toggle off if same enemy
+    if (s._statPopupEnemy === enemy && pop.style.display !== 'none') {
+      pop.style.display = 'none';
+      s._statPopupEnemy = null;
+      return;
+    }
+
+    const nameEl = document.getElementById('esp-name');
+    const statsEl = document.getElementById('esp-stats');
+    if (nameEl) nameEl.textContent = `${enemy.icon} ${enemy.displayName||enemy.type.toUpperCase()}`;
+
+    const hpPct = enemy.hp / enemy.maxHp;
+    const hpColor = hpPct <= 0.25 ? '#e74c3c' : hpPct <= 0.5 ? '#e67e22' : '#a5d6a7';
+    const hpBarW = Math.max(0, Math.round(hpPct * 100));
+
+    // Active status effects
+    const fx = (enemy.effects || []).filter(e => e && e.id);
+    const fxHtml = fx.length
+      ? `<div style="margin-top:6px;font-size:11px;color:#ce93d8">Effects: ${fx.map(e => e.id).join(', ')}</div>`
+      : '';
 
     const statsHtml = `
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-        ${['str','dex','con','int','wis','cha'].map(k=>`<div style="text-align:center"><div style="color:#c9a84c;font-size:9px">${k.toUpperCase()}</div><div>${enemy.stats[k]}</div><div style="color:#7fc8f8;font-size:9px">${this._mod(enemy.stats[k])}</div></div>`).join('')}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        ${['str','dex','con','int','wis','cha'].map(k=>`<div style="text-align:center;min-width:32px"><div style="color:#c9a84c;font-size:10px;letter-spacing:1px">${k.toUpperCase()}</div><div style="font-size:14px">${enemy.stats[k]}</div><div style="color:#7fc8f8;font-size:10px">${this._mod(enemy.stats[k])}</div></div>`).join('')}
       </div>
-      <div style="color:#aaa;font-size:10px">AC ${enemy.ac} · HP ${enemy.hp}/${enemy.maxHp} · CR ${enemy.cr}</div>
-      <div style="color:#e74c3c;font-size:10px;margin-top:3px">ATK: 1d20+${this._mod(enemy.stats.str)} · DMG: ${dnd.damageSpecToString(enemy.damageFormula)}</div>
-      <div style="display:flex;gap:6px;margin-top:8px">
-        <div onclick="window._engageEnemy&&window._engageEnemy()" style="flex:1;text-align:center;background:rgba(231,76,60,0.2);border:1px solid rgba(231,76,60,0.5);color:#e74c3c;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:10px;letter-spacing:2px;pointer-events:all">⚔ ENGAGE</div>
-        <div onclick="window._dismissEnemyPopup&&window._dismissEnemyPopup()" style="text-align:center;background:rgba(52,73,94,0.5);border:1px solid #333;color:#aaa;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:10px;pointer-events:all">✕</div>
-      </div>`;
-    if (window.U) U.html('esp-stats', statsHtml);
-    else document.getElementById('esp-stats').innerHTML = statsHtml;
+      <div style="margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="color:${hpColor};font-size:13px;font-weight:bold">HP ${enemy.hp}/${enemy.maxHp}</span>
+          <div style="flex:1;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden"><div style="width:${hpBarW}%;height:100%;background:${hpColor};border-radius:3px"></div></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#aaa">
+        <span>🛡 AC ${enemy.ac}</span>
+        <span>⚔ ${dnd.damageSpecToString(enemy.damageFormula)}</span>
+        <span>CR ${enemy.cr}</span>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#888;margin-top:4px">
+        <span>👁 sight ${enemy.sight||'?'}</span>
+        <span>🏃 spd ${enemy.spd||'?'}</span>
+        <span>📐 range ${enemy.atkRange||1}</span>
+      </div>
+      ${fxHtml}`;
+    if (statsEl) statsEl.innerHTML = statsHtml;
 
-    // Position popup near the enemy on screen
+    // Position near enemy
     const cam = s.cameras.main;
     const canvas = s.game.canvas;
     const screenX = (enemy.tx * S + S / 2 - cam.scrollX) * cam.zoom;
     const screenY = (enemy.ty * S - cam.scrollY) * cam.zoom;
-    const popW = 200, popH = 180;
-    // Clamp to stay within canvas bounds
+    const popW = 260, popH = 180;
     let px = Math.min(Math.max(8, screenX - popW / 2), canvas.width - popW - 8);
-    let py = screenY - popH - 12; // prefer above enemy
-    if (py < 8) py = screenY + S * cam.zoom + 8; // flip below if no room
+    let py = screenY - popH - 12;
+    if (py < 8) py = screenY + S * cam.zoom + 8;
     pop.style.left = px + 'px';
     pop.style.top = py + 'px';
     pop.style.transform = 'none';
     pop.style.display = 'block';
-
     s._statPopupEnemy = enemy;
-    window._engageEnemy = () => {
-      const p = document.getElementById('enemy-stat-popup');
-      if (p) p.style.display = 'none';
-      s._statPopupEnemy = null;
-      window._engageEnemy = null;
-      window._dismissEnemyPopup = null;
-      s.tweens.killTweensOf(s.player);
-      s.movePath = [];
-      s.isMoving = false;
-      s.clearPathDots();
-      s.onArrival = null;
-      if (typeof s.tryEngageEnemyFromExplore === 'function') {
-        s.tryEngageEnemyFromExplore(enemy);
-      } else {
-        s.enterCombat([enemy]);
-      }
-    };
-    window._dismissEnemyPopup = () => {
-      const p = document.getElementById('enemy-stat-popup');
-      if (p) p.style.display = 'none';
-      s._statPopupEnemy = null;
-      window._engageEnemy = null;
-      window._dismissEnemyPopup = null;
-    };
   }
 
   showDicePopup(rollLine, detailLine, type, diceValues) {
@@ -385,11 +368,10 @@ class GameUIController {
   }
 
   showStatus(msg) {
-    if (window.U) U.text('status-bar', msg);
-    else {
-      const s = document.getElementById('status-bar');
-      if (s) s.textContent = msg;
-    }
+    // Status bar only — no longer writes to combat log.
+    // Combat events use CombatLog.logRoll() directly.
+    const s = document.getElementById('status-bar');
+    if (s) s.textContent = msg;
   }
 
   updateHUD() {
@@ -407,10 +389,7 @@ class GameUIController {
   }
 
   updateResBar() {
-    const s = this.scene;
-    const mv = document.getElementById('mv-val'), ac = document.getElementById('ac-val');
-    if (mv) { mv.textContent = s.playerMoves || 0; mv.className = 'res-val ' + (s.playerMoves > 0 ? 'ok' : 'spent'); }
-    if (ac) { ac.textContent = s.playerAP > 0 ? 'ACTION' : 'USED'; ac.className = 'res-val ' + (s.playerAP > 0 ? 'aok' : 'aused'); }
+    if (typeof Hotbar !== 'undefined') Hotbar.updateResourcePips();
   }
 
   buildInitBar() {
@@ -424,7 +403,7 @@ class GameUIController {
       const div = document.createElement('div');
       div.className = 'ip ' + (t.id === 'player' ? 'pp' : 'ep');
       if (i === s.turnIndex) div.classList.add('active');
-      div.innerHTML = `<div class="ip-icon">${t.id === 'player' ? '🧝' : t.enemy.icon}</div><div style="font-size:7px">${t.id === 'player' ? 'YOU' : t.enemy.type.slice(0,3).toUpperCase()}</div>`;
+      div.innerHTML = `<div class="ip-icon">${t.id === 'player' ? '🧝' : t.enemy.icon}</div><div style="font-size:7px">${t.id === 'player' ? 'YOU' : (t.enemy.displayName||t.enemy.type).slice(0,5).toUpperCase()}</div>`;
       bar.appendChild(div);
     });
   }
@@ -448,6 +427,9 @@ class GameUIController {
 
   updateStatsPanel() {
     const s = this.scene;
+    // Update side panel (new system)
+    if (typeof SidePanel !== 'undefined') SidePanel.refresh();
+    // Legacy stats panel (kept for compat)
     const panel = document.getElementById('stats-panel');
     if (!panel) return;
     panel.innerHTML = T.statsPanel(s.pStats, s.playerHP, s.playerMaxHP);

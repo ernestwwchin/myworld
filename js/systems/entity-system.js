@@ -205,11 +205,18 @@ Object.assign(GameScene.prototype, {
     if (actions.length === 1) return this._executeEntityAction(actions[0]);
 
     if (opts.ptr) {
-      const items = actions.map(a => ({
-        label: `${a.icon} ${a.label}`,
-        action: () => this._executeEntityAction(a),
-      }));
-      this.showContextMenu(opts.ptr.screenX, opts.ptr.screenY, items);
+      // Deduplicate by label (same entity type at same tile registered twice)
+      const seen = new Set();
+      const items = [];
+      for (const a of actions) {
+        const lbl = `${a.icon} ${a.label}`;
+        if (seen.has(lbl)) continue;
+        seen.add(lbl);
+        items.push({ label: lbl, action: () => this._executeEntityAction(a) });
+      }
+      if (items.length === 1) return this._executeEntityAction(actions[0]);
+      const ev = opts.ptr.event || opts.ptr;
+      this.showContextMenu(ev.clientX || 0, ev.clientY || 0, items);
       return 'menu';
     }
 
@@ -236,7 +243,7 @@ Object.assign(GameScene.prototype, {
         });
       }
     }
-    if (menuItems.length > 1) { this.showContextMenu(ptr.screenX, ptr.screenY, menuItems); return true; }
+    if (menuItems.length > 1) { const ev = ptr.event || ptr; this.showContextMenu(ev.clientX || 0, ev.clientY || 0, menuItems); return true; }
     if (menuItems.length === 1) { menuItems[0].action(); return true; }
     return false;
   },

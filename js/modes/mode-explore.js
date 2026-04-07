@@ -6,6 +6,23 @@
 Object.assign(GameScene.prototype, {
 
   onTapExplore(tx, ty, enemy, ptr) {
+    // Attack targeting mode: click enemy → initiate combat
+    if (this.pendingAction === 'attack' && enemy && enemy.alive) {
+      this.clearPendingAction();
+      if (typeof this.tryEngageEnemyFromExplore === 'function') {
+        this.tryEngageEnemyFromExplore(enemy);
+      } else {
+        this.enterCombat([enemy]);
+      }
+      return;
+    }
+    // Clicking empty tile while in attack targeting → cancel
+    if (this.pendingAction === 'attack' && !enemy) {
+      this.clearPendingAction();
+      this.showStatus('Attack cancelled.');
+      return;
+    }
+
     const ents = this.getEntitiesAt(tx, ty);
     const hasEntity = ents.length > 0;
 

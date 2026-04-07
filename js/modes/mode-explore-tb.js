@@ -10,6 +10,8 @@ Object.assign(GameScene.prototype, {
       this.showStatus('Already in combat turn-based mode.');
       return this.mode;
     }
+    // If user manually toggles TB, take over from auto-TB targeting
+    if(this._targetingAutoTB) this._targetingAutoTB=false;
     this._manualExploreTurnBased = !this._manualExploreTurnBased;
     this.mode = this._manualExploreTurnBased ? MODE.EXPLORE_TB : MODE.EXPLORE;
     const badge = document.getElementById('mode-badge');
@@ -72,6 +74,21 @@ Object.assign(GameScene.prototype, {
     // Enemy + entities on same tile → combined context menu (end turn after entity action)
     if (enemy && hasEntity) {
       this.buildTileMenu(tx, ty, enemy, ptr, () => this.endExploreTurnBasedPlayerTurn());
+      return;
+    }
+    // Attack targeting mode: click enemy → initiate combat
+    if (this.pendingAction === 'attack' && enemy && enemy.alive) {
+      this.clearPendingAction();
+      if (typeof this.tryEngageEnemyFromExplore === 'function') {
+        this.tryEngageEnemyFromExplore(enemy);
+      } else {
+        this.enterCombat([enemy]);
+      }
+      return;
+    }
+    if (this.pendingAction === 'attack' && !enemy) {
+      this.clearPendingAction();
+      this.showStatus('Attack cancelled.');
       return;
     }
     if (enemy) { this.onTapEnemy(enemy); return; }
