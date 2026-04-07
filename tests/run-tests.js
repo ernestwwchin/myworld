@@ -60,8 +60,8 @@ function testDamageRolling(dnd) {
 }
 
 function testWeaponDataReferences(dnd) {
-  const weapons = loadYaml('data/core/weapons.yaml').weapons;
-  const creatures = loadYaml('data/core/creatures.yaml').creatures;
+  const weapons = loadYaml('data/00_core/weapons.yaml').weapons;
+  const creatures = loadYaml('data/00_core/creatures.yaml').creatures;
   const player = loadYaml('data/player.yaml').player;
 
   // Every weapon must have parseable damageDice and range
@@ -116,8 +116,8 @@ function testExploreTurnBasedContracts() {
 
 function testModMetaYamlContracts() {
   // Core meta.yaml must exist and declare required includes
-  const coreMeta = loadYaml('data/core/meta.yaml');
-  assert.strictEqual(coreMeta.id, 'core', 'core meta.yaml missing id');
+  const coreMeta = loadYaml('data/00_core/meta.yaml');
+  assert.strictEqual(coreMeta.id, '00_core', 'core meta.yaml missing id');
   assert.ok(Array.isArray(coreMeta.includes), 'core meta.yaml missing includes array');
   const requiredIncludes = ['rules.yaml', 'abilities.yaml', 'creatures.yaml', 'classes.yaml', 'weapons.yaml', 'statuses.yaml'];
   for (const file of requiredIncludes) {
@@ -130,27 +130,27 @@ function testModMetaYamlContracts() {
 function testModSettingsStructure() {
   const settings = loadYaml('data/modsettings.yaml');
   assert.ok(Array.isArray(settings.mods), 'modsettings.yaml must have mods array');
-  assert.ok(settings.mods.includes('core'), 'modsettings must include core');
+  assert.ok(settings.mods.includes('00_core'), 'modsettings must include 00_core');
 }
 
 function testCoreFirstDedup() {
   // Simulate the modList logic from modloader.js
   const settings = loadYaml('data/modsettings.yaml');
-  const modList = ['core', ...(settings.mods || []).filter(m => m !== 'core')];
-  assert.strictEqual(modList[0], 'core', 'core must be first mod in load order');
+  const modList = ['00_core', ...(settings.mods || []).filter(m => m !== '00_core')];
+  assert.strictEqual(modList[0], '00_core', 'core must be first mod in load order');
   // No duplicates
-  assert.strictEqual(modList.filter(m => m === 'core').length, 1, 'core should not be duplicated');
+  assert.strictEqual(modList.filter(m => m === '00_core').length, 1, 'core should not be duplicated');
 }
 
 function testGoblinInvasionMod() {
-  const meta = loadYaml('data/goblin_invasion/meta.yaml');
-  assert.strictEqual(meta.id, 'goblin_invasion');
+  const meta = loadYaml('data/01_goblin_invasion/meta.yaml');
+  assert.strictEqual(meta.id, '01_goblin_invasion');
   assert.strictEqual(meta.startMap, 'gw_b1f', 'goblin_invasion must declare startMap');
   assert.ok(Array.isArray(meta.stages), 'goblin_invasion must declare stages');
   assert.ok(meta.stages.includes('gw_b1f'), 'goblin_invasion must include gw_b1f stage');
 
   // Creatures file must have valid stat blocks
-  const creatures = loadYaml('data/goblin_invasion/creatures.yaml').creatures;
+  const creatures = loadYaml('data/01_goblin_invasion/creatures.yaml').creatures;
   assert.ok(creatures.goblin_captain, 'goblin_invasion missing goblin_captain');
   assert.ok(creatures.goblin_shaman, 'goblin_invasion missing goblin_shaman');
   for (const [id, c] of Object.entries(creatures)) {
@@ -162,7 +162,7 @@ function testGoblinInvasionMod() {
 }
 
 function testStageYamlStructure() {
-  const stage = loadYaml('data/goblin_invasion/stages/gw_b1f/stage.yaml');
+  const stage = loadYaml('data/01_goblin_invasion/stages/gw_b1f/stage.yaml');
   assert.ok(stage.grid, 'stage must have grid');
   assert.ok(Array.isArray(stage.grid), 'grid must be an array');
   assert.ok(stage.grid.length > 0, 'grid must not be empty');

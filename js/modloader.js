@@ -94,13 +94,13 @@ const ModLoader = {
     const settings = await this.loadYaml('data/modsettings.yaml');
 
     // 2. Build mod list — core always first, deduped.
-    const modList = ['core', ...(settings.mods || []).filter(m => m !== 'core')];
+    const modList = ['00_core', ...(settings.mods || []).filter(m => m !== '00_core')];
 
     const modData = { rules: {}, classes: {}, weapons: {}, creatures: {}, maps: {}, abilities: {}, statuses: {}, statusRules: {}, lootTables: {} };
 
     // Load core loot tables (standalone file, not part of mod includes)
     try {
-      const lt = await this.loadYaml('data/core/loot-tables.yaml');
+      const lt = await this.loadYaml('data/00_core/loot-tables.yaml');
       if (lt && typeof lt === 'object') Object.assign(modData.lootTables, lt);
     } catch (_e) { /* no loot tables file — ok */ }
     this._stageRegistry = {};
@@ -110,7 +110,7 @@ const ModLoader = {
     //    Each mod may declare: includes (files to merge), stages (stage IDs it owns), startMap.
     for (const modId of modList) {
       const meta = await this.loadYaml(`data/${modId}/meta.yaml`);
-      if (meta.enabled === false && modId !== 'core') continue;
+      if (meta.enabled === false && modId !== '00_core') continue;
 
       // Merge declared files into modData
       for (const file of (meta.includes || [])) {

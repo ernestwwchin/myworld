@@ -3,7 +3,7 @@
 # It defines shared rules, base creature stat blocks, weapons, abilities, etc.
 # Content mods (goblin_invasion, etc.) layer on top and declare their own startMap.
 
-id: core
+id: 00_core
 name: Core
 author: MyWorld
 version: 1.0.0

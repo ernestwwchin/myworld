@@ -3,5 +3,5 @@
 # The last mod that declares startMap sets the opening stage.
 
 mods:
-  - core
-  - goblin_invasion
+  - 00_core
+  - 01_goblin_invasion
