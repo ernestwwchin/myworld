@@ -1,0 +1,11 @@
+# Test: Movement — autoplay steps
+# Pathfind to corner, assert arrival, try wall, assert blocked.
+
+autoplay:
+  - { do: log, text: "=== ts_movement: Pathfinding test ===" }
+  - { do: move, x: 5, y: 5 }
+  - { do: waitIdle }
+  - { do: assert, playerAt: [5, 5], msg: "reached target corner" }
+  - { do: move, x: 0, y: 0 }
+  - { do: wait, ms: 300 }
+  - { do: assert, playerAt: [5, 5], msg: "wall blocked movement" }

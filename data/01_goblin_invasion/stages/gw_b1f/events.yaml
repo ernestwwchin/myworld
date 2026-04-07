@@ -1,0 +1,10 @@
+# Goblin Warren B1F — stage events
+# Triggered events for the first floor of the goblin warren.
+
+events:
+  - id: entrance_warning
+    trigger: { tile: { x: 4, y: 2 } }
+    once: true
+    steps:
+      - { do: say, speaker: "???", text: "You hear scratching sounds deeper in the warren..." }
+      - { do: setFlag, entered_warren: true }

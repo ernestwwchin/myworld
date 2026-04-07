@@ -124,6 +124,14 @@ const ModLoader = {
         }
       }
 
+      // Register flags from this mod
+      if (meta.flags && typeof Flags !== 'undefined') {
+        Flags.registerMod(modId, meta.flags);
+      }
+      if (meta.flag_overrides && typeof Flags !== 'undefined') {
+        Flags.applyOverrides(meta.flag_overrides);
+      }
+
       // Register this mod's stages — later mod wins on same ID.
       for (const stageId of (meta.stages || [])) {
         this._stageRegistry[stageId] = `data/${modId}/stages/${stageId}/stage.yaml`;
@@ -156,6 +164,22 @@ const ModLoader = {
         tileAnimations: stageData.tileAnimations || {},
       };
       console.log(`[ModLoader] Stage loaded: ${activeMap}`);
+
+      // Load stage events.yaml and dialogs.yaml (co-located with stage.yaml)
+      const stageDir = this._stageRegistry?.[activeMap]
+        ? this._stageRegistry[activeMap].replace('/stage.yaml', '')
+        : null;
+      if (stageDir) {
+        try {
+          const evts = await this.loadYaml(`${stageDir}/events.yaml`);
+          modData._stageEvents = evts?.events || evts?.autoplay || [];
+          modData._stageAutoplay = evts?.autoplay || [];
+        } catch (_e) { modData._stageEvents = []; modData._stageAutoplay = []; }
+        try {
+          const dlgs = await this.loadYaml(`${stageDir}/dialogs.yaml`);
+          modData._stageDialogs = dlgs?.dialogs || {};
+        } catch (_e) { modData._stageDialogs = {}; }
+      }
     }
 
     // 6. Store for reuse (e.g. test runner map switching)

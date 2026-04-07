@@ -208,6 +208,14 @@ class GameScene extends Phaser.Scene {
     this.time.addEvent({delay:1200,loop:true,callback:()=>{ if(this.mode===MODE.EXPLORE) this.wanderEnemies(); }});
     this.startExploreStatusTicker();
     this.showStatus('Explore — enemies will spot you from their facing direction!');
+
+    // Init event system (YAML-driven events + dialogs)
+    if (typeof EventRunner !== 'undefined') {
+      EventRunner.init(this, ModLoader._modData?._stageEvents || []);
+    }
+    if (typeof DialogRunner !== 'undefined') {
+      DialogRunner.init(this, ModLoader._modData?._stageDialogs || {});
+    }
   }
 
   playActorIdle(sprite,type){

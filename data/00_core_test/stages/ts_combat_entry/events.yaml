@@ -1,0 +1,13 @@
+# Test: Combat Entry — autoplay steps
+# Walk into goblin FOV, assert combat triggers.
+
+autoplay:
+  - { do: log, text: "=== ts_combat_entry: FOV detection test ===" }
+  - { do: assert, mode: explore, msg: "start in explore" }
+  - { do: move, x: 3, y: 3 }
+  - { do: waitIdle }
+  - { do: wait, ms: 800 }
+  - { do: move, x: 4, y: 3 }
+  - { do: waitIdle }
+  - { do: wait, ms: 800 }
+  - { do: assert, mode: combat, msg: "combat triggered by FOV" }

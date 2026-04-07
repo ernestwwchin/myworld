@@ -82,6 +82,7 @@ Object.assign(GameScene.prototype, {
           if(d.auto&&d.open) this.setDoorOpen(prev.x,prev.y,false,true);
         }
         this.lastCompletedTile={x:next.x,y:next.y};
+        if(typeof EventRunner!=='undefined') EventRunner.onPlayerTile(next.x,next.y);
         if(this.mode===MODE.COMBAT&&!this.onArrival){
           this.isMoving=false; this.movePath=[]; this.clearPathDots();
           return;

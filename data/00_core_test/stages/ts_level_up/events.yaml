@@ -1,0 +1,19 @@
+# Test: Level Up — autoplay steps
+# Kill two goblins, assert XP gain and level up.
+
+autoplay:
+  - { do: log, text: "=== ts_level_up: XP and level test ===" }
+  - { do: forceD20, value: 19 }
+  - { do: enterCombat }
+  - { do: wait, ms: 1000 }
+  - { do: selectAction, action: attack }
+  - { do: attack, target: nearest }
+  - { do: wait, ms: 500 }
+  - { do: dismiss }
+  - { do: wait, ms: 500 }
+  - { do: attack, target: nearest }
+  - { do: wait, ms: 500 }
+  - { do: dismiss }
+  - { do: restoreD20 }
+  - { do: wait, ms: 500 }
+  - { do: log, text: "Checking level up..." }

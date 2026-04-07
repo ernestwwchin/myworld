@@ -467,6 +467,75 @@ function testTsSkills_ProfBonusScaling(dnd) {
   assert.strictEqual(dnd.profBonus(17), 6);
 }
 
+// ── Event system contracts ──
+
+function testFlagsSystemContracts() {
+  const src = fs.readFileSync(path.join(root, 'js', 'systems', 'flags.js'), 'utf8');
+  assert.ok(src.includes('registerMod('), 'flags.js missing registerMod');
+  assert.ok(src.includes('applyOverrides('), 'flags.js missing applyOverrides');
+  assert.ok(src.includes('_resolve('), 'flags.js missing _resolve (namespace resolution)');
+  assert.ok(src.includes('serialize('), 'flags.js missing serialize');
+  assert.ok(src.includes('load('), 'flags.js missing load');
+  assert.ok(src.includes('increment('), 'flags.js missing increment');
+}
+
+function testEventRunnerContracts() {
+  const src = fs.readFileSync(path.join(root, 'js', 'systems', 'event-runner.js'), 'utf8');
+  assert.ok(src.includes('onPlayerTile('), 'event-runner missing onPlayerTile');
+  assert.ok(src.includes('onEvent('), 'event-runner missing onEvent');
+  assert.ok(src.includes('evalCondition('), 'event-runner missing evalCondition');
+  assert.ok(src.includes('executeSteps('), 'event-runner missing executeSteps');
+  assert.ok(src.includes('_execAction('), 'event-runner missing _execAction');
+  assert.ok(src.includes('fireById('), 'event-runner missing fireById');
+  // Must handle all core actions
+  for (const action of ['move', 'wait', 'waitIdle', 'attack', 'flee', 'hide', 'spawn', 'say', 'setFlag', 'branch', 'goto', 'assert', 'dialog']) {
+    assert.ok(src.includes(`'${action}'`), `event-runner missing action handler: ${action}`);
+  }
+}
+
+function testDialogRunnerContracts() {
+  const src = fs.readFileSync(path.join(root, 'js', 'systems', 'dialog-runner.js'), 'utf8');
+  assert.ok(src.includes('start('), 'dialog-runner missing start');
+  assert.ok(src.includes('_getAvailableChoices('), 'dialog-runner missing _getAvailableChoices');
+  assert.ok(src.includes('_waitForChoice('), 'dialog-runner missing _waitForChoice');
+  assert.ok(src.includes('_showNode('), 'dialog-runner missing _showNode');
+  assert.ok(src.includes('skillCheck'), 'dialog-runner missing skill check support');
+}
+
+function testEventsYamlExistence() {
+  // Every 00_core_test stage should have events.yaml
+  const meta = loadYaml('data/00_core_test/meta.yaml');
+  for (const stageId of meta.stages) {
+    const evtPath = path.join(root, `data/00_core_test/stages/${stageId}/events.yaml`);
+    assert.ok(fs.existsSync(evtPath), `${stageId} missing events.yaml`);
+    const evts = loadYaml(`data/00_core_test/stages/${stageId}/events.yaml`);
+    assert.ok(Array.isArray(evts.autoplay), `${stageId}/events.yaml must have autoplay array`);
+    assert.ok(evts.autoplay.length > 0, `${stageId}/events.yaml autoplay must not be empty`);
+    // Every step must have 'do' key
+    for (const step of evts.autoplay) {
+      assert.ok(step.do, `${stageId}/events.yaml step missing 'do': ${JSON.stringify(step)}`);
+    }
+  }
+
+  // gw_b1f should have events.yaml with story events
+  const gwEvts = loadYaml('data/01_goblin_invasion/stages/gw_b1f/events.yaml');
+  assert.ok(Array.isArray(gwEvts.events), 'gw_b1f events.yaml must have events array');
+  assert.ok(gwEvts.events.length > 0, 'gw_b1f must have at least one event');
+  for (const evt of gwEvts.events) {
+    assert.ok(evt.trigger, `gw_b1f event missing trigger: ${evt.id || '?'}`);
+    assert.ok(Array.isArray(evt.steps), `gw_b1f event missing steps: ${evt.id || '?'}`);
+  }
+}
+
+function testGoblinInvasionFlags() {
+  const meta = loadYaml('data/01_goblin_invasion/meta.yaml');
+  assert.ok(meta.flags, 'goblin_invasion must declare flags');
+  assert.ok(meta.flags.entered_warren, 'missing entered_warren flag');
+  assert.ok(meta.flags.goblin_captain_dead, 'missing goblin_captain_dead flag');
+  assert.ok(meta.flags.goblins_killed, 'missing goblins_killed flag');
+  assert.strictEqual(meta.flags.goblins_killed.type, 'counter', 'goblins_killed must be counter type');
+}
+
 function testEngageAndAutoplayContracts() {
   const uiPath = path.join(root, 'js', 'ui', 'core-ui.js');
   const uiSrc = fs.readFileSync(uiPath, 'utf8');
@@ -523,6 +592,13 @@ function run() {
   testTsSkills_PassiveSkill(dnd);
   testTsSkills_SkillCheck(dnd);
   testTsSkills_ProfBonusScaling(dnd);
+
+  // Event system tests
+  testFlagsSystemContracts();
+  testEventRunnerContracts();
+  testDialogRunnerContracts();
+  testEventsYamlExistence();
+  testGoblinInvasionFlags();
 
   console.log('All tests passed.');
 }
