@@ -1,0 +1,18 @@
+# Goblin Invasion — content mod
+# Adds the goblin warren dungeon: creatures, stages, and items
+# specific to the goblin invasion story arc.
+
+id: goblin_invasion
+name: Goblin Invasion
+author: MyWorld
+version: 1.0.0
+description: The goblin warren dungeon — floors B1F through the boss floor.
+enabled: true
+
+startMap: gw_b1f
+
+includes:
+  - creatures.yaml
+
+stages:
+  - gw_b1f
