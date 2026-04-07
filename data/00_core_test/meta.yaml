@@ -1,9 +1,9 @@
-# Test mod — automated test stages only.
+# Core test mod — automated test stages for core game mechanics.
 # Disabled by default so test stages never load during normal gameplay.
 # The test runner (tests/run-tests.js) reads these files directly by path.
 
-id: test
-name: Test Stages
+id: 00_core_test
+name: Core Tests
 author: MyWorld
 version: 1.0.0
 description: Automated test stages for the test runner.

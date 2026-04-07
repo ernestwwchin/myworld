@@ -11,7 +11,7 @@ description: Base game rules, creatures, weapons, abilities, and classes.
 enabled: true
 
 # No startMap — core does not decide the opening stage.
-# Test stages live in data/test/ (separate disabled mod).
+# Test stages live in data/00_core_test/ (paired test mod, disabled).
 
 includes:
   - rules.yaml
