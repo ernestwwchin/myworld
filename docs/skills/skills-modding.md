@@ -64,11 +64,26 @@ player:
 
 ```
 data/
-├── core/
+├── 00_core/              # Base game data
+│   ├── meta.yaml
+│   ├── rules.yaml
 │   ├── weapons.yaml
 │   ├── creatures.yaml
 │   ├── abilities.yaml
 │   └── statuses.yaml
+├── 01_goblin_invasion/   # Content mod
+│   ├── meta.yaml         # includes, stages, flags
+│   ├── creatures.yaml
+│   └── stages/
+│       └── gw_b1f/
+│           ├── stage.yaml
+│           ├── events.yaml
+│           └── dialogs.yaml
+├── 00_core_test/         # Test mod (disabled by default)
+│   ├── meta.yaml
+│   └── stages/ts_*/
+│       ├── stage.yaml
+│       └── events.yaml   # autoplay: steps for browser tests
 └── player.yaml
 ```
 
@@ -83,7 +98,34 @@ const data = yaml.load(fs.readFileSync('data/core/weapons.yaml', 'utf8'));
 const weapons = await fetch('/api/data/weapons').then(r => r.json());
 ```
 
+## Event System (3 files)
+
+| System | File | Role |
+|--------|------|------|
+| **Flags** | `js/systems/flags.js` | Namespaced state store (bool/counter/enum) |
+| **EventRunner** | `js/systems/event-runner.js` | Step executor + tile/named triggers |
+| **DialogRunner** | `js/systems/dialog-runner.js` | Conversation trees with choices + skill checks |
+
+### events.yaml keys
+- `events:` — triggered events (tile, combatEnd, flag change)
+- `autoplay:` — test-only step sequences (run by autoplay.js)
+- Steps use `{ do: action, ...params }` format
+- Conditions: `{ flag: key }`, `{ mode: combat }`, `{ all/any/not: [...] }`
+
+### dialogs.yaml keys
+- `dialogs:` — map of node IDs → `{ speaker, text, choices, actions, next }`
+- Choices can have `check: { skill, dc }` with `pass`/`fail` branches
+- Choices can have `if:` condition gates
+
+### Flags in meta.yaml
+```yaml
+flags:
+  boss_dead: { type: bool, default: false }
+  kills: { type: counter, default: 0 }
+  quest: { type: enum, values: [not_started, active, complete], default: not_started }
+```
+
 ## Reference
 
-- `docs/modding_guide.md` — Full modding guide with hook points
+- `docs/modding_guide.md` — Full modding guide with event system, hooks, actions table
 - `docs/ref/` — D&D 5e content reference for data authoring

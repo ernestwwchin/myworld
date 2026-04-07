@@ -27,10 +27,34 @@ Object.assign(GameScene.prototype, GameScene[Name]System);
 ## System Integration Points
 
 ```
-Fog System ↔ Sight System      Visibility affects detection
-Combat System ↔ Movement System Position affects combat
-UI System ↔ All Systems         Displays reflect state
-Ability System ↔ Combat System  Apply effects in combat
+Fog System ↔ Sight System        Visibility affects detection
+Combat System ↔ Movement System  Position affects combat
+UI System ↔ All Systems           Displays reflect state
+Ability System ↔ Combat System    Apply effects in combat
+EventRunner ↔ Movement System    Tile triggers on player step
+EventRunner ↔ DialogRunner        Events open dialog trees
+Flags ↔ EventRunner/DialogRunner  Shared state store
+```
+
+## Event System (Standalone, not mixin)
+
+Three standalone objects (not GameScene mixins):
+
+| Object | File | Pattern |
+|--------|------|---------|
+| `Flags` | `js/systems/flags.js` | Global singleton, no scene ref |
+| `EventRunner` | `js/systems/event-runner.js` | Singleton, receives scene via `init(scene)` |
+| `DialogRunner` | `js/systems/dialog-runner.js` | Singleton, receives scene via `init(scene)` |
+
+These load **before** `game.js` (Flags must exist for ModLoader). Wired in `create()`:
+```javascript
+EventRunner.init(this, ModLoader._modData?._stageEvents || []);
+DialogRunner.init(this, ModLoader._modData?._stageDialogs || {});
+```
+
+Movement system fires triggers:
+```javascript
+if (typeof EventRunner !== 'undefined') EventRunner.onPlayerTile(next.x, next.y);
 ```
 
 ## Adding a New Module
