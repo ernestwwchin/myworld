@@ -98,11 +98,13 @@ const ModLoader = {
     // 1. Load mod settings
     const settings = await this.loadYaml('data/modsettings.yaml');
 
-    // 2. Load each enabled mod
+    // 2. Load mods — core is always loaded first as the base, then remaining mods in order.
+    // Later mods override earlier ones. core cannot be disabled or reordered.
     const modData = { rules: {}, classes: {}, weapons: {}, creatures: {}, maps: {}, abilities: {}, statuses: {}, statusRules: {} };
-    for (const modId of settings.mods) {
+    const modList = ['core', ...settings.mods.filter(m => m !== 'core')];
+    for (const modId of modList) {
       const meta = await this.loadYaml(`data/${modId}/meta.yaml`);
-      if (meta.enabled === false) continue;
+      if (meta.enabled === false && modId !== 'core') continue;
 
       for (const file of meta.includes) {
         const data = await this.loadYaml(`data/${modId}/${file}`);
@@ -115,6 +117,7 @@ const ModLoader = {
           }
         }
       }
+      if (modId === 'core') console.log('[ModLoader] Base mod loaded: core');
     }
 
     // 3. Load player
