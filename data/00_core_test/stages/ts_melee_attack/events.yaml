@@ -1,0 +1,14 @@
+# Test: Melee Attack — autoplay steps
+# Force d20=19, attack adjacent goblin, assert kill.
+
+autoplay:
+  - { do: log, text: "=== ts_melee_attack: Adjacent attack test ===" }
+  - { do: enterCombat }
+  - { do: wait, ms: 1000 }
+  - { do: forceD20, value: 19 }
+  - { do: selectAction, action: attack }
+  - { do: attack, target: nearest }
+  - { do: wait, ms: 500 }
+  - { do: dismiss }
+  - { do: restoreD20 }
+  - { do: assert, enemyDead: goblin, msg: "goblin killed" }

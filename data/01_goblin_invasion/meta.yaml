@@ -16,3 +16,8 @@ includes:
 
 stages:
   - gw_b1f
+
+flags:
+  entered_warren: { type: bool, default: false }
+  goblin_captain_dead: { type: bool, default: false }
+  goblins_killed: { type: counter, default: 0 }

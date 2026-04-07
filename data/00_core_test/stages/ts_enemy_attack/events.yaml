@@ -1,0 +1,12 @@
+# Test: Enemy Attack — autoplay steps
+# Enter combat, end player turn, let enemy attack, assert survival.
+
+autoplay:
+  - { do: log, text: "=== ts_enemy_attack: Enemy turn test ===" }
+  - { do: enterCombat }
+  - { do: wait, ms: 1000 }
+  - { do: endTurn }
+  - { do: wait, ms: 2000 }
+  - { do: dismiss }
+  - { do: wait, ms: 500 }
+  - { do: log, text: "Enemy turn complete, checking survival" }

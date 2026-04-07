@@ -1,0 +1,8 @@
+# Test: Skill Checks — autoplay steps
+# No map interaction needed. Skills tested in run-tests.js (Node).
+# This autoplay just verifies the stage loads cleanly.
+
+autoplay:
+  - { do: log, text: "=== ts_skills: Stage load test ===" }
+  - { do: wait, ms: 500 }
+  - { do: assert, mode: explore, msg: "loaded in explore mode" }
