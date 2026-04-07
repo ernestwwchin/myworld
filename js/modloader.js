@@ -136,6 +136,12 @@ const ModLoader = {
         stageSprites: stageData.stageSprites || stageData.sprites || [],
         tileAnimations: stageData.tileAnimations || {},
       };
+      // Stage-local creatures override core definitions for this session only.
+      // Useful for named bosses, variants, or unique NPCs specific to one stage.
+      if (stageData.creatures && typeof stageData.creatures === 'object') {
+        Object.assign(modData.creatures, stageData.creatures);
+        console.log(`[ModLoader] Stage creatures merged: ${Object.keys(stageData.creatures).join(', ')}`);
+      }
       console.log(`[ModLoader] Stage folder loaded: data/stages/${settings.activeMap}/stage.yaml`);
     }
 
