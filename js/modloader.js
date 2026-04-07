@@ -55,36 +55,33 @@ const ModLoader = {
     return normalized;
   },
 
-  /** Try loading stage data from nested stages structure.
-   * Supports both:
-   * - data/stages/{stageId}/stage.yaml (legacy flat)
-   * - data/stages/{stage}/{stageId}/stage.yaml (nested)
+  /** Load stage data for the given stageId.
+   * Checks the stage registry (built from mod metadata) first,
+   * then falls back to legacy data/stages/ paths for test stages.
    */
   async tryLoadStage(stageId) {
-    // Try legacy flat structure first
-    const flatPath = `data/stages/${stageId}/stage.yaml`;
-    try {
-      const stage = await this.loadYaml(flatPath);
-      if (stage && stage.grid) return stage;
-    } catch (_err) {
-      // Not found, try nested structure
+    if (!stageId) return null;
+
+    // 1. Stage registry — populated during init() from each mod's meta.yaml stages list.
+    //    Later mods override earlier ones for the same stage ID.
+    if (this._stageRegistry?.[stageId]) {
+      try {
+        const stage = await this.loadYaml(this._stageRegistry[stageId]);
+        if (stage && stage.grid) return stage;
+      } catch (_err) { /* fall through */ }
     }
 
-    // Try nested structure: search for stageId in any parent folder
-    // E.g., stageId="gw_b1f" → data/stages/goblin_warren/gw_b1f/stage.yaml
-    const nestedPaths = [
+    // 2. Legacy fallback — test stages and flat data/stages/ structure.
+    const legacyPaths = [
+      `data/stages/${stageId}/stage.yaml`,
       `data/stages/test_stage/${stageId}/stage.yaml`,
-      `data/stages/goblin_warren/${stageId}/stage.yaml`,
       `data/stages/dev/${stageId}/stage.yaml`,
     ];
-
-    for (const path of nestedPaths) {
+    for (const p of legacyPaths) {
       try {
-        const stage = await this.loadYaml(path);
+        const stage = await this.loadYaml(p);
         if (stage && stage.grid) return stage;
-      } catch (_err) {
-        continue;
-      }
+      } catch (_err) { continue; }
     }
 
     return null;
@@ -98,21 +95,28 @@ const ModLoader = {
     // 1. Load mod settings
     const settings = await this.loadYaml('data/modsettings.yaml');
 
-    // 2. Load each enabled mod
+    // 2. Build mod list — core always first, deduped.
+    const modList = ['core', ...(settings.mods || []).filter(m => m !== 'core')];
+
     const modData = { rules: {}, classes: {}, weapons: {}, creatures: {}, maps: {}, abilities: {}, statuses: {}, statusRules: {}, lootTables: {} };
 
-    // 1b. Load core loot tables
+    // Load core loot tables (standalone file, not part of mod includes)
     try {
       const lt = await this.loadYaml('data/core/loot-tables.yaml');
       if (lt && typeof lt === 'object') Object.assign(modData.lootTables, lt);
     } catch (_e) { /* no loot tables file — ok */ }
-    for (const modId of settings.mods) {
-      const meta = await this.loadYaml(`data/${modId}/meta.yaml`);
-      if (meta.enabled === false) continue;
+    this._stageRegistry = {};
+    let activeMap = settings.activeMap || null; // legacy fallback
 
-      for (const file of meta.includes) {
+    // 3. Load each mod in order. Later mods override earlier ones.
+    //    Each mod may declare: includes (files to merge), stages (stage IDs it owns), startMap.
+    for (const modId of modList) {
+      const meta = await this.loadYaml(`data/${modId}/meta.yaml`);
+      if (meta.enabled === false && modId !== 'core') continue;
+
+      // Merge declared files into modData
+      for (const file of (meta.includes || [])) {
         const data = await this.loadYaml(`data/${modId}/${file}`);
-        // Merge each top-level key (later mods override earlier)
         for (const [key, val] of Object.entries(data)) {
           if (typeof val === 'object' && !Array.isArray(val) && modData[key]) {
             Object.assign(modData[key], val);
@@ -121,17 +125,27 @@ const ModLoader = {
           }
         }
       }
+
+      // Register this mod's stages — later mod wins on same ID.
+      for (const stageId of (meta.stages || [])) {
+        this._stageRegistry[stageId] = `data/${modId}/stages/${stageId}/stage.yaml`;
+      }
+
+      // Last mod declaring startMap sets the opening stage.
+      if (meta.startMap) activeMap = meta.startMap;
+
+      console.log(`[ModLoader] Mod loaded: ${modId}${meta.startMap ? ` (startMap: ${meta.startMap})` : ''}`);
     }
 
-    // 3. Load player
+    // 4. Load player
     const playerFile = await this.loadYaml('data/player.yaml');
 
-    // 3b. Prefer stage-folder content when available (BG3-style organization).
-    const stageData = await this.tryLoadStage(settings.activeMap);
+    // 5. Load the active stage from the registry (or legacy fallback paths).
+    const stageData = await this.tryLoadStage(activeMap);
     if (stageData) {
-      modData.maps[settings.activeMap] = {
-        name: stageData.name || settings.activeMap,
-        floor: stageData.floor || settings.activeMap.toUpperCase(),
+      modData.maps[activeMap] = {
+        name: stageData.name || activeMap,
+        floor: stageData.floor || activeMap.toUpperCase(),
         grid: stageData.grid,
         playerStart: stageData.playerStart || { x: 1, y: 1 },
         encounters: stageData.encounters || [],
@@ -143,23 +157,24 @@ const ModLoader = {
         stageSprites: stageData.stageSprites || stageData.sprites || [],
         tileAnimations: stageData.tileAnimations || {},
       };
-      console.log(`[ModLoader] Stage folder loaded: data/stages/${settings.activeMap}/stage.yaml`);
+      console.log(`[ModLoader] Stage loaded: ${activeMap}`);
     }
 
-    // 4. Store for reuse (e.g. test runner map switching)
+    // 6. Store for reuse (e.g. test runner map switching)
     this._modData = modData;
+    this._activeMap = activeMap;
 
-    // 5. Apply to game globals
+    // 7. Apply to game globals
     this.applyRules(modData);
     this.applyClasses(modData);
     this.applyWeapons(modData);
     this.applyAbilities(modData);
     this.applyStatuses(modData);
-    this.applyMap(modData, settings.activeMap);
-    this.applyCreatures(modData, settings.activeMap);
+    this.applyMap(modData, activeMap);
+    this.applyCreatures(modData, activeMap);
     this.applyPlayer(playerFile.player, modData);
 
-    console.log('[ModLoader] Loaded mods:', settings.mods.join(', '));
+    console.log('[ModLoader] Active map:', activeMap);
   },
 
   applyRules(data) {
