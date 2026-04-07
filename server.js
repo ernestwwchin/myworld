@@ -114,6 +114,95 @@ if (DEBUG_TOOLS) {
     res.json({ routes: routeRegistry });
   });
   registerRoute('GET', '/_debug/routes');
+
+  // ═══════════════════════════════════════════════════════
+  // REMOTE DEBUG BRIDGE
+  // Backend → Frontend via SSE, Frontend → Backend via POST
+  // Usage:
+  //   1. Frontend connects to /_debug/channel (SSE)
+  //   2. Backend sends command via POST /_debug/exec
+  //   3. Frontend executes, POSTs result to /_debug/response
+  //   4. Backend reads result via GET /_debug/result/:id
+  // ═══════════════════════════════════════════════════════
+
+  const debugClients = new Set();   // SSE connections
+  const pendingResults = new Map(); // cmdId → { resolve, timer, result }
+  let cmdSeq = 0;
+
+  // SSE channel — frontend connects here to receive commands
+  app.get('/_debug/channel', (req, res) => {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive'
+    });
+    res.write('data: {"type":"connected"}\n\n');
+    debugClients.add(res);
+    console.log(`[DebugBridge] Client connected (${debugClients.size} total)`);
+    req.on('close', () => {
+      debugClients.delete(res);
+      console.log(`[DebugBridge] Client disconnected (${debugClients.size} total)`);
+    });
+  });
+  registerRoute('GET', '/_debug/channel');
+
+  // Broadcast a command to all connected frontends
+  function broadcastCmd(cmd) {
+    const data = JSON.stringify(cmd);
+    for (const client of debugClients) {
+      client.write(`data: ${data}\n\n`);
+    }
+  }
+
+  // Send a command to frontend and wait for response
+  app.post('/_debug/exec', express.json(), (req, res) => {
+    const { cmd, args, timeout } = req.body || {};
+    if (!cmd) return res.status(400).json({ error: 'Missing cmd' });
+    if (debugClients.size === 0) return res.status(503).json({ error: 'No frontend connected' });
+
+    const id = `cmd_${++cmdSeq}`;
+    const waitMs = Math.min(Number(timeout) || 10000, 30000);
+
+    // Set up response waiter
+    let resolver;
+    const promise = new Promise(resolve => { resolver = resolve; });
+    const timer = setTimeout(() => {
+      pendingResults.delete(id);
+      resolver({ error: 'timeout', id });
+    }, waitMs);
+    pendingResults.set(id, { resolve: resolver, timer });
+
+    // Send command to frontend
+    broadcastCmd({ type: 'exec', id, cmd, args: args || {} });
+    console.log(`[DebugBridge] → ${cmd}(${JSON.stringify(args || {})}) [${id}]`);
+
+    // Wait for frontend response
+    promise.then(result => {
+      res.json({ id, ...result });
+    });
+  });
+  registerRoute('POST', '/_debug/exec');
+
+  // Frontend posts command results here
+  app.post('/_debug/response', express.json(), (req, res) => {
+    const { id, result, error } = req.body || {};
+    if (!id) return res.status(400).json({ error: 'Missing id' });
+    const pending = pendingResults.get(id);
+    if (pending) {
+      clearTimeout(pending.timer);
+      pendingResults.delete(id);
+      pending.resolve(error ? { error } : { result });
+      console.log(`[DebugBridge] ← ${id} ${error ? 'ERROR: ' + error : 'OK'}`);
+    }
+    res.json({ ok: true });
+  });
+  registerRoute('POST', '/_debug/response');
+
+  // Quick state snapshot (no frontend needed — reads last posted logs)
+  app.get('/_debug/clients', (_req, res) => {
+    res.json({ connected: debugClients.size });
+  });
+  registerRoute('GET', '/_debug/clients');
 }
 
 app.use(express.static(path.join(__dirname)));
