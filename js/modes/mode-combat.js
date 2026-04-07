@@ -959,7 +959,7 @@ Object.assign(GameScene.prototype, {
       const tx=px+dx, ty=py+dy;
       if(tx<0||ty<0||tx>=COLS||ty>=ROWS) continue;
       if(this.isWallTile(tx,ty)) continue;
-      if(this.combatGroup.some(e=>e.alive&&e.img&&!e.img.active===false&&e.tx===tx&&e.ty===ty)){
+      if(this.combatGroup.some(e=>e.alive&&e.img&&e.tx===tx&&e.ty===ty)){
         const o=this.add.image(tx*S+S/2,ty*S+S/2,'t_atk').setDisplaySize(S,S).setDepth(4);
         this.atkRangeTiles.push(o); any=true;
       }

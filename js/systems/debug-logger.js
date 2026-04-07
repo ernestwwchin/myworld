@@ -243,6 +243,28 @@ const GameSceneDebugLogger = {
         }
         return { error: 'Missing enemyIndex' };
 
+      case 'selectAction':
+        if(args.action){
+          this.selectAction(args.action);
+          return { ok: true, action: args.action, pendingAction: this.pendingAction };
+        }
+        return { error: 'Missing action (attack/dash/hide)' };
+
+      case 'dismissPopups': {
+        const ids = ['enemy-stat-popup','combat-enemy-popup','context-menu','dice-ov'];
+        const closed = [];
+        for(const id of ids){
+          const el = document.getElementById(id);
+          if(el && (el.style.display === 'block' || el.classList.contains('show'))){
+            el.style.display = 'none';
+            el.classList.remove('show');
+            closed.push(id);
+          }
+        }
+        this.diceWaiting = false;
+        return { ok: true, closed };
+      }
+
       case 'dismissDice':
         this._handleDiceDismiss();
         return { ok: true };
