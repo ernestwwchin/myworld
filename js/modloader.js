@@ -57,7 +57,7 @@ const ModLoader = {
 
   /** Load stage data for the given stageId.
    * Checks the stage registry (built from mod metadata) first,
-   * then falls back to data/test/stages/ for test stages.
+   * then falls back to data/00_core_test/stages/ for test stages.
    */
   async tryLoadStage(stageId) {
     if (!stageId) return null;
@@ -71,9 +71,9 @@ const ModLoader = {
       } catch (_err) { /* fall through */ }
     }
 
-    // 2. Legacy fallback — test mod stages.
+    // 2. Fallback — test mod stages.
     const legacyPaths = [
-      `data/test/stages/${stageId}/stage.yaml`,
+      `data/00_core_test/stages/${stageId}/stage.yaml`,
     ];
     for (const p of legacyPaths) {
       try {
