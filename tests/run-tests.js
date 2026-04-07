@@ -234,6 +234,53 @@ function testMovementSystemContracts() {
   assert.ok(!src.includes('playerHidden = false'), 'movement-system should not manually set playerHidden=false');
 }
 
+// ── 00_core_test stage validation ──
+
+function testCoreTestStages(dnd) {
+  const meta = loadYaml('data/00_core_test/meta.yaml');
+  assert.strictEqual(meta.id, '00_core_test');
+  assert.strictEqual(meta.enabled, false, '00_core_test must be disabled');
+  assert.ok(Array.isArray(meta.stages), '00_core_test must declare stages');
+  assert.ok(meta.stages.length > 0, '00_core_test must have at least one stage');
+
+  // Load core creatures (test stages reference them)
+  const coreCreatures = loadYaml('data/00_core/creatures.yaml').creatures;
+
+  for (const stageId of meta.stages) {
+    const stagePath = `data/00_core_test/stages/${stageId}/stage.yaml`;
+    const stage = loadYaml(stagePath);
+
+    // Basic structure
+    assert.ok(stage.name, `${stageId}: missing name`);
+    assert.ok(stage.grid, `${stageId}: missing grid`);
+    assert.ok(Array.isArray(stage.grid), `${stageId}: grid must be array`);
+    assert.ok(stage.grid.length >= 3, `${stageId}: grid too small (need at least 3 rows)`);
+    assert.ok(stage.playerStart, `${stageId}: missing playerStart`);
+    assert.ok(typeof stage.playerStart.x === 'number', `${stageId}: playerStart.x must be number`);
+    assert.ok(typeof stage.playerStart.y === 'number', `${stageId}: playerStart.y must be number`);
+    assert.ok(Array.isArray(stage.encounters), `${stageId}: encounters must be array`);
+
+    // Grid bounds — playerStart must be inside grid
+    const rows = stage.grid.length;
+    const cols = typeof stage.grid[0] === 'string' ? stage.grid[0].length : stage.grid[0].length;
+    assert.ok(stage.playerStart.x >= 0 && stage.playerStart.x < cols, `${stageId}: playerStart.x out of bounds`);
+    assert.ok(stage.playerStart.y >= 0 && stage.playerStart.y < rows, `${stageId}: playerStart.y out of bounds`);
+
+    // Player must not start on a wall
+    const startRow = stage.grid[stage.playerStart.y];
+    const startChar = typeof startRow === 'string' ? startRow[stage.playerStart.x] : startRow[stage.playerStart.x];
+    assert.ok(startChar !== '#', `${stageId}: player starts on a wall`);
+
+    // Encounters — each must reference a known core creature and be in bounds
+    for (const enc of stage.encounters) {
+      assert.ok(enc.creature, `${stageId}: encounter missing creature`);
+      assert.ok(coreCreatures[enc.creature], `${stageId}: unknown creature '${enc.creature}' (not in 00_core)`);
+      assert.ok(enc.x >= 0 && enc.x < cols, `${stageId}: encounter x=${enc.x} out of bounds`);
+      assert.ok(enc.y >= 0 && enc.y < rows, `${stageId}: encounter y=${enc.y} out of bounds`);
+    }
+  }
+}
+
 function testEngageAndAutoplayContracts() {
   const uiPath = path.join(root, 'js', 'ui', 'core-ui.js');
   const uiSrc = fs.readFileSync(uiPath, 'utf8');
@@ -275,6 +322,9 @@ function run() {
 
   // Movement system tests
   testMovementSystemContracts();
+
+  // 00_core_test stage validation
+  testCoreTestStages(dnd);
 
   console.log('All tests passed.');
 }
