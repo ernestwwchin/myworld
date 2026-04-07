@@ -15,6 +15,7 @@ Object.assign(GameScene.prototype, {
     this.player.setPosition(snap.x*S+S/2,snap.y*S+S/2);
     this.movePath=[];
     this.isMoving=false;
+    this._movingToAttack=false;
     this.clearPathDots();
     this.onArrival=null;
     this.playActorIdle(this.player,'player');
@@ -84,12 +85,12 @@ Object.assign(GameScene.prototype, {
         this.lastCompletedTile={x:next.x,y:next.y};
         try{ if(typeof EventRunner!=='undefined') EventRunner.onPlayerTile(next.x,next.y); }catch(_e){ console.warn('[EventRunner] tile trigger error:',_e); }
         if(this.mode===MODE.COMBAT&&!this.onArrival){
-          this.isMoving=false; this.movePath=[]; this.clearPathDots();
+          this.isMoving=false; this.movePath=[]; this.clearPathDots(); this._movingToAttack=false;
           return;
         }
         if(this.isExploreMode()&&!this._suppressExploreSightChecks) this.checkSight();
         // Stop path if stealth was just broken (combat may have started)
-        if(this.mode===MODE.COMBAT){ this.isMoving=false; this.movePath=[]; this.clearPathDots(); return; }
+        if(this.mode===MODE.COMBAT){ this.isMoving=false; this.movePath=[]; this.clearPathDots(); this._movingToAttack=false; return; }
         if(!this.movePath.length) this.playActorIdle(this.player,'player');
         this.advancePath();
       }
