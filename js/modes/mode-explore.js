@@ -63,6 +63,12 @@ Object.assign(GameScene.prototype, {
     if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) return;
     if (this.isWallTile(nx, ny)) return;
     if (this.isDoorTile(nx, ny) && this.isDoorClosed(nx, ny)) return;
+    // Diagonal: block if both cardinal neighbours are walls (corner cut)
+    if (dx !== 0 && dy !== 0) {
+      const hBlocked = this.isWallTile(nx, this.playerTile.y) || (this.isDoorTile(nx, this.playerTile.y) && this.isDoorClosed(nx, this.playerTile.y));
+      const vBlocked = this.isWallTile(this.playerTile.x, ny) || (this.isDoorTile(this.playerTile.x, ny) && this.isDoorClosed(this.playerTile.x, ny));
+      if (hBlocked && vBlocked) return;
+    }
     if (this.enemies.some(e => e.alive && e.tx === nx && e.ty === ny)) return;
     this.movePath = [{ x: nx, y: ny }]; this.isMoving = true; this.advancePath(); this.keyDelay = 140;
   },

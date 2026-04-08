@@ -12,13 +12,17 @@ function isDoorCell(cell) {
   return cell === TILE.DOOR || cell === 'D';
 }
 
+// 8-way directions: cardinals first (preferred for tied paths), then diagonals
+const DIRS8 = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0},{x:-1,y:-1},{x:1,y:-1},{x:-1,y:1},{x:1,y:1}];
+// 4-way directions (kept for room-topology flood fill which should stay 4-way)
+const DIRS4 = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+
 function bfs(sx, sy, ex, ey, blockedFn) {
   if (blockedFn(ex, ey)) return [];
   const vis = Array.from({length:ROWS}, () => Array(COLS).fill(false));
   const par = Array.from({length:ROWS}, () => Array(COLS).fill(null));
   const q   = [{x:sx, y:sy}];
   vis[sy][sx] = true;
-  const dirs = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
   while (q.length) {
     const c = q.shift();
     if (c.x===ex && c.y===ey) {
@@ -26,10 +30,12 @@ function bfs(sx, sy, ex, ey, blockedFn) {
       while (n) { path.unshift(n); n = par[n.y][n.x]; }
       return path.slice(1);
     }
-    for (const d of dirs) {
+    for (const d of DIRS8) {
       const nx=c.x+d.x, ny=c.y+d.y;
       if (nx<0||ny<0||nx>=COLS||ny>=ROWS||vis[ny][nx]) continue;
       if (blockedFn(nx, ny)) continue;
+      // Diagonal: skip if both cardinal neighbours are blocked (corner cut)
+      if (d.x !== 0 && d.y !== 0 && blockedFn(nx, c.y) && blockedFn(c.x, ny)) continue;
       vis[ny][nx] = true; par[ny][nx] = c; q.push({x:nx,y:ny});
     }
   }
@@ -80,7 +86,7 @@ function sameOpenArea(x0, y0, x1, y1, maxD) {
   const vis = new Set(), key = (x,y) => x+','+y;
   const q = [{x:x0,y:y0,d:0}];
   vis.add(key(x0,y0));
-  const dirs = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+  const dirs = DIRS4; // room area check stays 4-way
   while (q.length) {
     const c = q.shift();
     if (c.x===x1 && c.y===y1) return true;
@@ -104,7 +110,7 @@ function _buildRoomTopology() {
   const doorToRooms = new Map();
   const sideByRoom = new Map();
   let nextRoomId = 1;
-  const dirs = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+  const dirs = DIRS4;
   const key = (x, y) => x + ',' + y;
 
   const inBounds = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
