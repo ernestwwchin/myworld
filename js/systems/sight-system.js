@@ -70,6 +70,28 @@ const GameSceneSightSystem = {
     return this.enemySightEnabled;
   },
 
+  syncEnemySightRings(show) {
+    for (const e of this.enemies) {
+      if (!e.sightRing || !e.alive || e.inCombat) {
+        if (e.sightRing) e.sightRing.setAlpha(0);
+        continue;
+      }
+      const r = this.effectiveEnemySight(e);
+      if (typeof e.sightRing.setRadius === 'function') e.sightRing.setRadius(r * S);
+      e.sightRing.setAlpha(show ? 0.3 : 0);
+    }
+  },
+
+  effectiveEnemySight(enemy) {
+    const scale = Number(COMBAT_RULES.enemySightScale || 1);
+    let s = Math.max(1, Math.round(enemy.sight * scale));
+    const light = this.tileLightLevel(this.playerTile.x, this.playerTile.y);
+    if (light === 0) s -= Number(LIGHT_RULES.darkSightPenalty || 3);
+    else if (light === 1) s -= Number(LIGHT_RULES.dimSightPenalty || 1);
+    if (this.playerHidden) s -= Number(LIGHT_RULES.hiddenSightPenalty || 2);
+    return Math.max(1, s);
+  },
+
   clearDetectMarkers() {
     this.detectMarkers.forEach(m => { if (m && m.destroy) m.destroy(); });
     this.detectMarkers = [];

@@ -43,11 +43,24 @@ function loadFogSystem() {
 function createMockScene() {
   return {
     playerTile: { x: 5, y: 5 },
-    fogLayer: {
-      clear: () => {},
-      fillStyle: () => {},
-      fillRect: () => {}
+    fogLayer: { visible: true },
+    _fogCtx: {
+      clearRect: () => {},
+      fillRect: () => {},
+      fillStyle: '',
+      globalCompositeOperation: 'source-over',
+      createRadialGradient: () => ({ addColorStop: () => {} }),
+      beginPath: () => {},
+      arc: () => {},
+      fill: () => {},
+      rect: () => {},
+      clip: () => {},
+      save: () => {},
+      restore: () => {},
+      createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h }),
+      putImageData: () => {}
     },
+    _fogCanvasTex: { refresh: () => {} },
     fogVisible: null,
     fogVisited: Array.from({length: mockGlobals.ROWS}, () => Array(mockGlobals.COLS).fill(false)),
     enemies: [

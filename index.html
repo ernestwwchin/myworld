@@ -317,11 +317,13 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
           <button class="eb" id="btn-explore-sight"><span>👁 Sight</span></button>
           <button class="eb" id="btn-explore-tb"><span>⏱ TB</span></button>
           <button class="eb" id="btn-explore-stats"><span>📊 Stats</span></button>
+          <button class="eb" id="demoplay-btn" onclick="DemoPlay.start()" title="Auto-play through all 5 floors"><span>▶ Demo</span></button>
         </div>
 
         <button id="stats-btn" onclick="toggleStats()">📊 STATS</button>
         <button id="sight-btn" onclick="toggleEnemySight()">👁 SIGHT ON</button>
         <button id="tb-btn" class="off" onclick="toggleExploreTurnBased()">⏱ TB OFF</button>
+        <div id="demoplay-log" style="display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#f0c060;font-size:11px;font-family:monospace;padding:4px 10px;border-radius:4px;z-index:80;pointer-events:none;"></div>
         <div id="stats-panel"></div>
         <div id="asi-panel">
           <div style="background:#0e0e1a;border:1px solid rgba(240,192,96,0.5);border-radius:8px;padding:20px;max-width:300px;width:90%;font-family:'Courier New',monospace;">
@@ -495,6 +497,7 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 <script src="js/ui/side-panel.js"></script>
 <script src="js/ui/hotbar.js"></script>
 <script src="js/systems/flags.js"></script>
+<script src="js/mapgen.js"></script>
 <script src="js/modloader.js"></script>
 <script src="js/systems/event-runner.js"></script>
 <script src="js/systems/dialog-runner.js"></script>
@@ -506,6 +509,7 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 <script src="js/systems/entity-system.js"></script>
 <script src="js/systems/door-handler.js"></script>
 <script src="js/systems/chest-handler.js"></script>
+<script src="js/systems/light-system.js"></script>
 <script src="js/systems/ability-system.js"></script>
 <script src="js/systems/fog-system.js"></script>
 <script src="js/systems/sight-system.js"></script>
@@ -519,6 +523,7 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 <!-- input router + debug -->
 <script src="js/systems/input-system.js"></script>
 <script src="js/systems/debug-logger.js"></script>
+<script src="js/demoplay.js"></script>
 <script src="js/ui/action-buttons.js"></script>
 <script src="js/ui/core-ui.js"></script>
 <script src="js/main.js"></script>
