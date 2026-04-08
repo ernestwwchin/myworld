@@ -21,6 +21,8 @@ This document provides a comprehensive index of all documentation in the project
 - **[Architecture](#architecture)** - Code structure and patterns
 - **[API Documentation](#api-documentation)** - Technical references
 - **[Testing](#testing)** - Test frameworks and patterns
+- **[BUGS.md](BUGS.md)** - Known bugs and immediate fixes needed
+- **[TODO (repo memory)](/memories/repo/TODO.md)** - Full feature roadmap
 
 ## Reference Documents
 
