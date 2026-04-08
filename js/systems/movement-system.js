@@ -119,7 +119,7 @@ Object.assign(GameScene.prototype, {
   wanderEnemies(forceStep=false){
     if(this.mode!==MODE.EXPLORE&&this.mode!==MODE.EXPLORE_TB) return;
     if(this._engageInProgress&&!forceStep) return;
-    const dirs=[{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+    const dirs=[{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0},{x:-1,y:-1},{x:1,y:-1},{x:-1,y:1},{x:1,y:1}];
     for(const e of this.enemies){
       if(!e.alive||e.inCombat) continue;
       if(!forceStep&&Math.random()>0.6) continue;
@@ -145,6 +145,12 @@ Object.assign(GameScene.prototype, {
         if(this.isWallTile(nx,ny)) continue;
         // [BUG-5 fix] Enemies respect closed doors while wandering
         if(this.isDoorTile(nx,ny)&&this.isDoorClosed(nx,ny)) continue;
+        // Diagonal: skip corner cuts
+        if(d.x!==0&&d.y!==0){
+          const hBlk=this.isWallTile(nx,e.ty)||(this.isDoorTile(nx,e.ty)&&this.isDoorClosed(nx,e.ty));
+          const vBlk=this.isWallTile(e.tx,ny)||(this.isDoorTile(e.tx,ny)&&this.isDoorClosed(e.tx,ny));
+          if(hBlk&&vBlk) continue;
+        }
         if(this.enemies.some(o=>o!==e&&o.alive&&o.tx===nx&&o.ty===ny)) continue;
         if(nx===this.playerTile.x&&ny===this.playerTile.y) continue;
         e.tx=nx; e.ty=ny;

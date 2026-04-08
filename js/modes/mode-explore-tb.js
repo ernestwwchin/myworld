@@ -131,6 +131,12 @@ Object.assign(GameScene.prototype, {
 
     if (this._exploreTBEnemyPhase || this._exploreTBMovesRemaining <= 0) { this.keyDelay = 140; return; }
     const nx = this.playerTile.x + dx, ny = this.playerTile.y + dy;
+    // Diagonal: block if both cardinal neighbours are walls (corner cut)
+    if (dx !== 0 && dy !== 0) {
+      const hBlocked = this.isWallTile(nx, this.playerTile.y) || (this.isDoorTile(nx, this.playerTile.y) && this.isDoorClosed(nx, this.playerTile.y));
+      const vBlocked = this.isWallTile(this.playerTile.x, ny) || (this.isDoorTile(this.playerTile.x, ny) && this.isDoorClosed(this.playerTile.x, ny));
+      if (hBlocked && vBlocked) { this.keyDelay = 140; return; }
+    }
     const blocked = nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS || this.isWallTile(nx, ny) ||
       (this.isDoorTile(nx, ny) && this.isDoorClosed(nx, ny)) ||
       this.enemies.some(e => e.alive && e.tx === nx && e.ty === ny);
