@@ -51,8 +51,9 @@ This document provides a comprehensive index of all documentation in the project
 
 | System | Document | Description |
 |--------|----------|-------------|
+| **Depth Layers** | [depth-layers.md](depth-layers.md) | Phaser render depth assignments for all game objects |
 | **Combat System** | *[Link when created]* | Turn-based combat, initiative, action economy |
-| **Fog of War** | *[Link when created]* | Visibility, exploration, lighting effects |
+| **Fog of War** | [fog-of-war.md](fog-of-war.md) | Hybrid smooth fog renderer, LOS visibility, exploration memory |
 | **Movement System** | *[Link when created]* | Grid navigation, pathfinding, positioning |
 | **Sight System** | *[Link when created]* | Line of sight, detection, stealth |
 | **Status Effects** | *[Link when created]* | Buffs, debuffs, condition management |
