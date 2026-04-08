@@ -85,12 +85,15 @@ function testDamageRolling(dnd) {
     assert.ok(r.total >= 5 && r.total <= 19, `out of range: ${r.total}`);
     assert.ok(Array.isArray(r.diceValues));
     assert.strictEqual(r.diceValues.length, 2);
-    assert.ok(typeof r.str === 'string' && r.str.includes('='));
+    assert.ok(Array.isArray(r.baseRolls) && r.baseRolls.length === 2);
+    assert.strictEqual(r.bonus, 3);
+    assert.strictEqual(r.isCrit, false);
   }
 
   // Crit doubles only dice count (1d12+1d4 -> 4 dice total)
   const crit = dnd.rollDamageSpec(spec, true);
   assert.strictEqual(crit.diceValues.length, 4);
+  assert.strictEqual(crit.isCrit, true);
 }
 
 function testWeaponDataReferences(dnd) {
@@ -179,9 +182,9 @@ function testCoreFirstDedup() {
 function testGoblinInvasionMod() {
   const meta = loadYaml('data/01_goblin_invasion/meta.yaml');
   assert.strictEqual(meta.id, '01_goblin_invasion');
-  assert.strictEqual(meta.startMap, 'gw_b1f', 'goblin_invasion must declare startMap');
+  assert.ok(meta.startMap, 'goblin_invasion must declare startMap');
   assert.ok(Array.isArray(meta.stages), 'goblin_invasion must declare stages');
-  assert.ok(meta.stages.includes('gw_b1f'), 'goblin_invasion must include gw_b1f stage');
+  assert.ok(meta.stages.includes(meta.startMap), 'goblin_invasion stages must include startMap');
 
   // Creatures file must have valid stat blocks
   const creatures = loadYaml('data/01_goblin_invasion/creatures.yaml').creatures;

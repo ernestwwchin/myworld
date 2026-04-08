@@ -48,7 +48,7 @@ Object.assign(GameScene.prototype, {
         const dr=dnd.rollDamageSpec(spec,false);
         const col=onTrigger.damageColor?'#'+Number(onTrigger.damageColor).toString(16).padStart(6,'0'):'#8bc34a';
         this.applyDamageToActor(actor,dr.total,col,`${this.actorLabel(actor)} takes ${id} damage.`);
-        this.showStatus(`${this.actorLabel(actor)} suffers ${id} (${dr.str}).`);
+        this.showStatus(`${this.actorLabel(actor)} suffers ${id} (${this.formatDamageBreakdown(dr)}).`);
         out.acted=true;
       }
 

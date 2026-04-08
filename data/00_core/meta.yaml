@@ -15,6 +15,7 @@ enabled: true
 
 includes:
   - rules.yaml
+  - sprites.yaml
   - abilities.yaml
   - statuses.yaml
   - classes.yaml

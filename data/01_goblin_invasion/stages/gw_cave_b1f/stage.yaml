@@ -1,0 +1,18 @@
+name: "B1F — The Warren Depths"
+floor: B1F
+globalLight: dark
+nextStage: gw_b2f
+
+generator:
+  type: cellular_automata
+  cols: 56
+  rows: 36
+  fillPct: 48
+  steps: 5
+  stairs: true
+
+encounters:
+  - creature: goblin
+    count: 5
+  - creature: goblin_shaman
+    count: 1

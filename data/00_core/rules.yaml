@@ -1,7 +1,7 @@
 # DnD 5e core rules — XP thresholds, ASI levels, tile types, display, skills.
 
 display:
-  tileSize: 48
+  tileSize: 32
 
 combat:
   roomAlertMaxDistance: 8
@@ -15,7 +15,7 @@ combat:
 fog:
   enabled: true
   radius: 7
-  unvisitedAlpha: 0.78
+  unvisitedAlpha: 1.0
   exploredAlpha: 0.62
   exploredColor: 2439729
 

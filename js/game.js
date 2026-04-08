@@ -64,16 +64,25 @@ class GameScene extends Phaser.Scene {
     return `d20(${roll}) ${m>=0?'+ '+m:'- '+Math.abs(m)} = ${total} | AC ${ac}`;
   }
 
-  formatDamageBreakdown(str){
-    const s=String(str||'');
-    const m=s.match(/^(.*?)([+-]\d+)?\[([^\]]*)\]=(-?\d+)$/);
-    if(!m) return s;
-    const dice=m[1]||'';
-    const bonus=m[2]||'';
-    const rolls=m[3]||'';
-    const total=m[4]||'';
-    const fmtBonus = bonus ? bonus.replace(/^\+/, '+ ').replace(/^-/, '- ') : '';
-    return fmtBonus ? `${dice}(${rolls}) ${fmtBonus} = ${total}` : `${dice}(${rolls}) = ${total}`;
+  formatDamageBreakdown(dr){
+    if (!dr || typeof dr !== 'object') return String(dr||'');
+    const { total, bonus, isCrit, baseRolls, critRolls } = dr;
+    const bonusStr = bonus ? (bonus >= 0 ? ` + ${bonus}` : ` - ${Math.abs(bonus)}`) : '';
+
+    const groupRolls = (rolls) => {
+      const groups = {};
+      for (const r of rolls) {
+        const k = r.kind;
+        if (!groups[k]) groups[k] = { kind: k, values: [] };
+        groups[k].values.push(r.value);
+      }
+      return Object.values(groups).map(g => `${g.values.length}${g.kind}(${g.values.join(',')})`).join('+');
+    };
+
+    if (isCrit && critRolls.length > 0) {
+      return `${groupRolls(baseRolls)} + ${groupRolls(critRolls)} [CRIT]${bonusStr} = ${total}`;
+    }
+    return `${groupRolls(baseRolls)}${bonusStr} = ${total}`;
   }
 
   isWallTile(x,y){
@@ -133,22 +142,45 @@ class GameScene extends Phaser.Scene {
     this.stageSprites=[];
 
     // map tiles
+    // Debug: find stairs in MAP
+    let _stairsFound = false;
     for(let r=0;r<ROWS;r++){
       this.tileSprites[r]=[];
       for(let c=0;c<COLS;c++){
       const t=MAP[r][c];
+      if(t===TILE.STAIRS){ console.log(`[STAIRS] Found stairs tile at (${c},${r}) val=${t}`); _stairsFound=true; }
       let k='t_floor';
       if(this.isWallTile(c,r))k='t_wall'; else if(t===TILE.STAIRS)k='t_stairs';
       else if(t===TILE.WATER)k='t_water'; else if(t===TILE.GRASS)k='t_grass';
-      this.tileSprites[r][c]=this.add.image(c*S+S/2,r*S+S/2,k).setDisplaySize(S,S);
+      this.tileSprites[r][c]=this.add.image(c*S+S/2,r*S+S/2,...getTileTex(k)).setDisplaySize(S,S);
       }
     }
+    if(!_stairsFound) console.warn('[STAIRS] No stairs tile found in MAP!');
     this.startTileAnimations();
     this.spawnStageSprites();
 
     // enemies
+    const _usedTiles=new Set([`${this.playerTile.x},${this.playerTile.y}`]);
+    const _randomFloorTile=(minDist=6)=>{
+      // Collect floor tiles at least minDist away from player start
+      const px=this.playerTile.x, py=this.playerTile.y;
+      const candidates=[];
+      for(let y=1;y<ROWS-1;y++) for(let x=1;x<COLS-1;x++){
+        if(MAP[y][x]!==TILE.FLOOR) continue;
+        if(Math.abs(x-px)+Math.abs(y-py)<minDist) continue;
+        if(_usedTiles.has(`${x},${y}`)) continue;
+        candidates.push({x,y});
+      }
+      if(!candidates.length) return {x:px+2,y:py}; // fallback
+      const pick=candidates[Math.floor(Math.random()*candidates.length)];
+      _usedTiles.add(`${pick.x},${pick.y}`);
+      return pick;
+    };
     this.enemies=ENEMY_DEFS.map(def=>{
-      const img=this.add.sprite(def.tx*S+S/2,def.ty*S+S/2,`spr_${def.type}_idle`).setDisplaySize(S,S).setDepth(9).setInteractive();
+      // tx=-1 means "place randomly" (used by procedural maps)
+      if(def.tx<0){ const t=_randomFloorTile(); def={...def,tx:t.x,ty:t.y}; }
+      const [eatlas,eframe]=getCharFrame(def.type,'idle',0);
+      const img=this.add.sprite(def.tx*S+S/2,def.ty*S+S/2,eatlas,eframe).setScale(S/16).setOrigin(0.5,0.8).setDepth(9).setInteractive();
       const hpBg=this.add.rectangle(def.tx*S+S/2,def.ty*S-4,S-8,5,0x1a1a2e).setDepth(11);
       const hpFg=this.add.rectangle(def.tx*S+S/2,def.ty*S-4,S-8,5,0xe74c3c).setDepth(12);
       const lbl=this.add.text(def.tx*S+S/2,def.ty*S+S/2+S*0.52,'',{fontSize:'7px',fill:'#aaaacc',letterSpacing:1}).setOrigin(0.5).setDepth(12).setAlpha(0.7);
@@ -158,18 +190,34 @@ class GameScene extends Phaser.Scene {
       const enemy={...def,img,hpBg,hpFg,lbl,sightRing,fa,alive:true,inCombat:false,lastSeenPlayerTile:{x:def.tx,y:def.ty},searchTurnsRemaining:0};
       enemy.effects=this.normalizeEffects(def.effects||def.statuses||[]);
       this.playActorIdle(img, def.type);
-      img.on('pointerdown',()=>this.onTapEnemy(enemy));
+      img.on('pointerdown',(ptr)=>{
+        if(ptr.rightButtonDown()){ this.showCombatEnemyPopup(enemy); return; }
+        // Long-press → inspect (start timer)
+        enemy._pressTimer=this.time.delayedCall(400,()=>{ enemy._longPressed=true; this.showCombatEnemyPopup(enemy); });
+      });
+      img.on('pointerup',()=>{
+        if(enemy._pressTimer){ enemy._pressTimer.remove(); enemy._pressTimer=null; }
+        if(enemy._longPressed){ enemy._longPressed=false; return; } // already handled
+        this.onTapEnemy(enemy);
+      });
+      img.on('pointerout',()=>{
+        if(enemy._pressTimer){ enemy._pressTimer.remove(); enemy._pressTimer=null; }
+        enemy._longPressed=false;
+      });
       return enemy;
     });
     // Assign unique displayName (e.g. "Goblin A", "Goblin B") when duplicates exist
     this._assignEnemyDisplayNames();
 
     // player
-    this.player=this.add.sprite(this.playerTile.x*S+S/2,this.playerTile.y*S+S/2,'spr_player_idle').setDisplaySize(S,S).setDepth(10);
+    const [patlas,pframe]=getCharFrame('player','idle',0);
+    this.player=this.add.sprite(this.playerTile.x*S+S/2,this.playerTile.y*S+S/2,patlas,pframe).setScale(S/16).setOrigin(0.5,0.8).setDepth(10);
     this.playActorIdle(this.player,'player');
     this.turnHL=this.add.image(-100,-100,'t_turn').setDisplaySize(S,S).setDepth(9).setAlpha(0);
     this.tapInd=this.add.image(-100,-100,'t_tap').setDisplaySize(S,S).setDepth(8).setAlpha(0);
-    this.fogLayer=this.add.graphics().setDepth(15);
+    this._fogCanvasTex=this.textures.createCanvas('_fog_rt',COLS*S,ROWS*S);
+    this._fogCtx=this._fogCanvasTex.getContext();
+    this.fogLayer=this.add.image(0,0,'_fog_rt').setOrigin(0,0).setDepth(15);
 
     this.fogVisited=Array.from({length:ROWS},()=>Array(COLS).fill(false));
     this.fogVisible=Array.from({length:ROWS},()=>Array(COLS).fill(false));
@@ -257,7 +305,7 @@ class GameScene extends Phaser.Scene {
       DialogRunner.init(this, ModLoader._modData?._stageDialogs || {});
     }
 
-    console.log(`[GameScene] create() complete — mode:${this.mode} map:${COLS}x${ROWS} enemies:${this.enemies.length} player:(${this.playerTile.x},${this.playerTile.y})`);
+    console.log(`[GameScene] create() complete — mode:${this.mode} map:${COLS}x${ROWS} enemies:${this.enemies.length} player:(${this.playerTile.x},${this.playerTile.y}) floor:${window._MAP_META?.floor} nextStage:${window._MAP_META?.nextStage}`);
   }
 
   playActorIdle(sprite,type){
@@ -299,11 +347,12 @@ class GameScene extends Phaser.Scene {
       if(Number.isNaN(tx)||Number.isNaN(ty)||tx<0||ty<0||tx>=COLS||ty>=ROWS) continue;
       const type=String(s.type||s.key||'').toLowerCase();
       const key=s.texture||s.key||(type==='torch'?'deco_torch':type==='banner'?'deco_banner':type==='crystal'?'deco_crystal':'deco_torch');
-      if(!this.textures.exists(key)) continue;
+      const texArgs=getTileTex(key);
+      if(!this.textures.exists(texArgs[0])) continue;
       const depth=Number(s.depth||6);
       const alpha=Math.max(0,Math.min(1,Number(s.alpha??1)));
       const scale=Math.max(0.3,Number(s.scale||1));
-      const img=this.add.image(tx*S+S/2,ty*S+S/2,key).setDepth(depth).setAlpha(alpha).setScale(scale);
+      const img=this.add.image(tx*S+S/2,ty*S+S/2,...texArgs).setDepth(depth).setAlpha(alpha).setScale(scale);
       if(s.pulse){
         const amp=Math.max(0.02,Number(s.pulseAmount||0.07));
         this.tweens.add({targets:img,alpha:{from:Math.max(0,alpha-amp),to:Math.min(1,alpha+amp)},duration:700,yoyo:true,repeat:-1});

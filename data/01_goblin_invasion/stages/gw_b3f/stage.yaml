@@ -1,0 +1,22 @@
+name: "B3F — The Bone Warrens"
+floor: B3F
+globalLight: dark
+nextStage: gw_b4f
+
+generator:
+  type: cellular_automata
+  cols: 60
+  rows: 40
+  fillPct: 52
+  steps: 5
+  stairs: true
+
+encounters:
+  - creature: goblin
+    count: 6
+  - creature: goblin_captain
+    count: 2
+  - creature: goblin_shaman
+    count: 2
+  - creature: skeleton
+    count: 3

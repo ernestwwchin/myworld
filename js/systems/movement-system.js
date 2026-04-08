@@ -84,6 +84,20 @@ Object.assign(GameScene.prototype, {
         }
         this.lastCompletedTile={x:next.x,y:next.y};
         try{ if(typeof EventRunner!=='undefined') EventRunner.onPlayerTile(next.x,next.y); }catch(_e){ console.warn('[EventRunner] tile trigger error:',_e); }
+        // Stairs — transition to next floor
+        const _tileVal = MAP[next.y]?.[next.x];
+        if(_tileVal === TILE.STAIRS) console.log(`[STAIRS] Stepped on stairs at (${next.x},${next.y}) tileVal=${_tileVal} TILE.STAIRS=${TILE.STAIRS} nextStage=${window._MAP_META?.nextStage}`);
+        if(_tileVal === TILE.STAIRS){
+          const nextStage=window._MAP_META?.nextStage;
+          if(nextStage){
+            this.isMoving=false; this.movePath=[]; this.clearPathDots();
+            this.showStatus('Descending to the next floor...');
+            this.time.delayedCall(300,()=>ModLoader.transitionToStage(nextStage,this));
+            return;
+          } else {
+            this.showStatus('The stairs lead deeper... but the way is not yet open.');
+          }
+        }
         if(this.mode===MODE.COMBAT&&!this.onArrival){
           this.isMoving=false; this.movePath=[]; this.clearPathDots(); this._movingToAttack=false;
           return;

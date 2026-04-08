@@ -331,7 +331,7 @@ class GameUIController {
 
       // Damage dice group
       const dmgGroup = document.createElement('div'); dmgGroup.className = 'dice-group-wrap';
-      const dmgLabel = document.createElement('div'); dmgLabel.className = 'dice-label'; dmgLabel.textContent = 'DMG';
+      const dmgLabel = document.createElement('div'); dmgLabel.className = 'dice-label'; dmgLabel.textContent = type === 'crit' ? 'DMG ×2' : 'DMG';
       dmgGroup.appendChild(dmgLabel);
       dmgDice.forEach(d => { const { wrap, box } = buildDie(d, type); dmgGroup.appendChild(wrap); allBoxes.push({ box, idx: dieIndex++ }); });
       stage.appendChild(dmgGroup);
@@ -352,19 +352,21 @@ class GameUIController {
     setTimeout(() => { rl.textContent = rollLine; rl.classList.add('show'); }, delay);
     setTimeout(() => { dl.textContent = detailLine; dl.classList.add('show'); }, delay + 100);
     setTimeout(() => {
-      const labels = { hit: 'HIT', miss: 'MISS', crit: 'CRITICAL HIT (NAT 20)' };
+      const labels = { hit: 'HIT', miss: 'CRITICAL MISS (NAT 1)', crit: 'CRITICAL HIT (NAT 20)' };
       out.textContent = labels[type] || '';
       out.className = 'show ' + type;
     }, delay + 200);
 
-    // Auto-advance after delay (tap still skips immediately)
-    const autoDelay = delay + 2000;
+    // Dramatic results (crit/miss) require explicit tap — no auto-dismiss
+    const requiresTap = type === 'crit' || type === 'miss';
     setTimeout(() => {
-      if (cont) { cont.textContent = 'tap to skip'; cont.className = 'show'; }
+      if (cont) { cont.textContent = 'tap to continue'; cont.className = 'show'; }
     }, delay + 400);
-    s._diceAutoTimer = setTimeout(() => {
-      if (s.diceWaiting) s._handleDiceDismiss();
-    }, autoDelay);
+    if (!requiresTap) {
+      s._diceAutoTimer = setTimeout(() => {
+        if (s.diceWaiting) s._handleDiceDismiss();
+      }, delay + 2000);
+    }
   }
 
   showStatus(msg) {
