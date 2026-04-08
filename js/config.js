@@ -8,7 +8,7 @@
 const TILE = { FLOOR:0, WALL:1, DOOR:3, CHEST:4, STAIRS:5, WATER:6, GRASS:7 };
 
 // ── Grid & Display ───────────────────────────────────
-const S    = 48;  // tile size in pixels
+const S    = 48;  // tile size in pixels (default; overridden by rules.yaml display.tileSize)
 const MODE = { EXPLORE:'explore', EXPLORE_TB:'explore_tb', COMBAT:'combat' };
 
 // ── Combat behavior tuning ──────────────────────────
@@ -21,7 +21,7 @@ const COMBAT_RULES = {
   // Pacing tuning
   playerMovePerTurn: 5,
   dashMoveBonus: 4,
-  enemySightScale: 0.85,
+  enemySightScale: 1.0,
   enemySpeedScale: 0.75,
 };
 
@@ -36,15 +36,15 @@ const STATUS_RULES = {
 const FOG_RULES = {
   enabled: true,
   radius: 7,
-  unvisitedAlpha: 0.78,
-  exploredAlpha: 0.62,
-  exploredColor: 0x252a31,
+  unvisitedAlpha: 1.0,   // fully black — player cannot see unvisited tiles
+  exploredAlpha: 0.55,   // dim overlay on visited-but-not-visible tiles
+  exploredColor: 0x1a1d24,
 };
 
 // ── Light and hiding rules (BG3/DnD-inspired) ──────
 const LIGHT_RULES = {
-  darkSightPenalty: 3,
-  dimSightPenalty: 1,
+  darkSightPenalty: 1,
+  dimSightPenalty: 0,
   hiddenSightPenalty: 2,
   hideDcBright: 16,
   hideDcDim: 12,
@@ -308,23 +308,33 @@ const dnd = {
   // Roll normalized damage spec; crit doubles only dice, not static bonus.
   rollDamageSpec: (spec, crit=false) => {
     const dmg = dnd.normalizeDamageSpec(spec);
-    const diceValues = [];
+    const baseRolls = [];
+    const critRolls = [];
     let subtotal = 0;
 
     for (const [count, sides] of dmg.dice) {
-      const rolls = count * (crit ? 2 : 1);
-      for (let i = 0; i < rolls; i++) {
+      for (let i = 0; i < count; i++) {
         const v = Math.floor(Math.random()*sides)+1;
-        diceValues.push({ sides, value:v, kind:'d'+sides });
+        baseRolls.push({ sides, value: v, kind: 'd'+sides });
         subtotal += v;
+      }
+      if (crit) {
+        for (let i = 0; i < count; i++) {
+          const v = Math.floor(Math.random()*sides)+1;
+          critRolls.push({ sides, value: v, kind: 'd'+sides });
+          subtotal += v;
+        }
       }
     }
 
-    const total = subtotal + dmg.bonus;
-    const diceStr = dmg.dice.map(([c,s]) => `${crit?c*2:c}d${s}`).join('+');
-    const rollsStr = `[${diceValues.map(d => d.value).join(',')}]`;
-    const bonusStr = dmg.bonus ? `${dmg.bonus>=0?'+':''}${dmg.bonus}` : '';
-    return { total, diceValues, str:`${diceStr}${bonusStr}${rollsStr}=${total}` };
+    return {
+      total: subtotal + dmg.bonus,
+      bonus: dmg.bonus,
+      isCrit: crit,
+      baseRolls,
+      critRolls,
+      diceValues: [...baseRolls, ...critRolls],  // for showDicePopup compat
+    };
   },
 
   damageSpecToString: (spec) => {

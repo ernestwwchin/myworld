@@ -1,0 +1,20 @@
+name: "B2F — The Fungal Tunnels"
+floor: B2F
+globalLight: dark
+nextStage: gw_b3f
+
+generator:
+  type: cellular_automata
+  cols: 56
+  rows: 36
+  fillPct: 50
+  steps: 5
+  stairs: true
+
+encounters:
+  - creature: goblin
+    count: 6
+  - creature: goblin_captain
+    count: 1
+  - creature: goblin_shaman
+    count: 1

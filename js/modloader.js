@@ -63,26 +63,82 @@ const ModLoader = {
     if (!stageId) return null;
 
     // 1. Stage registry — populated during init() from each mod's meta.yaml stages list.
-    //    Later mods override earlier ones for the same stage ID.
     if (this._stageRegistry?.[stageId]) {
       try {
         const stage = await this.loadYaml(this._stageRegistry[stageId]);
-        if (stage && stage.grid) return stage;
+        if (stage && (stage.grid || stage.generator)) return stage;
       } catch (_err) { /* fall through */ }
     }
 
     // 2. Fallback — test mod stages.
-    const legacyPaths = [
-      `data/00_core_test/stages/${stageId}/stage.yaml`,
-    ];
+    const legacyPaths = [`data/00_core_test/stages/${stageId}/stage.yaml`];
     for (const p of legacyPaths) {
       try {
         const stage = await this.loadYaml(p);
-        if (stage && stage.grid) return stage;
+        if (stage && (stage.grid || stage.generator)) return stage;
       } catch (_err) { continue; }
     }
 
     return null;
+  },
+
+  /**
+   * Runtime stage transition — load a new stage and restart the Phaser scene.
+   * Called by the stairs handler in movement-system.js.
+   */
+  async transitionToStage(stageId, scene) {
+    if (!stageId) return;
+    console.log(`[ModLoader] Transitioning to stage: ${stageId}`);
+
+    const stageData = await this.tryLoadStage(stageId);
+    if (!stageData) {
+      console.warn(`[ModLoader] Stage not found: ${stageId}`);
+      return;
+    }
+
+    // Merge stage into modData under the new stageId
+    const modData = this._modData;
+    modData.maps[stageId] = {
+      name: stageData.name || stageId,
+      floor: stageData.floor || stageId.toUpperCase(),
+      grid: stageData.grid || null,
+      generator: stageData.generator || null,
+      playerStart: stageData.playerStart || (stageData.generator ? null : { x: 1, y: 1 }),
+      encounters: stageData.encounters || [],
+      lights: stageData.lights || [],
+      globalLight: stageData.globalLight || 'dark',
+      doors: stageData.doors || [],
+      interactables: stageData.interactables || [],
+      lootTables: stageData.lootTables || {},
+      stageSprites: stageData.stageSprites || stageData.sprites || [],
+      tileAnimations: stageData.tileAnimations || {},
+      nextStage: stageData.nextStage || null,
+    };
+
+    // Load co-located events/dialogs
+    const stageDir = this._stageRegistry?.[stageId]?.replace('/stage.yaml', '');
+    if (stageDir) {
+      try { const evts = await this.loadYaml(`${stageDir}/events.yaml`); modData._stageEvents = evts?.events || []; } catch (_e) { modData._stageEvents = []; }
+      try { const dlgs = await this.loadYaml(`${stageDir}/dialogs.yaml`); modData._stageDialogs = dlgs?.dialogs || {}; } catch (_e) { modData._stageDialogs = {}; }
+    } else {
+      modData._stageEvents = []; modData._stageDialogs = {};
+    }
+
+    this._activeMap = stageId;
+    this.applyMap(modData, stageId);
+    this.applyCreatures(modData, stageId);
+    // Update player start tile for the new stage
+    if (window._MAP_META?.playerStart) {
+      PLAYER_STATS.startTile = window._MAP_META.playerStart;
+    }
+
+    // Fade out → restart scene → fade in
+    console.log(`[ModLoader] Stage ready: ${stageId}, MAP=${MAP.length}x${MAP[0]?.length}, playerStart=${JSON.stringify(PLAYER_STATS.startTile)}, nextStage=${window._MAP_META?.nextStage}`);
+    scene.cameras.main.fadeOut(400, 0, 0, 0);
+    scene.cameras.main.once('camerafadeoutcomplete', () => {
+      console.log(`[ModLoader] Fade complete, restarting scene for ${stageId}`);
+      scene.scene.restart();
+    });
   },
 
   /**
@@ -143,6 +199,19 @@ const ModLoader = {
       console.log(`[ModLoader] Mod loaded: ${modId}${meta.startMap ? ` (startMap: ${meta.startMap})` : ''}`);
     }
 
+    // URL param override: ?map=ts_fog  (loads any registered stage)
+    try {
+      const urlMap = new URLSearchParams(window.location.search).get('map');
+      if (urlMap) {
+        // Auto-register test stages if the requested map starts with ts_
+        if (urlMap.startsWith('ts_') && !this._stageRegistry[urlMap]) {
+          this._stageRegistry[urlMap] = `data/00_core_test/stages/${urlMap}/stage.yaml`;
+        }
+        activeMap = urlMap;
+        console.log(`[ModLoader] URL override: map=${urlMap}`);
+      }
+    } catch (_e) { /* no URLSearchParams — node env, tests, etc. */ }
+
     // 4. Load player
     const playerFile = await this.loadYaml('data/player.yaml');
 
@@ -152,8 +221,9 @@ const ModLoader = {
       modData.maps[activeMap] = {
         name: stageData.name || activeMap,
         floor: stageData.floor || activeMap.toUpperCase(),
-        grid: stageData.grid,
-        playerStart: stageData.playerStart || { x: 1, y: 1 },
+        grid: stageData.grid || null,
+        generator: stageData.generator || null,
+        playerStart: stageData.playerStart || (stageData.generator ? null : { x: 1, y: 1 }),
         encounters: stageData.encounters || [],
         lights: stageData.lights || [],
         globalLight: stageData.globalLight || 'dark',
@@ -162,6 +232,7 @@ const ModLoader = {
         lootTables: stageData.lootTables || {},
         stageSprites: stageData.stageSprites || stageData.sprites || [],
         tileAnimations: stageData.tileAnimations || {},
+        nextStage: stageData.nextStage || null,
       };
       console.log(`[ModLoader] Stage loaded: ${activeMap}`);
 
@@ -188,6 +259,7 @@ const ModLoader = {
 
     // 7. Apply to game globals
     this.applyRules(modData);
+    this.applySprites(modData);
     this.applyClasses(modData);
     this.applyWeapons(modData);
     this.applyAbilities(modData);
@@ -267,8 +339,17 @@ const ModLoader = {
     }
     // Display
     if (data.display && data.display.tileSize) {
-      // S is const, but we note it here for future use
+      window.S = data.display.tileSize;
     }
+  },
+
+  applySprites(data) {
+    if (!data.spriteManifest) return;
+    const m = data.spriteManifest;
+    window.SPRITE_MANIFEST = window.SPRITE_MANIFEST || { atlases: [], tiles: {}, characters: {} };
+    if (m.atlases) window.SPRITE_MANIFEST.atlases.push(...m.atlases);
+    if (m.tiles) Object.assign(window.SPRITE_MANIFEST.tiles, m.tiles);
+    if (m.characters) Object.assign(window.SPRITE_MANIFEST.characters, m.characters);
   },
 
   applyClasses(data) {
@@ -381,32 +462,55 @@ const ModLoader = {
   applyMap(data, activeMap) {
     if (!data.maps || !data.maps[activeMap]) return;
     const mapDef = data.maps[activeMap];
-    // Convert symbols to numbers
-    const convertedGrid = this.convertGridSymbols(mapDef.grid);
+
+    let convertedGrid, playerStart, stairsPos;
+
+    let generatedLights = [], generatedSprites = [];
+    if (mapDef.generator) {
+      // Procedural generation — ignore grid: field
+      const result = MapGen.generate(mapDef.generator, TILE);
+      convertedGrid    = result.grid;
+      playerStart      = mapDef.playerStart || result.playerStart;
+      stairsPos        = result.stairsPos;
+      generatedLights  = result.lights || [];
+      generatedSprites = result.stageSprites || [];
+      console.log(`[ModLoader] Generated map (${mapDef.generator.type||'cave'}) seed=${result.seed} size=${convertedGrid[0].length}x${convertedGrid.length} stairs=(${stairsPos?.x},${stairsPos?.y}) torches=${generatedLights.length}`);
+    } else {
+      // Static grid from YAML
+      convertedGrid = this.convertGridSymbols(mapDef.grid);
+      playerStart   = mapDef.playerStart;
+      stairsPos     = null;
+    }
+
     // Overwrite MAP grid
     MAP.length = 0;
     convertedGrid.forEach(row => MAP.push(row));
-    // Update ROWS/COLS — these need to be writable
-    window._ROWS = MAP.length;
-    window._COLS = MAP[0].length;
+    // Update ROWS/COLS globals (let variables defined in config.js)
+    ROWS = MAP.length;
+    COLS = MAP[0].length;
+    window._ROWS = ROWS;
+    window._COLS = COLS;
     // Store map metadata
     window._MAP_META = {
       name: mapDef.name,
       floor: mapDef.floor,
-      playerStart: mapDef.playerStart,
-      lights: mapDef.lights || [],
+      playerStart,
+      stairsPos,
+      lights: [...(mapDef.lights || []), ...generatedLights],
       globalLight: mapDef.globalLight || 'dark',
       doors: mapDef.doors || [],
       interactables: mapDef.interactables || [],
       lootTables: { ...(data.lootTables || {}), ...(mapDef.lootTables || {}) },
-      stageSprites: mapDef.stageSprites || mapDef.sprites || [],
+      stageSprites: [...(mapDef.stageSprites || mapDef.sprites || []), ...generatedSprites],
       tileAnimations: mapDef.tileAnimations || {},
+      nextStage: mapDef.nextStage || null,
     };
   },
 
   applyCreatures(data, activeMap) {
     if (!data.maps || !data.maps[activeMap] || !data.creatures) return;
     const mapDef = data.maps[activeMap];
+    const isGenerated = !!mapDef.generator;
     ENEMY_DEFS.length = 0;
     for (const enc of (mapDef.encounters || [])) {
       const tmpl = data.creatures[enc.creature];
@@ -415,21 +519,25 @@ const ModLoader = {
       const weapon = weaponId ? data.weapons?.[weaponId] : null;
       const damageFormula = dnd.damageSpecToString(weapon?.damageDice || tmpl.attack?.dice || '1d4');
       const atkRange = weapon?.range || tmpl.attack?.range || 1;
-
-      ENEMY_DEFS.push({
-        tx: enc.x, ty: enc.y,
-        type: tmpl.type, name: enc.name || tmpl.name || null,
-        hp: tmpl.hp, maxHp: tmpl.hp,
-        sight: tmpl.sight, spd: tmpl.speed, icon: tmpl.icon,
-        facing: enc.facing, fov: tmpl.fov, group: enc.group,
-        stats: { ...tmpl.stats },
-        ac: tmpl.ac, weaponId, damageFormula, atkRange,
-        xp: tmpl.xp, cr: tmpl.cr,
-        ai: { ...(tmpl.ai || {}), ...(enc.ai || {}) },
-        effects: [...(tmpl.effects || tmpl.statuses || []), ...(enc.effects || enc.statuses || [])],
-        skillProficiencies: new Set(tmpl.skillProficiencies || []),
-        level: tmpl.level || 1,
-      });
+      // count: N expands to N entries with tx=-1 (random placement) for generated maps
+      const count = isGenerated ? Number(enc.count || 1) : 1;
+      for (let i = 0; i < count; i++) {
+        ENEMY_DEFS.push({
+          tx: isGenerated ? -1 : enc.x,
+          ty: isGenerated ? -1 : enc.y,
+          type: tmpl.type, name: enc.name || tmpl.name || null,
+          hp: tmpl.hp, maxHp: tmpl.hp,
+          sight: tmpl.sight, spd: tmpl.speed, icon: tmpl.icon,
+          facing: enc.facing ?? 0, fov: tmpl.fov, group: enc.group,
+          stats: { ...tmpl.stats },
+          ac: tmpl.ac, weaponId, damageFormula, atkRange,
+          xp: tmpl.xp, cr: tmpl.cr,
+          ai: { ...(tmpl.ai || {}), ...(enc.ai || {}) },
+          effects: [...(tmpl.effects || tmpl.statuses || []), ...(enc.effects || enc.statuses || [])],
+          skillProficiencies: new Set(tmpl.skillProficiencies || []),
+          level: tmpl.level || 1,
+        });
+      }
     }
   },
 

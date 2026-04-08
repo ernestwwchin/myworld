@@ -276,7 +276,14 @@ if (DEBUG_TOOLS) {
   registerRoute('POST', '/_debug/eval');
 }
 
-app.use(express.static(path.join(__dirname)));
+app.use(express.static(path.join(__dirname), {
+  etag: false,
+  lastModified: false,
+  setHeaders: (res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.set('Pragma', 'no-cache');
+  },
+}));
 registerRoute('STATIC', '/');
 
 app.listen(PORT, () => {

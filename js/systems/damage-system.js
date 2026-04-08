@@ -11,6 +11,7 @@ Object.assign(GameScene.prototype, {
     if(actor==='player'){
       this.playerHP=Math.max(0,this.playerHP-n);
       this.spawnFloat(this.player.x,this.player.y-12,`-${n}`,color);
+      if(this.player) playHitAnim(this,this.player,'player');
       this.updateHUD();
       if(this.playerHP<=0) this.showStatus(label||'You have been defeated...');
       return;
@@ -18,6 +19,7 @@ Object.assign(GameScene.prototype, {
     if(!actor||!actor.alive) return;
     actor.hp=Math.max(0,actor.hp-n);
     this.spawnFloat(actor.tx*S+S/2,actor.ty*S-10,`-${n}`,color);
+    if(actor.hp>0&&actor.img) playHitAnim(this,actor.img,actor.type||'');
     const ratio=Math.max(0,actor.hp/Math.max(1,actor.maxHp||actor.hp||1));
     if(actor.hpFg){
       actor.hpFg.setDisplaySize((S-8)*ratio,5);

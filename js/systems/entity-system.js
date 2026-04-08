@@ -107,7 +107,7 @@ Object.assign(GameScene.prototype, {
     if (this._entitySprites[key]) {
       this._entitySprites[key].destroy();
     }
-    const spr = this.add.image(ent.x * S + S / 2, ent.y * S + S / 2, tex)
+    const spr = this.add.image(ent.x * S + S / 2, ent.y * S + S / 2, ...getTileTex(tex))
       .setDisplaySize(S, S).setDepth(3);
     this._entitySprites[key] = spr;
     ent.sprite = spr;
@@ -118,7 +118,7 @@ Object.assign(GameScene.prototype, {
     const tex = ent.getTexture();
     if (!tex) return;
     if (ent.sprite) {
-      ent.sprite.setTexture(tex);
+      ent.sprite.setTexture(...getTileTex(tex));
     } else {
       this._createEntitySprite(ent);
     }

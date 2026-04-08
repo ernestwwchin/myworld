@@ -9,13 +9,18 @@ version: 1.0.0
 description: The goblin warren dungeon — floors B1F through the boss floor.
 enabled: true
 
-startMap: gw_b1f
+startMap: gw_cave_b1f
 
 includes:
   - creatures.yaml
 
 stages:
   - gw_b1f
+  - gw_cave_b1f
+  - gw_b2f
+  - gw_b3f
+  - gw_b4f
+  - gw_b5f
 
 flags:
   entered_warren: { type: bool, default: false }

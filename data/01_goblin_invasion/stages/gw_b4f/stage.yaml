@@ -1,0 +1,24 @@
+name: "B4F — The Deep Pits"
+floor: B4F
+globalLight: dark
+nextStage: gw_b5f
+
+generator:
+  type: cellular_automata
+  cols: 60
+  rows: 40
+  fillPct: 54
+  steps: 4
+  stairs: true
+
+encounters:
+  - creature: goblin
+    count: 5
+  - creature: goblin_captain
+    count: 2
+  - creature: goblin_shaman
+    count: 3
+  - creature: skeleton
+    count: 4
+  - creature: orc
+    count: 2
