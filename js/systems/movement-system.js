@@ -62,6 +62,12 @@ Object.assign(GameScene.prototype, {
     if(this.pathDots.length){ this.pathDots[0].destroy(); this.pathDots.shift(); }
     const prev={x:this.playerTile.x,y:this.playerTile.y};
 
+    // Re-check: enemy may have wandered onto this tile since path was computed
+    if(this.enemies.some(e=>e.alive&&e.tx===next.x&&e.ty===next.y)){
+      this.isMoving=false; this.movePath=[]; this.clearPathDots();
+      return;
+    }
+
     if(this.isDoorTile(next.x,next.y)&&DOOR_RULES.autoOpenOnPass){
       if(!this.setDoorOpen(next.x,next.y,true,true)){
         this.isMoving=false; this.movePath=[]; this.clearPathDots();
