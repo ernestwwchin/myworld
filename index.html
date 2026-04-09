@@ -460,42 +460,6 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
   </div>
 </div><!-- /bottom-panel -->
 </div><!-- /game-wrapper -->
-<script>
-(function(){
-  // ── Console Log Forwarder ──
-  // Intercepts all console output and POSTs to server for remote debugging.
-  var _origLog=console.log, _origWarn=console.warn, _origError=console.error, _origInfo=console.info;
-  var _logQueue=[], _flushTimer=null, _flushMs=300, _maxBatch=50;
-  function _enqueue(level, args){
-    var parts=[];
-    for(var i=0;i<args.length;i++){
-      try{ parts.push(typeof args[i]==='object'?JSON.stringify(args[i]):String(args[i])); }
-      catch(e){ parts.push('[unserializable]'); }
-    }
-    _logQueue.push({t:Date.now(),l:level,m:parts.join(' ')});
-    if(_logQueue.length>=_maxBatch) _flush();
-    else if(!_flushTimer) _flushTimer=setTimeout(_flush,_flushMs);
-  }
-  function _flush(){
-    _flushTimer=null;
-    if(!_logQueue.length) return;
-    var batch=_logQueue.splice(0,_maxBatch);
-    fetch('/_debug/console',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({logs:batch})}).catch(function(){});
-  }
-  console.log=function(){_origLog.apply(console,arguments);_enqueue('log',arguments);};
-  console.warn=function(){_origWarn.apply(console,arguments);_enqueue('warn',arguments);};
-  console.error=function(){_origError.apply(console,arguments);_enqueue('error',arguments);};
-  console.info=function(){_origInfo.apply(console,arguments);_enqueue('info',arguments);};
-
-  // ── Global error handlers ──
-  window.onerror=function(m,s,l,c,e){
-    _enqueue('error','[JSERR] '+m+' at '+s+':'+l+':'+c+(e&&e.stack?'\n'+e.stack:''));
-  };
-  window.addEventListener('unhandledrejection',function(ev){
-    _enqueue('error','[UnhandledRejection] '+String(ev.reason)+(ev.reason&&ev.reason.stack?'\n'+ev.reason.stack:''));
-  });
-})();
-</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
 <!-- Game scripts — load order matters -->
@@ -531,9 +495,8 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 <script src="js/modes/mode-explore.js"></script>
 <script src="js/modes/mode-explore-tb.js"></script>
 <script src="js/modes/mode-combat.js"></script>
-<!-- input router + debug -->
+<!-- input router -->
 <script src="js/systems/input-system.js"></script>
-<script src="js/systems/debug-logger.js"></script>
 <script src="js/demoplay.js"></script>
 <script src="js/ui/action-buttons.js"></script>
 <script src="js/ui/core-ui.js"></script>

@@ -208,15 +208,6 @@ Object.assign(GameScene.prototype, {
     const isMiss = atkRoll === 1;
     const hits = isCrit || (!isMiss && atkTotal >= enemy.ac);
 
-    if(this.logEvent) this.logEvent('COMBAT', 'OPENER_ATTACK', {
-      enemy: enemy.type,
-      roll: atkRoll,
-      total: atkTotal,
-      ac: enemy.ac,
-      hit: hits,
-      crit: isCrit
-    });
-
     if (hits) {
       const dr = this.resolveAbilityDamage('attack', 'player', isCrit);
       const dmg = Math.max(1, dr.total);
@@ -305,11 +296,6 @@ Object.assign(GameScene.prototype, {
     this._returnToExploreTB = this.mode === MODE.EXPLORE_TB;
     this.mode = MODE.COMBAT;
     this.syncExploreBar();
-
-    if(this.logEvent) this.logEvent('COMBAT', 'COMBAT_START', {
-      triggerCount: triggers?.length || 0,
-      surprise: opts.surpriseFromOpener
-    });
 
     this.tweens.killTweensOf(this.player);
     this.movePath = []; this.isMoving = false; this.clearPathDots(); this.onArrival = null;
@@ -692,11 +678,6 @@ Object.assign(GameScene.prototype, {
     const rollLine=this.formatRollLine(atkRoll,atkMod,atkTotal,this.pStats.ac);
     this._pendingEnemyTurnActor=enemy;
 
-    if(this.logEvent) this.logEvent('COMBAT', 'ENEMY_ATTACK', {
-      enemy: enemy.type, roll: atkRoll, total: atkTotal,
-      ac: this.pStats.ac, hit: !isMiss, crit: isCrit
-    });
-
     if(isMiss){
       this.spawnFloat(this.player.x,this.player.y-10,atkRoll===1?'NAT 1!':'MISS','#7fc8f8');
       this.showStatus(`${enemy.displayName} missed! ${rollLine}`);
@@ -868,11 +849,6 @@ Object.assign(GameScene.prototype, {
     const atkTotal=atkRoll+strMod+this.pStats.profBonus;
     const isCrit=atkRoll===20, isMiss=atkRoll===1;
     const hits=isCrit||(!isMiss&&atkTotal>=enemy.ac);
-
-    if(this.logEvent) this.logEvent('COMBAT', 'PLAYER_ATTACK', {
-      target: enemy.type, roll: atkRoll, roll2: atkRoll2, advantage: wasHidden,
-      total: atkTotal, ac: enemy.ac, hit: hits, crit: isCrit
-    });
 
     this.setActionButtonsUsed(true);
     if (typeof Hotbar !== 'undefined') Hotbar.markAllUsed(true);

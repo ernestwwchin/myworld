@@ -148,10 +148,6 @@ const GameSceneAbilitySystem = {
     this.playerStealthRoll = 0;
     this.clearStealthVisuals();
     if (reason) this.showStatus(reason);
-    if (this.logEvent) {
-      const mode = this.mode === MODE.COMBAT ? 'COMBAT' : 'EXPLORE';
-      this.logEvent(mode, 'STEALTH_BROKEN', { reason, ...opts });
-    }
   },
 
   // Enter hidden state (shared by combat + explore)
@@ -264,7 +260,6 @@ const GameSceneAbilitySystem = {
     }
 
     this.showStatus(`Hidden! (Stealth ${stealthRoll.total}). Enemies searching last known position...`);
-    if (this.logEvent) this.logEvent('COMBAT', 'HIDE_SUCCESS', { roll: stealthRoll.total });
   },
 
   // ── Explore: Hide action (press H) ──
@@ -318,9 +313,6 @@ const GameSceneAbilitySystem = {
     if (spotted) {
       const lightLabel = light === 0 ? ' (dark)' : light === 1 ? ' (dim)' : '';
       this.showStatus(`Failed to hide (Stealth ${stealthTotal}${lightLabel}). Spotted by: ${spottersList.join(', ')}`);
-      if (this.logEvent) this.logEvent('EXPLORE', 'HIDE_FAILED', {
-        roll: stealthRoll.total, adjusted: stealthTotal, light, spottedBy: spottersList
-      });
       return;
     }
 
@@ -339,9 +331,6 @@ const GameSceneAbilitySystem = {
 
     const lightLabel = light === 0 ? ' (dark +5)' : light === 1 ? ' (dim)' : '';
     this.showStatus(`Hidden! (Stealth ${stealthTotal}${lightLabel}). You can move — enemies will contest your Stealth.`);
-    if (this.logEvent) this.logEvent('EXPLORE', 'HIDE_SUCCESS', {
-      roll: stealthRoll.total, adjusted: stealthTotal, light
-    });
   },
 };
 
