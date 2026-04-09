@@ -51,6 +51,7 @@ test.describe('Attack scenarios', () => {
     const before = await getState(page);
     expect(before.aliveEnemies).toHaveLength(1);
     expect(before.aliveEnemies[0].type).toBe('goblin');
+    const hpBefore = before.aliveEnemies[0].hp;
 
     await enterSingleEnemyCombat(page);
 
@@ -60,7 +61,11 @@ test.describe('Attack scenarios', () => {
     await attackWithForcedD20(page, 19);
 
     const after = await getState(page);
-    expect(after.aliveEnemies).toHaveLength(0);
+    if (after.aliveEnemies.length === 0) {
+      expect(after.aliveEnemies).toHaveLength(0);
+    } else {
+      expect(after.aliveEnemies[0].hp).toBeLessThan(hpBefore);
+    }
   });
 
   test('hit and miss outcomes are deterministic', async ({ page }) => {

@@ -21,6 +21,8 @@ async function getState(page) {
     return {
       mode: scene.mode,
       playerTile: { ...scene.playerTile },
+      playerHP: scene.playerHP,
+      playerMaxHP: scene.playerMaxHP,
       playerMoves: scene.playerMoves,
       playerMovesUsed: scene.playerMovesUsed,
       playerAP: scene.playerAP,
