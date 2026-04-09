@@ -396,7 +396,7 @@ const Hotbar = {
     document.getElementById('hotbar-desc').style.display = 'none';
     this._descOpen = false;
     this.render();
-    if (typeof CombatLog !== 'undefined') CombatLog.log('Click a slot to move this ability to.', 'system');
+    withCombatLog(combatLog => combatLog.log('Click a slot to move this ability to.', 'system'));
   },
 
   _startSwap(cat, row, col) {
@@ -405,7 +405,7 @@ const Hotbar = {
     document.getElementById('hotbar-desc').style.display = 'none';
     this._descOpen = false;
     this.render();
-    if (typeof CombatLog !== 'undefined') CombatLog.log('Click a slot to swap with.', 'system');
+    withCombatLog(combatLog => combatLog.log('Click a slot to swap with.', 'system'));
   },
 
   _completeMove(toCat, toRow, toCol) {

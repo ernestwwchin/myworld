@@ -283,8 +283,8 @@ class GameScene extends Phaser.Scene {
     this.ui = new GameUIController(this);
 
     // Initialize new UI modules
-    if (typeof SidePanel !== 'undefined') SidePanel.init(this);
-    if (typeof Hotbar !== 'undefined') Hotbar.init(this);
+    withSidePanel(sidePanel => sidePanel.init(this));
+    withHotbar(hotbar => hotbar.init(this));
 
     this.updateHUD();
     this.updateStatsPanel();
@@ -523,11 +523,11 @@ class GameScene extends Phaser.Scene {
       if (tbBtn) tbBtn.classList.toggle('off', this.mode !== MODE.EXPLORE_TB);
     }
     // Sync hotbar expand/collapse with mode
-    if (typeof Hotbar !== 'undefined') {
-      Hotbar.setExpanded(this.mode === MODE.COMBAT);
-      Hotbar.syncCommandStrip();
-      Hotbar.updateResourcePips();
-    }
+    withHotbar(hotbar => {
+      hotbar.setExpanded(this.mode === MODE.COMBAT);
+      hotbar.syncCommandStrip();
+      hotbar.updateResourcePips();
+    });
   }
 
   // tryHideAction — implemented in ability-system.js

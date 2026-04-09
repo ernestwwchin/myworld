@@ -13,8 +13,11 @@ includes: []
 
 stages:
   - ts_combat_entry
+  - ts_combat_reset
   - ts_enemy_attack
   - ts_level_up
   - ts_melee_attack
   - ts_movement
+  - ts_floor_transition_a
+  - ts_floor_transition_b
   - ts_skills

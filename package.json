@@ -5,7 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/run-tests.js"
+    "test": "npm run test:contracts && npm run test:unit",
+    "test:contracts": "node tests/contracts/run-contracts.js",
+    "test:unit": "node --test tests/unit/pure/**/*.test.js tests/unit/sandbox/**/*.test.js",
+    "test:e2e": "playwright test --config tests/e2e/playwright.config.js"
   },
   "keywords": [],
   "author": "",
@@ -14,5 +17,9 @@
   "dependencies": {
     "express": "^5.2.1",
     "js-yaml": "^4.1.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "zod": "^4.3.6"
   }
 }

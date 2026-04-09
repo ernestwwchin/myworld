@@ -104,8 +104,7 @@ function handleDiceClick() {
 // ── STATS PANEL ──────────────────────────────────────
 function toggleStats() {
   // Toggle side panel visibility
-  if (typeof SidePanel !== 'undefined') {
-    SidePanel.toggleCollapse();
+  if (withSidePanel(sidePanel => sidePanel.toggleCollapse()) !== undefined) {
     return;
   }
   // Legacy fallback
@@ -391,7 +390,7 @@ class GameUIController {
   }
 
   updateResBar() {
-    if (typeof Hotbar !== 'undefined') Hotbar.updateResourcePips();
+    withHotbar(hotbar => hotbar.updateResourcePips());
   }
 
   buildInitBar() {
@@ -430,7 +429,7 @@ class GameUIController {
   updateStatsPanel() {
     const s = this.scene;
     // Update side panel (new system)
-    if (typeof SidePanel !== 'undefined') SidePanel.refresh();
+    withSidePanel(sidePanel => sidePanel.refresh());
     // Legacy stats panel (kept for compat)
     const panel = document.getElementById('stats-panel');
     if (!panel) return;

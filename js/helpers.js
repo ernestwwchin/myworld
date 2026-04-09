@@ -12,6 +12,21 @@ function isDoorCell(cell) {
   return cell === TILE.DOOR || cell === 'D';
 }
 
+function withHotbar(callback) {
+  if (typeof Hotbar === 'undefined') return undefined;
+  return callback(Hotbar);
+}
+
+function withSidePanel(callback) {
+  if (typeof SidePanel === 'undefined') return undefined;
+  return callback(SidePanel);
+}
+
+function withCombatLog(callback) {
+  if (typeof CombatLog === 'undefined') return undefined;
+  return callback(CombatLog);
+}
+
 // 8-way directions: cardinals first (preferred for tied paths), then diagonals
 const DIRS8 = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0},{x:-1,y:-1},{x:1,y:-1},{x:-1,y:1},{x:1,y:1}];
 // 4-way directions (kept for room-topology flood fill which should stay 4-way)

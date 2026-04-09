@@ -932,7 +932,7 @@ function testItemUseItemExecutor() {
   assert.ok(combatSrc.includes('tickStatMods'), 'mode-combat must call tickStatMods at turn end');
 }
 
-function run() {
+function runLegacyContracts() {
   const { dnd, MODE } = loadConfigExports();
 
   testDiceNotationParsing(dnd);
@@ -1006,7 +1006,8 @@ function run() {
   testInventoryChestHandlerLootRouting();
   testInventorySidePanelUI();
 
-  console.log('All tests passed.');
 }
 
-run();
+module.exports = {
+  runLegacyContracts,
+};

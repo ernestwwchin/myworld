@@ -144,8 +144,10 @@ Object.assign(GameScene.prototype, {
         this.pStats.inventory.push({ ...item });
       }
     }
-    if (typeof SidePanel !== 'undefined' && SidePanel._activeTab === 'inventory') SidePanel.refresh();
-    if (typeof Hotbar !== 'undefined') Hotbar.refreshItems();
+    withSidePanel(() => {
+      if (SidePanel._activeTab === 'inventory') SidePanel.refresh();
+    });
+    withHotbar(hotbar => hotbar.refreshItems());
 
     if (rewards.length) {
       rewards.forEach((r, i) => {

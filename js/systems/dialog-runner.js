@@ -116,7 +116,7 @@ const DialogRunner = {
     const speaker = node.speaker || '';
     const text = node.text || '';
     console.log(`[Dialog] ${speaker ? speaker + ': ' : ''}${text}`);
-    if (typeof CombatLog !== 'undefined') CombatLog.log(`${speaker ? speaker + ': ' : ''}${text}`, 'info', 'dialog');
+    withCombatLog(combatLog => combatLog.log(`${speaker ? speaker + ': ' : ''}${text}`, 'info', 'dialog'));
 
     let el = document.getElementById('dialog-box');
     if (!el) {

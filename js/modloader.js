@@ -495,6 +495,15 @@ const ModLoader = {
       convertedGrid = this.convertGridSymbols(mapDef.grid);
       playerStart   = mapDef.playerStart;
       stairsPos     = null;
+      for (let y = 0; y < convertedGrid.length; y++) {
+        for (let x = 0; x < convertedGrid[y].length; x++) {
+          if (convertedGrid[y][x] === TILE.STAIRS) {
+            stairsPos = { x, y };
+            break;
+          }
+        }
+        if (stairsPos) break;
+      }
     }
 
     // Overwrite MAP grid

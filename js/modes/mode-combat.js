@@ -403,7 +403,7 @@ Object.assign(GameScene.prototype, {
     }
     CombatLog.logSep();
     this.resetActionButtons();
-    if (typeof Hotbar !== 'undefined') Hotbar.resetUsed();
+    withHotbar(hotbar => hotbar.resetUsed());
     this.time.delayedCall(300,()=>{ this.drawSightOverlays(); this.updateFogOfWar(); });
   },
 
@@ -520,13 +520,17 @@ Object.assign(GameScene.prototype, {
       this.playerAP=1; this.playerMoves=Number(COMBAT_RULES.playerMovePerTurn||5); this.playerMovesUsed=0;
       this.turnStartMoves=Number(COMBAT_RULES.playerMovePerTurn||5);
       this.turnStartTile={...this.playerTile};
+      this.snapshotMoveResetAnchor();
       this.pendingAction=null;
       this.clearMoveRange(); this.clearAtkRange();
       document.getElementById('action-bar').classList.add('show');
       document.getElementById('res-pips').classList.add('show');
       this.initActionButtons();
       this.resetActionButtons();
-      if (typeof Hotbar !== 'undefined') { Hotbar.setExpanded(true); Hotbar.resetUsed(); }
+      withHotbar(hotbar => {
+        hotbar.setExpanded(true);
+        hotbar.resetUsed();
+      });
       this.turnHL.setPosition(this.player.x,this.player.y).setAlpha(1);
       this.tweens.add({targets:this.turnHL,alpha:0.35,duration:600,yoyo:true,repeat:-1});
       this.updateResBar();
@@ -588,25 +592,34 @@ Object.assign(GameScene.prototype, {
     this.time.delayedCall(150,()=>this.startNextTurn());
   },
 
+  snapshotMoveResetAnchor(){
+    this.moveResetAnchorTile={...this.playerTile};
+    this.moveResetAnchorMoves=Math.max(0, Number(this.playerMoves||0));
+    this.moveResetAnchorMovesUsed=Math.max(0, Number(this.playerMovesUsed||0));
+  },
+
   // ─────────────────────────────────────────
   // RESET MOVE
   // ─────────────────────────────────────────
   resetMove(){
     if(!this.isPlayerTurn()) return;
-    if(this.playerAP<=0){ this.showStatus('Cannot reset after using an action.'); return; }
-    if(this.playerMovesUsed===0){ this.showStatus('Haven\'t moved yet.'); return; }
+    const anchorTile=this.moveResetAnchorTile||this.turnStartTile;
+    const anchorMoves=Math.max(0, Number(this.moveResetAnchorMoves ?? this.turnStartMoves ?? (COMBAT_RULES.playerMovePerTurn||5)));
+    const anchorMovesUsed=Math.max(0, Number(this.moveResetAnchorMovesUsed ?? 0));
+    const sameTile=!!anchorTile&&this.playerTile.x===anchorTile.x&&this.playerTile.y===anchorTile.y;
+    if(sameTile&&this.playerMoves===anchorMoves&&this.playerMovesUsed===anchorMovesUsed){ this.showStatus('No movement to reset.'); return; }
     this.tweens.killTweensOf(this.player);
     this.movePath=[]; this.isMoving=false; this.clearPathDots(); this.onArrival=null;
-    this.playerTile={...this.turnStartTile};
-    this.player.setPosition(this.turnStartTile.x*S+S/2,this.turnStartTile.y*S+S/2);
+    this.playerTile={...anchorTile};
+    this.player.setPosition(anchorTile.x*S+S/2,anchorTile.y*S+S/2);
     this.cameras.main.startFollow(this.player,true,1,1);
-    this.playerMoves=Number(COMBAT_RULES.playerMovePerTurn||5);
-    this.playerMovesUsed=0;
+    this.playerMoves=anchorMoves;
+    this.playerMovesUsed=anchorMovesUsed;
     this.updateFogOfWar();
     this.clearMoveRange();
     this.showMoveRange();
     this.updateResBar();
-    this.showStatus('Move reset! You\'re back at turn start position.');
+    this.showStatus('Move reset.');
   },
 
   // ─────────────────────────────────────────
@@ -751,7 +764,7 @@ Object.assign(GameScene.prototype, {
         this.toggleExploreTurnBased();
       }
       this.pendingAction='attack';
-      if (typeof Hotbar !== 'undefined') Hotbar.setSelected('attack');
+      withHotbar(hotbar => hotbar.setSelected('attack'));
       this.showStatus('Select an enemy to attack. Click empty tile to cancel.');
       return;
     }
@@ -768,21 +781,22 @@ Object.assign(GameScene.prototype, {
       }
       this.pendingAction='attack';
       this.setSelectedActionButton('attack');
-      if (typeof Hotbar !== 'undefined') Hotbar.setSelected('attack');
+      withHotbar(hotbar => hotbar.setSelected('attack'));
       this.clearMoveRange(); this.showAtkRange();
       this.showStatus('Select an enemy to attack.');
     } else if(action==='sleep_cloud'){
       this.showStatus('Sleep Cloud action setup is not wired to a targeting flow yet.');
       this.pendingAction=null;
       this.setSelectedActionButton('');
-      if (typeof Hotbar !== 'undefined') Hotbar.clearSelection();
+      withHotbar(hotbar => hotbar.clearSelection());
     } else if(action==='dash'){
       if(this.playerAP<=0){ this.showStatus('Action already used.'); return; }
       this.playerAP=0; this.playerMoves+=Number(COMBAT_RULES.dashMoveBonus||4);
       this.processStatusEffectsForActor('player','on_action',{actionId:'dash'});
+      this.snapshotMoveResetAnchor();
       this.pendingAction=null;
       this.setActionButtonsUsed(true);
-      if (typeof Hotbar !== 'undefined') Hotbar.markAllUsed(true);
+      withHotbar(hotbar => hotbar.markAllUsed(true));
       this.updateResBar(); this.clearMoveRange(); this.showMoveRange();
       this.showStatus(`Dashed! ${this.playerMoves} tiles of movement remaining.`);
     } else if(action==='hide'){
@@ -801,7 +815,7 @@ Object.assign(GameScene.prototype, {
       } else {
         // Show flee zone as guide — green tiles where flee would succeed
         this.pendingAction='flee';
-        if (typeof Hotbar !== 'undefined') Hotbar.setSelected('flee');
+        withHotbar(hotbar => hotbar.setSelected('flee'));
         this.clearMoveRange(); this.clearAtkRange();
         this.showFleeZone();
         this.showMoveRange();
@@ -813,7 +827,7 @@ Object.assign(GameScene.prototype, {
   clearPendingAction(){
     this.pendingAction=null;
     this.setSelectedActionButton('');
-    if (typeof Hotbar !== 'undefined') Hotbar.clearSelection();
+    withHotbar(hotbar => hotbar.clearSelection());
     this.clearAtkRange(); this.clearFleeZone();
     // If we auto-switched to TB for targeting, revert to real-time explore
     if(this._targetingAutoTB && this.mode===MODE.EXPLORE_TB){
@@ -834,6 +848,7 @@ Object.assign(GameScene.prototype, {
     this.clearPendingAction();
     this.playerAP=0;
     this.processStatusEffectsForActor('player','on_action',{actionId:'attack'});
+    this.snapshotMoveResetAnchor();
 
     const strMod=dnd.mod(this.pStats.str);
 
@@ -851,7 +866,7 @@ Object.assign(GameScene.prototype, {
     const hits=isCrit||(!isMiss&&atkTotal>=enemy.ac);
 
     this.setActionButtonsUsed(true);
-    if (typeof Hotbar !== 'undefined') Hotbar.markAllUsed(true);
+    withHotbar(hotbar => hotbar.markAllUsed(true));
     this.updateResBar();
 
     if(!hits){
@@ -863,13 +878,16 @@ Object.assign(GameScene.prototype, {
         : this.formatRollLine(atkRoll,totalMod,atkTotal,enemy.ac);
       this.showStatus(`Missed ${enemy.displayName}! ${rollDisplay}`);
       CombatLog.logRoll({actor:'You',target:enemy.displayName,result:isMiss?'crit':'miss',rollDetail:rollDisplay,extra:wasHidden?'advantage':'',});
+      
+      this._afterPlayerDice=()=>{
+        this.showMoveRange();
+      };
+      
       // Nat 1 → dramatic dice overlay; normal miss → just log + continue
       if(isMiss){
         this.diceWaiting='player';
-        this._afterPlayerDice=null;
         this.showDicePopup(rollDisplay,'Rolled a 1 — the worst possible roll. Your attack fumbles automatically, no matter how weak the enemy is.','miss',[{sides:20,value:atkRoll,kind:'d20'}, ...(atkRoll2!==null?[{sides:20,value:atkRoll2,kind:'d20'}]:[])]);
       } else {
-        this._afterPlayerDice=null;
         this._finishPlayerAction();
       }
       return;
@@ -1041,11 +1059,12 @@ Object.assign(GameScene.prototype, {
 
     this.playerAP=0;
     this.processStatusEffectsForActor('player','on_action',{actionId:'flee'});
+    this.snapshotMoveResetAnchor();
     this.pendingAction=null;
     this.clearPendingAction();
     this.updateResBar();
     this.setActionButtonsUsed(true);
-    if (typeof Hotbar !== 'undefined') Hotbar.markAllUsed(true);
+    withHotbar(hotbar => hotbar.markAllUsed(true));
     this.showStatus('Flee successful. Breaking away...');
     this.time.delayedCall(140,()=>this.exitCombat('flee'));
   },
