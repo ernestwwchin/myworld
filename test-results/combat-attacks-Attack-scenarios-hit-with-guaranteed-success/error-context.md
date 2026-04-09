@@ -1,0 +1,305 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: combat-attacks.spec.js >> Attack scenarios >> hit with guaranteed success
+- Location: tests/e2e/combat-attacks.spec.js:49:3
+
+# Error details
+
+```
+Error: page.evaluate: TypeError: Cannot read properties of undefined (reading 'roll')
+    at eval (eval at evaluate (:302:30), <anonymous>:5:41)
+    at UtilityScript.evaluate (<anonymous>:304:16)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)
+```
+
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - generic:
+        - generic:
+          - generic:
+            - generic: Adventurer
+            - generic: HP 12/12
+          - generic:
+            - generic: Floor
+            - generic: B1F
+            - generic: Pos
+            - generic: 2,3
+        - generic: ⚔ COMBAT
+        - generic:
+          - generic: COMBAT!
+        - generic:
+          - generic: TAP TO CONTINUE
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - generic [ref=e9]:
+          - generic [ref=e10]: 🧝
+          - generic [ref=e11]:
+            - generic [ref=e12]: Adventurer
+            - generic [ref=e13]: Fighter Lv 1
+        - generic [ref=e17]: 12/12
+        - generic [ref=e18]:
+          - generic [ref=e19]: AC 16
+          - generic [ref=e20]: ·
+          - generic [ref=e21]: Prof +2
+      - generic [ref=e22]:
+        - generic [ref=e23] [cursor=pointer]: C
+        - generic [ref=e24] [cursor=pointer]: I
+        - generic [ref=e25] [cursor=pointer]: K
+        - generic [ref=e26] [cursor=pointer]: J
+      - generic [ref=e28]:
+        - generic [ref=e29]:
+          - generic [ref=e30]: CHARACTER
+          - generic [ref=e31] [cursor=pointer]: ✕
+        - generic [ref=e32]:
+          - generic [ref=e33]: Adventurer
+          - generic [ref=e34]: Fighter · Level 1
+          - generic [ref=e35]: HP 12/12 · AC 16 · Prof +2
+        - generic [ref=e36]: EXPERIENCE
+        - generic [ref=e37]:
+          - generic [ref=e38]: XP
+          - generic [ref=e39]: 0 / 300
+        - generic [ref=e41]: 300 XP to Lv2
+        - generic [ref=e42]: ABILITY SCORES
+        - generic [ref=e43]:
+          - generic [ref=e44]: STR
+          - generic [ref=e45]: "16"
+          - generic [ref=e46]: "+3"
+          - generic [ref=e47]: save (+5)
+        - generic [ref=e48]:
+          - generic [ref=e49]: DEX
+          - generic [ref=e50]: "14"
+          - generic [ref=e51]: "+2"
+          - generic [ref=e52]: save(+2)
+        - generic [ref=e53]:
+          - generic [ref=e54]: CON
+          - generic [ref=e55]: "14"
+          - generic [ref=e56]: "+2"
+          - generic [ref=e57]: save (+4)
+        - generic [ref=e58]:
+          - generic [ref=e59]: INT
+          - generic [ref=e60]: "10"
+          - generic [ref=e61]: "+0"
+          - generic [ref=e62]: save(+0)
+        - generic [ref=e63]:
+          - generic [ref=e64]: WIS
+          - generic [ref=e65]: "12"
+          - generic [ref=e66]: "+1"
+          - generic [ref=e67]: save(+1)
+        - generic [ref=e68]:
+          - generic [ref=e69]: CHA
+          - generic [ref=e70]: "10"
+          - generic [ref=e71]: "+0"
+          - generic [ref=e72]: save(+0)
+        - generic [ref=e73]: COMBAT
+        - generic [ref=e74]:
+          - generic [ref=e75]: AC
+          - generic [ref=e76]: "16"
+        - generic [ref=e77]:
+          - generic [ref=e78]: Attack
+          - generic [ref=e79]: d20+5 / 1d8+3
+        - generic [ref=e80]:
+          - generic [ref=e81]: Speed
+          - generic [ref=e82]: 6 tiles (30ft)
+        - generic [ref=e83]:
+          - generic [ref=e84]: Initiative
+          - generic [ref=e85]: "+2"
+        - generic [ref=e86]: EQUIPMENT
+        - generic [ref=e87]:
+          - generic [ref=e88]: Weapon
+          - generic [ref=e89]: ⚔️ longsword
+        - generic [ref=e90]:
+          - generic [ref=e91]: Armor
+          - generic [ref=e92]: — none
+        - generic [ref=e93]: CLASS FEATURES
+        - generic [ref=e94]: ⚔ Second Wind (1d10+level HP)
+        - generic [ref=e95]: "⚔ Fighting Style: Dueling (+2 dmg)"
+        - generic [ref=e96]: SKILLS
+        - generic [ref=e97]:
+          - generic [ref=e98]: ○ Acrobatics
+          - generic [ref=e99]: "+2"
+          - generic [ref=e100]: DEX
+        - generic [ref=e101]:
+          - generic [ref=e102]: ○ Animal Handling
+          - generic [ref=e103]: "+1"
+          - generic [ref=e104]: WIS
+        - generic [ref=e105]:
+          - generic [ref=e106]: ○ Arcana
+          - generic [ref=e107]: "+0"
+          - generic [ref=e108]: INT
+        - generic [ref=e109]:
+          - generic [ref=e110]: ● Athletics
+          - generic [ref=e111]: "+5"
+          - generic [ref=e112]: STR
+        - generic [ref=e113]:
+          - generic [ref=e114]: ○ Deception
+          - generic [ref=e115]: "+0"
+          - generic [ref=e116]: CHA
+        - generic [ref=e117]:
+          - generic [ref=e118]: ○ History
+          - generic [ref=e119]: "+0"
+          - generic [ref=e120]: INT
+        - generic [ref=e121]:
+          - generic [ref=e122]: ○ Insight
+          - generic [ref=e123]: "+1"
+          - generic [ref=e124]: WIS
+        - generic [ref=e125]:
+          - generic [ref=e126]: ○ Intimidation
+          - generic [ref=e127]: "+0"
+          - generic [ref=e128]: CHA
+        - generic [ref=e129]:
+          - generic [ref=e130]: ○ Investigation
+          - generic [ref=e131]: "+0"
+          - generic [ref=e132]: INT
+        - generic [ref=e133]:
+          - generic [ref=e134]: ○ Medicine
+          - generic [ref=e135]: "+1"
+          - generic [ref=e136]: WIS
+        - generic [ref=e137]:
+          - generic [ref=e138]: ○ Nature
+          - generic [ref=e139]: "+0"
+          - generic [ref=e140]: INT
+        - generic [ref=e141]:
+          - generic [ref=e142]: ● Perception
+          - generic [ref=e143]: "+3"
+          - generic [ref=e144]: WIS
+        - generic [ref=e145]:
+          - generic [ref=e146]: ○ Performance
+          - generic [ref=e147]: "+0"
+          - generic [ref=e148]: CHA
+        - generic [ref=e149]:
+          - generic [ref=e150]: ○ Persuasion
+          - generic [ref=e151]: "+0"
+          - generic [ref=e152]: CHA
+        - generic [ref=e153]:
+          - generic [ref=e154]: ○ Religion
+          - generic [ref=e155]: "+0"
+          - generic [ref=e156]: INT
+        - generic [ref=e157]:
+          - generic [ref=e158]: ○ Sleight of Hand
+          - generic [ref=e159]: "+2"
+          - generic [ref=e160]: DEX
+        - generic [ref=e161]:
+          - generic [ref=e162]: ○ Stealth
+          - generic [ref=e163]: "+2"
+          - generic [ref=e164]: DEX
+        - generic [ref=e165]:
+          - generic [ref=e166]: ○ Survival
+          - generic [ref=e167]: "+1"
+          - generic [ref=e168]: WIS
+        - generic [ref=e169]: DnD 5e · Fighter
+  - generic [ref=e170]:
+    - generic [ref=e171]:
+      - generic [ref=e172]:
+        - generic [ref=e174]: ACT
+        - generic [ref=e177]: BA
+        - generic [ref=e180]:
+          - generic [ref=e181]: MOV
+          - generic [ref=e187]: 4/5
+        - generic [ref=e189]:
+          - generic [ref=e190]: CLASS
+          - generic "SW" [ref=e191]
+      - generic [ref=e192]:
+        - generic [ref=e193]:
+          - generic [ref=e194] [cursor=pointer]:
+            - generic [ref=e195]: ⚔️
+            - generic [ref=e196]: Attack
+            - generic [ref=e197]: "1"
+          - generic [ref=e198] [cursor=pointer]:
+            - generic [ref=e199]: 💨
+            - generic [ref=e200]: Dash
+            - generic [ref=e201]: "2"
+          - generic [ref=e202] [cursor=pointer]:
+            - generic [ref=e203]: 🛡
+            - generic [ref=e204]: Dodge
+            - generic [ref=e205]: "3"
+          - generic [ref=e206] [cursor=pointer]:
+            - generic [ref=e207]: ↩️
+            - generic [ref=e208]: Disengage
+            - generic [ref=e209]: "4"
+          - generic [ref=e210] [cursor=pointer]:
+            - generic [ref=e211]: 🤝
+            - generic [ref=e212]: Help
+            - generic [ref=e213]: "5"
+          - generic [ref=e214] [cursor=pointer]:
+            - generic [ref=e215]: +
+            - generic [ref=e216]: "6"
+          - generic [ref=e217] [cursor=pointer]:
+            - generic [ref=e218]: +
+            - generic [ref=e219]: "7"
+          - generic [ref=e220] [cursor=pointer]:
+            - generic [ref=e221]: +
+            - generic [ref=e222]: "8"
+          - generic [ref=e223] [cursor=pointer]:
+            - generic [ref=e224]: +
+            - generic [ref=e225]: "9"
+          - generic [ref=e226] [cursor=pointer]:
+            - generic [ref=e227]: +
+            - generic [ref=e228]: "0"
+        - generic [ref=e229]:
+          - generic [ref=e231] [cursor=pointer]: +
+          - generic [ref=e233] [cursor=pointer]: +
+          - generic [ref=e235] [cursor=pointer]: +
+          - generic [ref=e237] [cursor=pointer]: +
+          - generic [ref=e239] [cursor=pointer]: +
+          - generic [ref=e241] [cursor=pointer]: +
+          - generic [ref=e243] [cursor=pointer]: +
+          - generic [ref=e245] [cursor=pointer]: +
+          - generic [ref=e247] [cursor=pointer]: +
+          - generic [ref=e249] [cursor=pointer]: +
+        - generic [ref=e250]:
+          - generic [ref=e252] [cursor=pointer]: +
+          - generic [ref=e254] [cursor=pointer]: +
+          - generic [ref=e256] [cursor=pointer]: +
+          - generic [ref=e258] [cursor=pointer]: +
+          - generic [ref=e260] [cursor=pointer]: +
+          - generic [ref=e262] [cursor=pointer]: +
+          - generic [ref=e264] [cursor=pointer]: +
+          - generic [ref=e266] [cursor=pointer]: +
+          - generic [ref=e268] [cursor=pointer]: +
+          - generic [ref=e270] [cursor=pointer]: +
+      - generic [ref=e271]:
+        - generic [ref=e272] [cursor=pointer]: Common
+        - generic [ref=e273] [cursor=pointer]: Class
+        - generic [ref=e274] [cursor=pointer]: Items
+        - generic [ref=e275] [cursor=pointer]: Passives
+    - generic [ref=e276]:
+      - generic [ref=e277] [cursor=pointer]:
+        - generic [ref=e278]: ⏳
+        - generic [ref=e279]: END
+      - generic [ref=e280] [cursor=pointer]:
+        - generic [ref=e281]: 🏳
+        - generic [ref=e282]: FLEE
+      - generic [ref=e283] [cursor=pointer]:
+        - generic [ref=e284]: ↺
+        - generic [ref=e285]: RESET
+      - generic [ref=e287] [cursor=pointer]:
+        - generic [ref=e288]: 📊
+        - generic [ref=e289]: STATS
+      - generic [ref=e290] [cursor=pointer]:
+        - generic [ref=e291]: 📜
+        - generic [ref=e292]: LOG
+      - generic [ref=e293] [cursor=pointer]:
+        - generic [ref=e294]: ⚙
+        - generic [ref=e295]: SET
+    - generic [ref=e296]:
+      - generic [ref=e299] [cursor=pointer]: LOG
+      - generic [ref=e300]:
+        - generic [ref=e301] [cursor=pointer]: ALL
+        - generic [ref=e302] [cursor=pointer]: COMBAT
+        - generic [ref=e303] [cursor=pointer]: DIALOG
+        - generic [ref=e304] [cursor=pointer]: SYSTEM
+      - generic [ref=e305]:
+        - generic [ref=e306]: Explore the dungeon!
+        - generic [ref=e307]: ── COMBAT ──
+        - generic [ref=e308]: Combat started — 1 enemies
+```

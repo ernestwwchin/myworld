@@ -21,3 +21,5 @@ stages:
   - ts_floor_transition_a
   - ts_floor_transition_b
   - ts_skills
+  - ts_chest_pickup
+  - ts_potion_heal

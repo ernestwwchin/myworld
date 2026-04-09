@@ -1,0 +1,16 @@
+# Test: Potion Heal
+# Player starts with poison status, uses healing potion to recover.
+
+name: "Test: Potion Heal"
+floor: TH
+globalLight: bright
+
+grid:
+  - "#####"
+  - "#...#"
+  - "#...#"
+  - "#...#"
+  - "#####"
+
+playerStart: { x: 2, y: 2 }
+encounters: []
