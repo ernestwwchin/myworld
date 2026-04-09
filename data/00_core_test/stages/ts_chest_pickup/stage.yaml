@@ -15,10 +15,19 @@ grid:
 playerStart: { x: 2, y: 1 }
 encounters: []
 
-chests:
-  - at: { x: 2, y: 2 }
-    fixed:
-      open: false
-      loot:
-        - { itemId: potion_heal, quantity: 1 }
+interactables:
+  - id: chest_test_pickup
+    kind: chest
+    x: 2
+    y: 2
+    open: false
+    loot:
+      -
+        id: potion_heal
+        name: Healing Potion
+        type: consumable
+        icon: P
+        onUse:
+          effects:
+            - { type: heal, amount: "2d4+2" }
     gold: 0

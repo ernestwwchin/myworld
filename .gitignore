@@ -1,3 +1,5 @@
+test-results/
+playwright-report/
 node_modules/
 assets/*.zip
 **/_MACOSX/
