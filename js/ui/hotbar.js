@@ -552,7 +552,11 @@ const Hotbar = {
 
   _getSlotName(slot) {
     if (!slot?.id) return '';
-    if (slot.type === 'item' && slot._item) return slot._item.name || slot._item.id || 'Item';
+    if (slot.type === 'item' && slot._item) {
+      const qty = Math.max(1, Number(slot._item.qty || 1));
+      const name = slot._item.name || slot._item.id || 'Item';
+      return qty > 1 ? `${name} x${qty}` : name;
+    }
     const def = this._getAbilityDef(slot.id);
     return def?.name || slot.id;
   },

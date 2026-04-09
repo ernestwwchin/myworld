@@ -119,6 +119,8 @@ const SidePanel = {
       const tl = TYPE_LABEL[item.type] || '···';
       const canUse = item.type === 'consumable' && item.heal;
       const canEquip = item.type === 'weapon' || item.type === 'armor';
+      const qty = Math.max(1, Number(item.qty || 1));
+      const qtyLabel = qty > 1 ? ` x${qty}` : '';
       const useBtn = canUse
         ? `<button class="inv-btn" onclick="window._scene&&window._scene.useItem(window._scene.pStats.inventory[${i}])" style="color:#a8e6cf">Use</button>`
         : '';
@@ -128,7 +130,7 @@ const SidePanel = {
       const dropBtn = `<button class="inv-btn" onclick="window._scene&&window._scene.dropItem(window._scene.pStats.inventory[${i}])" style="color:#ef5350">Drop</button>`;
       return `<div class="inv-row">
         <span class="inv-icon">${item.icon||'📦'}</span>
-        <span class="inv-name">${item.name||item.id||'Item'}</span>
+        <span class="inv-name">${item.name||item.id||'Item'}${qtyLabel}</span>
         <span class="inv-type" style="color:${tc}">${tl}</span>
         <span class="inv-actions">${useBtn}${eqBtn}${dropBtn}</span>
       </div>`;

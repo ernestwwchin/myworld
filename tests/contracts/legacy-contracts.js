@@ -853,6 +853,30 @@ function testInventorySidePanelUI() {
     'index.html must define inv-btn CSS for inventory action buttons');
 }
 
+/** Inventory stacking contracts: qty/maxStack helpers and UI exposure must exist. */
+function testInventoryStackingContracts() {
+  const gameSrc = fs.readFileSync(path.join(root, 'js', 'game.js'), 'utf8');
+  const chestSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'chest-handler.js'), 'utf8');
+  const panelSrc = fs.readFileSync(path.join(root, 'js', 'ui', 'side-panel.js'), 'utf8');
+  const hotbarSrc = fs.readFileSync(path.join(root, 'js', 'ui', 'hotbar.js'), 'utf8');
+
+  assert.ok(gameSrc.includes('_getItemMaxStack('),
+    'game.js must define _getItemMaxStack helper for per-item stack limits');
+  assert.ok(gameSrc.includes('addItemToInventory('),
+    'game.js must define addItemToInventory helper');
+  assert.ok(gameSrc.includes('Math.min(maxStack,remaining)'),
+    'addItemToInventory must split overflow into capped stacks');
+  assert.ok(gameSrc.includes('if(Number(item.qty||1)>1)'),
+    'use/drop item paths must decrement qty before removing stack entry');
+
+  assert.ok(chestSrc.includes('addItemToInventory'),
+    'chest-handler must route loot item insertion through addItemToInventory');
+  assert.ok(panelSrc.includes('qtyLabel'),
+    'inventory side-panel must display stack quantity labels');
+  assert.ok(hotbarSrc.includes('slot._item.qty'),
+    'hotbar item labels must display current stack quantity');
+}
+
 // ── Item definition system tests ──
 
 function testItemDefsRegistry() {
@@ -1024,6 +1048,7 @@ function runLegacyContracts() {
   testInventoryLootDuplicatePolicySupport();
   testInventoryChestHandlerLootRouting();
   testInventorySidePanelUI();
+  testInventoryStackingContracts();
 
 }
 

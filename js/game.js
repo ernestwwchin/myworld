@@ -577,6 +577,72 @@ class GameScene extends Phaser.Scene {
   // ─────────────────────────────────────────
   // INVENTORY ACTIONS
   // ─────────────────────────────────────────
+  _getItemMaxStack(item){
+    if(!item) return 1;
+    const def=(typeof ITEM_DEFS!=='undefined'&&item.id)?ITEM_DEFS[item.id]:null;
+    const explicit=Number(item.maxStack??def?.maxStack);
+    if(Number.isFinite(explicit)&&explicit>0) return Math.floor(explicit);
+
+    // Type defaults keep inventory practical without forcing every item to declare maxStack.
+    if(item.type==='weapon'||item.type==='armor') return 1;
+    if(item.type==='consumable') return 20;
+    if(item.type==='gem') return 50;
+    if(item.type==='misc') return 99;
+    return 1;
+  }
+
+  _isStackableItem(item){
+    if(!item) return false;
+    if(typeof item.stackable==='boolean') return item.stackable;
+    return this._getItemMaxStack(item)>1;
+  }
+
+  addItemToInventory(item,qty=1){
+    if(!item) return null;
+    if(!Array.isArray(this.pStats.inventory)) this.pStats.inventory=[];
+    const inv=this.pStats.inventory;
+    const addQty=Math.max(1,Math.floor(Number(qty||item.qty||1)));
+    const isStackable=this._isStackableItem(item);
+    const maxStack=this._getItemMaxStack(item);
+    let firstResult=null;
+
+    if(!isStackable||maxStack<=1){
+      for(let i=0;i<addQty;i++){
+        const entry={...item};
+        delete entry.qty;
+        inv.push(entry);
+        if(!firstResult) firstResult=entry;
+      }
+      return firstResult;
+    }
+
+    let remaining=addQty;
+
+    // Fill existing partial stacks first.
+    for(const existing of inv){
+      if(!existing||existing.id!==item.id||!this._isStackableItem(existing)) continue;
+      const current=Math.max(1,Math.floor(Number(existing.qty||1)));
+      const room=maxStack-current;
+      if(room<=0) continue;
+      const move=Math.min(room,remaining);
+      existing.qty=current+move;
+      remaining-=move;
+      if(!firstResult) firstResult=existing;
+      if(remaining<=0) return firstResult;
+    }
+
+    // Create new stacks for overflow.
+    while(remaining>0){
+      const stackQty=Math.min(maxStack,remaining);
+      const entry={...item,qty:stackQty,maxStack};
+      inv.push(entry);
+      remaining-=stackQty;
+      if(!firstResult) firstResult=entry;
+    }
+
+    return firstResult;
+  }
+
   useItem(item){
     if(!item) return;
     const inv=this.pStats.inventory;
@@ -591,7 +657,8 @@ class GameScene extends Phaser.Scene {
     // useAbility: hand off to the ability system for targeted effects
     if(onUse?.useAbility){
       if(typeof this.selectAction==='function') this.selectAction(onUse.useAbility);
-      inv.splice(idx,1);
+      if(Number(item.qty||1)>1) item.qty=Math.max(1,Number(item.qty||1)-1);
+      else inv.splice(idx,1);
       if(typeof SidePanel!=='undefined') SidePanel.refresh();
       if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
       return;
@@ -667,7 +734,10 @@ class GameScene extends Phaser.Scene {
       }
     }
 
-    if(consumed&&didSomething) inv.splice(idx,1);
+    if(consumed&&didSomething){
+      if(Number(item.qty||1)>1) item.qty=Math.max(1,Number(item.qty||1)-1);
+      else inv.splice(idx,1);
+    }
 
     this.updateHUD();
     if(typeof SidePanel!=='undefined') SidePanel.refresh();
@@ -731,8 +801,13 @@ class GameScene extends Phaser.Scene {
     if(!Array.isArray(inv)) return;
     const idx=inv.indexOf(item);
     if(idx<0) return;
-    inv.splice(idx,1);
-    this.showStatus(`Dropped ${item.name||item.id}.`);
+    if(Number(item.qty||1)>1){
+      item.qty=Math.max(1,Number(item.qty||1)-1);
+      this.showStatus(`Dropped 1x ${item.name||item.id}.`);
+    } else {
+      inv.splice(idx,1);
+      this.showStatus(`Dropped ${item.name||item.id}.`);
+    }
     if(typeof SidePanel!=='undefined') SidePanel.refresh();
     if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
   }

@@ -137,8 +137,12 @@ Object.assign(GameScene.prototype, {
     for (const item of resolved.items) {
       const icon = item.icon ? `${item.icon} ` : '';
       rewards.push({ text: `${icon}${item.name || item.id || 'item'}`, color: '#a8e6cf' });
-      if (!Array.isArray(this.pStats.inventory)) this.pStats.inventory = [];
-      this.pStats.inventory.push({ ...item });
+      if (typeof this.addItemToInventory === 'function') {
+        this.addItemToInventory(item, Number(item.qty || 1));
+      } else {
+        if (!Array.isArray(this.pStats.inventory)) this.pStats.inventory = [];
+        this.pStats.inventory.push({ ...item });
+      }
     }
     withSidePanel(() => {
       if (SidePanel._activeTab === 'inventory') SidePanel.refresh();
