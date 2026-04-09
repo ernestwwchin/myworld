@@ -1,0 +1,24 @@
+# Test: Chest Pickup
+# Player can open chest and pickup healing potion.
+
+name: "Test: Chest Pickup"
+floor: TE
+globalLight: bright
+
+grid:
+  - "#####"
+  - "#...#"
+  - "#.C.#"
+  - "#...#"
+  - "#####"
+
+playerStart: { x: 2, y: 1 }
+encounters: []
+
+chests:
+  - at: { x: 2, y: 2 }
+    fixed:
+      open: false
+      loot:
+        - { itemId: potion_heal, quantity: 1 }
+    gold: 0

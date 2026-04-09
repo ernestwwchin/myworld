@@ -1,15 +1,23 @@
 const TILE_SIZE = 48;
 
-async function waitForScene(page) {
-  await page.waitForFunction(() => {
-    const scene = window.game?.scene?.getScene?.('GameScene');
-    return !!scene?.playerTile;
-  });
+async function waitForScene(page, timeout = 10000) {
+  await page.waitForFunction(
+    () => {
+      return typeof window.game !== 'undefined' && window.game?.scene?.getScene?.('GameScene')?.playerTile;
+    },
+    { timeout }
+  );
 }
 
 async function getState(page) {
   return page.evaluate(() => {
+    if (!window.game?.scene?.getScene) {
+      throw new Error('Game scene not initialized. Make sure the game is fully loaded.');
+    }
     const scene = window.game.scene.getScene('GameScene');
+    if (!scene) {
+      throw new Error('GameScene not found');
+    }
     return {
       mode: scene.mode,
       playerTile: { ...scene.playerTile },
@@ -31,21 +39,22 @@ async function getState(page) {
 
 async function waitUntilIdle(page) {
   await page.waitForFunction(() => {
-    const scene = window.game.scene.getScene('GameScene');
+    const scene = window.game?.scene?.getScene?.('GameScene');
     return scene && !scene.isMoving;
   });
 }
 
 async function tapTile(page, x, y) {
   await page.evaluate(({ x, y, tileSize }) => {
-    const scene = window.game.scene.getScene('GameScene');
+    const scene = window.game?.scene?.getScene?.('GameScene');
+    if (!scene) throw new Error('Scene not available for tap');
     scene.onTap({ worldX: x * tileSize + tileSize / 2, worldY: y * tileSize + tileSize / 2 });
   }, { x, y, tileSize: TILE_SIZE });
 }
 
 async function dismissDiceIfNeeded(page) {
   const hasDice = await page.evaluate(() => {
-    const scene = window.game.scene.getScene('GameScene');
+    const scene = window.game?.scene?.getScene?.('GameScene');
     return !!scene?.diceWaiting;
   });
   if (hasDice) {
