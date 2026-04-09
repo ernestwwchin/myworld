@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m ':*)",
+      "Read(//tmp/**)",
+      "Bash(ls /home/wsl/git/myworld/*.js)",
+      "Bash(curl -s 'http://localhost:3000/_debug/logs?limit=50')"
+    ]
+  }
+}
