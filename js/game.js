@@ -221,6 +221,7 @@ class GameScene extends Phaser.Scene {
     this.playActorIdle(this.player,'player');
     this.turnHL=this.add.image(-100,-100,'t_turn').setDisplaySize(S,S).setDepth(9).setAlpha(0);
     this.tapInd=this.add.image(-100,-100,'t_tap').setDisplaySize(S,S).setDepth(8).setAlpha(0);
+    if(this.textures.exists('_fog_rt')) this.textures.remove('_fog_rt');
     this._fogCanvasTex=this.textures.createCanvas('_fog_rt',COLS*S,ROWS*S);
     this._fogCtx=this._fogCanvasTex.getContext();
     this.fogLayer=this.add.image(0,0,'_fog_rt').setOrigin(0,0).setDepth(15);
@@ -245,10 +246,6 @@ class GameScene extends Phaser.Scene {
     this.cursors=this.input.keyboard.createCursorKeys();
     this.wasd=this.input.keyboard.addKeys({up:Phaser.Input.Keyboard.KeyCodes.W,down:Phaser.Input.Keyboard.KeyCodes.S,left:Phaser.Input.Keyboard.KeyCodes.A,right:Phaser.Input.Keyboard.KeyCodes.D});
     this.keyDelay=0;
-
-    // Debug shortcuts (Ctrl+Shift+*)
-    this.input.keyboard.on('key-ctrl-shift-l', ()=>{ this.logEvent('DEBUG', 'MANUAL_SEND'); this.sendDebugLogs(); });
-    this.input.keyboard.on('key-ctrl-shift-c', ()=>{ this.clearDebugLogs(); this.showStatus('Debug logs cleared'); });
 
     // Explore mode shortcuts
     this.input.keyboard.on('key-h', ()=>{ if(this.isExploreMode()) this.tryHideInExplore(); });
@@ -288,12 +285,6 @@ class GameScene extends Phaser.Scene {
     // Initialize new UI modules
     if (typeof SidePanel !== 'undefined') SidePanel.init(this);
     if (typeof Hotbar !== 'undefined') Hotbar.init(this);
-
-    // Initialize debug logger for AI analysis
-    this.initDebugLogger();
-    this.initDebugBridge();
-    this.sessionStartTime = Date.now();
-    this.logEvent('GAME', 'SESSION_START', { mode: this.mode });
 
     this.updateHUD();
     this.updateStatsPanel();
