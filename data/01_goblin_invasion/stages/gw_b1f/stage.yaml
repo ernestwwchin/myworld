@@ -13,6 +13,7 @@
 name: "B1F — The Warren Gate"
 floor: B1F
 globalLight: dark
+nextStage: gw_b2f
 
 lights:
   # Entry — bright, first safe zone
