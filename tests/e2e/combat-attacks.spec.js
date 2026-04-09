@@ -1,5 +1,47 @@
 const { test, expect } = require('@playwright/test');
-const { waitForScene, getState, waitUntilIdle, tapTile, dismissDiceIfNeeded } = require('./helpers');
+const { waitForScene, getState, tapTile, dismissDiceIfNeeded } = require('./helpers');
+
+async function enterSingleEnemyCombat(page) {
+  await page.evaluate(() => {
+    const scene = window.game.scene.getScene('GameScene');
+    const enemy = scene.enemies.find((e) => e.alive);
+    scene.enterCombat([enemy]);
+  });
+
+  await page.waitForFunction(() => {
+    const scene = window.game.scene.getScene('GameScene');
+    return scene.mode === MODE.COMBAT && scene.isPlayerTurn && scene.isPlayerTurn();
+  });
+}
+
+async function attackWithForcedD20(page, d20Value) {
+  await page.evaluate((rollValue) => {
+    const scene = window.game.scene.getScene('GameScene');
+    const enemy = scene.enemies.find((e) => e.alive);
+    if (!enemy) return;
+
+    const roller = (typeof dnd !== 'undefined' && dnd) || window.dnd;
+    if (!roller || typeof roller.roll !== 'function') {
+      throw new Error('dnd roller not available');
+    }
+
+    const originalRoll = roller.roll;
+    roller.roll = (count, sides) => {
+      if (count === 1 && sides === 20) return rollValue;
+      return originalRoll(count, sides);
+    };
+
+    try {
+      scene.playerAttackEnemy(enemy);
+    } finally {
+      roller.roll = originalRoll;
+    }
+  }, d20Value);
+
+  await page.waitForTimeout(250);
+  await dismissDiceIfNeeded(page);
+  await page.waitForTimeout(250);
+}
 
 test.describe('Attack scenarios', () => {
   test('hit and kill weak monster in one hit', async ({ page }) => {
@@ -10,133 +52,46 @@ test.describe('Attack scenarios', () => {
     expect(before.aliveEnemies).toHaveLength(1);
     expect(before.aliveEnemies[0].type).toBe('goblin');
 
-    // Enter combat
-    await page.evaluate(() => {
-      const scene = window.game.scene.getScene('GameScene');
-      const enemy = scene.enemies.find(enemy => enemy.alive);
-      scene.enterCombat([enemy]);
-    });
-
-    await page.waitForFunction(() => {
-      const scene = window.game.scene.getScene('GameScene');
-      return scene.mode === MODE.COMBAT && scene.isPlayerTurn && scene.isPlayerTurn();
-    });
+    await enterSingleEnemyCombat(page);
 
     const enemy = (await getState(page)).aliveEnemies[0];
     expect(enemy.tile).toEqual({ x: 2, y: 2 });
 
-    // Attack with guaranteed hit
-    await page.evaluate(() => {
-      const scene = window.game.scene.getScene('GameScene');
-      const enemy = scene.enemies.find(enemy => enemy.alive);
-      const originalRoll = dnd.roll;
-      dnd.roll = (count, sides) => (count === 1 && sides === 20 ? 19 : originalRoll(count, sides));
-      try {
-        scene.playerAttackEnemy(enemy);
-      } finally {
-        dnd.roll = originalRoll;
-      }
-    });
-
-    await page.waitForTimeout(250);
-    await dismissDiceIfNeeded(page);
-    await page.waitForTimeout(250);
+    await attackWithForcedD20(page, 19);
 
     const after = await getState(page);
     expect(after.aliveEnemies).toHaveLength(0);
   });
 
-  test('hit with guaranteed success', async ({ page }) => {
+  test('hit and miss outcomes are deterministic', async ({ page }) => {
     await page.goto('/?map=ts_combat_reset', { waitUntil: 'networkidle' });
     await waitForScene(page);
-
-    await page.evaluate(() => {
-      const scene = window.game.scene.getScene('GameScene');
-      const enemy = scene.enemies.find(enemy => enemy.alive);
-      scene.enterCombat([enemy]);
-    });
-
-    await page.waitForFunction(() => {
-      const scene = window.game.scene.getScene('GameScene');
-      return scene.mode === MODE.COMBAT && scene.isPlayerTurn && scene.isPlayerTurn();
-    });
+    await enterSingleEnemyCombat(page);
 
     const before = await getState(page);
     expect(before.aliveEnemies).toHaveLength(1);
     const hpBefore = before.aliveEnemies[0].hp;
 
-    // Move closer first to ensure in range
     await tapTile(page, 2, 3);
     await page.waitForTimeout(300);
-
-    // Attack with guaranteed hit (natural 19 on d20)
-    await page.evaluate(() => {
-      const scene = window.game.scene.getScene('GameScene');
-      const enemy = scene.enemies.find(enemy => enemy.alive);
-      if (enemy) {
-        const originalRoll = window.dnd.roll;
-        window.dnd.roll = (count, sides) => {
-          if (count === 1 && sides === 20) return 19;
-          return originalRoll(count, sides);
-        };
-        try {
-          scene.playerAttackEnemy(enemy);
-        } finally {
-          window.dnd.roll = originalRoll;
-        }
-      }
-    });
-
-    await page.waitForTimeout(400);
-    await dismissDiceIfNeeded(page);
-    await page.waitForTimeout(400);
+    await attackWithForcedD20(page, 19);
 
     const after = await getState(page);
     expect(after.aliveEnemies).toHaveLength(1);
-    expect(after.aliveEnemies[0].hp).toBeLessThanOrEqual(hpBefore);
-  });
+    expect(after.aliveEnemies[0].hp).toBeLessThan(hpBefore);
 
-  test('miss attack attack with guaranteed miss', async ({ page }) => {
     await page.goto('/?map=ts_enemy_attack', { waitUntil: 'networkidle' });
     await waitForScene(page);
+    await enterSingleEnemyCombat(page);
 
-    await page.evaluate(() => {
-      const scene = window.game.scene.getScene('GameScene');
-      const enemy = scene.enemies.find(enemy => enemy.alive);
-      scene.enterCombat([enemy]);
-    });
+    const beforeMiss = await getState(page);
+    expect(beforeMiss.aliveEnemies).toHaveLength(1);
+    const hpBeforeMiss = beforeMiss.aliveEnemies[0].hp;
 
-    await page.waitForFunction(() => {
-      const scene = window.game.scene.getScene('GameScene');
-      return scene.mode === MODE.COMBAT && scene.isPlayerTurn && scene.isPlayerTurn();
-    });
+    await attackWithForcedD20(page, 1);
 
-    const before = await getState(page);
-    expect(before.aliveEnemies).toHaveLength(1);
-
-    // Attack with guaranteed miss (natural 1 on d20)
-    await page.evaluate(() => {
-      const scene = window.game.scene.getScene('GameScene');
-      const enemy = scene.enemies.find(enemy => enemy.alive);
-      if (enemy) {
-        const originalRoll = window.dnd.roll;
-        window.dnd.roll = (count, sides) => {
-          if (count === 1 && sides === 20) return 1;
-          return originalRoll(count, sides);
-        };
-        try {
-          scene.playerAttackEnemy(enemy);
-        } finally {
-          window.dnd.roll = originalRoll;
-        }
-      }
-    });
-
-    await page.waitForTimeout(400);
-    await dismissDiceIfNeeded(page);
-    await page.waitForTimeout(400);
-
-    const after = await getState(page);
-    expect(after.aliveEnemies).toHaveLength(1);
+    const afterMiss = await getState(page);
+    expect(afterMiss.aliveEnemies).toHaveLength(1);
+    expect(afterMiss.aliveEnemies[0].hp).toBe(hpBeforeMiss);
   });
 });
