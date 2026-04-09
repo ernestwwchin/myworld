@@ -786,6 +786,34 @@ function testInventoryLootWeaponReferences() {
   }
 }
 
+/** Chest resolver must support table-level duplicate policy for multi-roll loot. */
+function testInventoryLootDuplicatePolicySupport() {
+  const chestSrc = fs.readFileSync(path.join(root, 'js', 'entities', 'chest-entity.js'), 'utf8');
+
+  assert.ok(chestSrc.includes('allowDuplicates'),
+    'chest-entity resolveLoot must read table.allowDuplicates');
+  assert.ok(chestSrc.includes('Math.min(rolls, sourcePool.length)'),
+    'chest-entity resolveLoot must cap roll count when duplicates are disabled');
+  assert.ok(chestSrc.includes('sourcePool.splice(i, 1)'),
+    'chest-entity resolveLoot must remove selected entries when duplicates are disabled');
+
+  const coreTables = loadYaml('data/00_core/loot-tables.yaml');
+  for (const [tableId, table] of Object.entries(coreTables)) {
+    if (Number(table.rolls || 0) > 1) {
+      assert.ok(typeof table.allowDuplicates === 'boolean',
+        `loot table '${tableId}' with rolls > 1 must declare allowDuplicates explicitly`);
+    }
+  }
+
+  const gwTables = loadYaml('data/01_goblin_invasion/loot-tables.yaml');
+  for (const [tableId, table] of Object.entries(gwTables)) {
+    if (Number(table.rolls || 0) > 1) {
+      assert.ok(typeof table.allowDuplicates === 'boolean',
+        `goblin loot table '${tableId}' with rolls > 1 must declare allowDuplicates explicitly`);
+    }
+  }
+}
+
 /** Chest handler must push all resolved items (including gems) to pStats.inventory */
 function testInventoryChestHandlerLootRouting() {
   const chestSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'chest-handler.js'), 'utf8');
@@ -993,6 +1021,7 @@ function runLegacyContracts() {
   testInventoryGameSceneMethods();
   testInventoryLootTableItemTypes();
   testInventoryLootWeaponReferences();
+  testInventoryLootDuplicatePolicySupport();
   testInventoryChestHandlerLootRouting();
   testInventorySidePanelUI();
 
