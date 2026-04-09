@@ -383,7 +383,7 @@ Object.assign(GameScene.prototype, {
     this.syncEnemySightRings(false);
     this.updateFogOfWar();
     CombatLog.logSep('COMBAT');
-    CombatLog.log(`Combat started — ${alerted.size} enemies`, 'system', 'combat');
+    CombatLog.log(`Combat started — ${alerted?.size ?? this.combatGroup.length} enemies`, 'system', 'combat');
     this.time.delayedCall(700, () => { this.buildInitBar(); this.startNextTurn(); });
   },
 
@@ -568,6 +568,7 @@ Object.assign(GameScene.prototype, {
     if(this.mode!==MODE.COMBAT) return;
     if(this.ui) this.ui.dismissEnemyPopup();
     if(!fromStatusSkip) this.processStatusEffectsForActor('player','turn_end');
+    if(typeof this.tickStatMods==='function') this.tickStatMods();
     this.playerMoves=0; this.playerAP=0;
     this.diceWaiting=false; this._afterPlayerDice=null; this._movingToAttack=false;
     this.clearPendingAction(); this.clearMoveRange(); this.clearAtkRange();
@@ -1222,7 +1223,7 @@ Object.assign(GameScene.prototype, {
         });
         if(seen) continue;
       }
-      const o=this.add.image(x*S+S/2,y*S+S/2,'t_flee').setDisplaySize(S,S).setDepth(16).setAlpha(0.6);
+      const o=this.add.image(x*S+S/2,y*S+S/2,'t_flee').setDisplaySize(S,S).setDepth(16);
       this._fleeZoneTiles.push(o);
     }
   },
