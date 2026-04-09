@@ -8,8 +8,10 @@ test.describe('Inventory interactions', () => {
 
     const before = await page.evaluate(() => {
       const scene = window.game.scene.getScene('GameScene');
+      const inv = Array.isArray(scene.pStats?.inventory) ? scene.pStats.inventory : [];
       return {
-        invCount: Array.isArray(scene.pStats?.inventory) ? scene.pStats.inventory.length : 0,
+        invCount: inv.length,
+        invQtyTotal: inv.reduce((sum, item) => sum + Math.max(1, Number(item?.qty || 1)), 0),
         chestOpen: !!scene.getChestEntity(2, 2)?.open,
       };
     });
@@ -38,14 +40,16 @@ test.describe('Inventory interactions', () => {
 
     const after = await page.evaluate(() => {
       const scene = window.game.scene.getScene('GameScene');
+      const inv = Array.isArray(scene.pStats?.inventory) ? scene.pStats.inventory : [];
       return {
-        invCount: Array.isArray(scene.pStats?.inventory) ? scene.pStats.inventory.length : 0,
+        invCount: inv.length,
+        invQtyTotal: inv.reduce((sum, item) => sum + Math.max(1, Number(item?.qty || 1)), 0),
         chestOpen: !!scene.getChestEntity(2, 2)?.open,
       };
     });
 
     expect(after.chestOpen).toBe(true);
-    expect(after.invCount).toBeGreaterThan(before.invCount);
+    expect(after.invQtyTotal).toBeGreaterThan(before.invQtyTotal);
   });
 
   test('use healing potion to restore health', async ({ page }) => {
@@ -106,5 +110,79 @@ test.describe('Inventory interactions', () => {
     });
 
     expect(healedHP).toBeGreaterThan(damagedHP);
+  });
+
+  test('stacking respects maxStack and overflows into new stacks', async ({ page }) => {
+    await page.goto('/?map=ts_potion_heal', { waitUntil: 'networkidle' });
+    await waitForScene(page);
+
+    const result = await page.evaluate(() => {
+      const scene = window.game.scene.getScene('GameScene');
+      scene.pStats.inventory = [];
+
+      scene.addItemToInventory({
+        id: 'arrow_bundle',
+        name: 'Arrows',
+        type: 'misc',
+        icon: 'A',
+        maxStack: 5,
+      }, 12);
+
+      if (typeof Hotbar !== 'undefined' && typeof Hotbar.refreshItems === 'function') Hotbar.refreshItems();
+      const slot0 = (typeof Hotbar !== 'undefined' && typeof Hotbar.getSlot === 'function')
+        ? Hotbar.getSlot('items', 0, 0)
+        : null;
+      const slot0Name = (typeof Hotbar !== 'undefined' && typeof Hotbar._getSlotName === 'function' && slot0)
+        ? Hotbar._getSlotName(slot0)
+        : '';
+
+      const stacks = scene.pStats.inventory
+        .filter(i => i.id === 'arrow_bundle')
+        .map(i => Number(i.qty || 1));
+
+      return { stacks, slot0Name };
+    });
+
+    expect(result.stacks).toEqual([5, 5, 2]);
+    expect(result.slot0Name).toContain('x5');
+  });
+
+  test('using stacked consumable decrements qty by one', async ({ page }) => {
+    await page.goto('/?map=ts_potion_heal', { waitUntil: 'networkidle' });
+    await waitForScene(page);
+
+    const before = await page.evaluate(() => {
+      const scene = window.game.scene.getScene('GameScene');
+      scene.pStats.inventory = [];
+      const max = scene.playerMaxHP || 20;
+      scene.playerHP = Math.max(1, max - 6);
+      scene.addItemToInventory({
+        id: 'potion_heal',
+        name: 'Healing Potion',
+        type: 'consumable',
+        icon: 'P',
+        heal: '2d4+2',
+        maxStack: 20,
+      }, 3);
+      const potion = scene.pStats.inventory.find(i => i.id === 'potion_heal');
+      return { hp: scene.playerHP, qty: Number(potion?.qty || 0), invLen: scene.pStats.inventory.length };
+    });
+
+    await page.evaluate(() => {
+      const scene = window.game.scene.getScene('GameScene');
+      const potion = scene.pStats.inventory.find(i => i.id === 'potion_heal');
+      scene.useItem(potion);
+    });
+
+    const after = await page.evaluate(() => {
+      const scene = window.game.scene.getScene('GameScene');
+      const potion = scene.pStats.inventory.find(i => i.id === 'potion_heal');
+      return { hp: scene.playerHP, qty: Number(potion?.qty || 0), invLen: scene.pStats.inventory.length };
+    });
+
+    expect(before.qty).toBe(3);
+    expect(after.qty).toBe(2);
+    expect(after.invLen).toBe(1);
+    expect(after.hp).toBeGreaterThan(before.hp);
   });
 });
