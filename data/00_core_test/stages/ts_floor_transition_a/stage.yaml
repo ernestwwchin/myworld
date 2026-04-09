@@ -1,0 +1,24 @@
+# Test: Floor Transition A
+# Deterministic Playwright/test map with one stair that transitions to floor B.
+
+name: "Test: Floor Transition A"
+floor: TFA
+globalLight: bright
+nextStage: ts_floor_transition_b
+
+grid:
+  - "#############"
+  - "#...........#"
+  - "#...........#"
+  - "#...........#"
+  - "#....S......#"
+  - "#...........#"
+  - "#...........#"
+  - "#...........#"
+  - "#############"
+
+playerStart: { x: 1, y: 1 }
+encounters: []
+lights: []
+interactables: []
+doors: []

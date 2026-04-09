@@ -226,6 +226,7 @@ const GameSceneAbilitySystem = {
 
     this.playerAP = 0;
     this.processStatusEffectsForActor('player', 'on_action', { actionId: 'hide' });
+    if (typeof this.snapshotMoveResetAnchor === 'function') this.snapshotMoveResetAnchor();
     this.pendingAction = null;
     this.clearPendingAction();
     this.updateResBar();

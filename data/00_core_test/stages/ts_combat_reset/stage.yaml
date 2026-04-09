@@ -1,0 +1,22 @@
+# Test: Combat Reset Anchor
+# Deterministic combat map for move -> attack -> move -> reset regression coverage.
+
+name: "Test: Combat Reset Anchor"
+floor: TCR
+globalLight: bright
+
+grid:
+  - "#########"
+  - "#.......#"
+  - "#.......#"
+  - "#.......#"
+  - "#.......#"
+  - "#.......#"
+  - "#########"
+
+playerStart: { x: 1, y: 3 }
+encounters:
+  - { creature: skeleton, x: 3, y: 2, facing: 180, group: ~ }
+lights: []
+interactables: []
+doors: []

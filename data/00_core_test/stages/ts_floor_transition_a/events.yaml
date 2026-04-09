@@ -1,0 +1,5 @@
+# Keep autoplay non-empty for test-runner contract checks.
+autoplay:
+  - { do: log, text: "=== ts_floor_transition_a: deterministic floor transition map ===" }
+
+events: []

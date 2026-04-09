@@ -1,0 +1,5 @@
+# Keep autoplay non-empty for test-runner contract checks.
+autoplay:
+  - { do: log, text: "=== ts_combat_reset: move/attack/reset regression map ===" }
+
+events: []

@@ -1,0 +1,24 @@
+# Test: Floor Transition B
+# Destination floor for transition validation.
+
+name: "Test: Floor Transition B"
+floor: TFB
+globalLight: bright
+nextStage: ~
+
+grid:
+  - "#############"
+  - "#...........#"
+  - "#...........#"
+  - "#...........#"
+  - "#....S......#"
+  - "#...........#"
+  - "#...........#"
+  - "#...........#"
+  - "#############"
+
+playerStart: { x: 10, y: 7 }
+encounters: []
+lights: []
+interactables: []
+doors: []
