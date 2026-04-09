@@ -71,6 +71,7 @@ Object.assign(GameScene.prototype, {
           trapDamage: raw.trapDamage || 0,
           gold: Number(raw.gold || 0),
           loot: raw.loot || [],
+          lootTable: raw.lootTable || null,
           tags: raw.tags || [],
           state: raw.state || {},
         }));

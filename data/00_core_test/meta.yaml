@@ -9,7 +9,8 @@ version: 1.0.0
 description: Automated test stages for the test runner.
 enabled: false
 
-includes: []
+includes:
+  - loot-tables.yaml
 
 stages:
   - ts_combat_entry
@@ -24,3 +25,4 @@ stages:
   - ts_skills
   - ts_chest_pickup
   - ts_potion_heal
+  - ts_chest_loot

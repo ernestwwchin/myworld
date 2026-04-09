@@ -786,23 +786,13 @@ function testInventoryLootWeaponReferences() {
   }
 }
 
-/** Chest handler must push non-gem items to pStats.inventory and convert gems to gold */
+/** Chest handler must push all resolved items (including gems) to pStats.inventory */
 function testInventoryChestHandlerLootRouting() {
   const chestSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'chest-handler.js'), 'utf8');
 
-  // Non-gem items must go to pStats.inventory
+  // All items must go to pStats.inventory
   assert.ok(chestSrc.includes('pStats.inventory.push'),
-    'chest-handler must push non-gem items to pStats.inventory');
-
-  // Gems with a value must be converted to gold, not pushed to inventory
-  assert.ok(
-    (chestSrc.includes("item.type === 'gem'") || chestSrc.includes("item.type==='gem'")) &&
-    chestSrc.includes('item.value'),
-    "chest-handler must detect gem type with value field"
-  );
-  // The gem branch adds gold
-  assert.ok(chestSrc.includes('pStats.gold') && chestSrc.includes('item.value'),
-    'chest-handler must add gem value to pStats.gold');
+    'chest-handler must push resolved items to pStats.inventory');
 
   // After loot resolution, side panel must be refreshed if inventory tab is active
   assert.ok(chestSrc.includes("SidePanel._activeTab === 'inventory'") &&
