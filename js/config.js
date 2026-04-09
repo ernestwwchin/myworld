@@ -146,6 +146,9 @@ const ABILITY_DEFS = {
   flee: { name: 'Flee', type: 'action', resourceCost: { action: 1 } },
 };
 
+// ── Item definitions (data-driven, mod-overridable) ──────────
+const ITEM_DEFS = {};
+
 // ── Status definitions (data-driven, mod-overridable) ─────────
 const STATUS_DEFS = {
   poisoned: {
@@ -192,6 +195,12 @@ const PLAYER_STATS = {
   features:   ['Expertise (master 2 skills)', 'Sneak Attack (1d6 bonus dmg)'],  // L1 Rogue features from classes.yaml
   sneakAttackDice: 1,  // 1d6 Sneak Attack at level 1
   asiPending: 0,
+
+  gold: 0,
+  inventory: [],        // array of item objects { id, name, icon, type, ... }
+  equippedWeapon: null, // item object currently in weapon slot (null = using default weapon)
+  equippedArmor:  null, // item object currently in armor slot
+  baseAC: 14,           // AC without any equipped armor bonuses
 
   // Starting tile position
   startTile: { x:2, y:2 },

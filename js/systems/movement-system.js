@@ -128,7 +128,8 @@ Object.assign(GameScene.prototype, {
     const dirs=[{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0},{x:-1,y:-1},{x:1,y:-1},{x:-1,y:1},{x:1,y:1}];
     for(const e of this.enemies){
       if(!e.alive||e.inCombat) continue;
-      if(!forceStep&&Math.random()>0.6) continue;
+      const hasPatrol=!forceStep&&Array.isArray(e.ai?.patrolPath)&&e.ai.patrolPath.length>0;
+      if(!forceStep&&!hasPatrol&&Math.random()>0.6) continue;
       let chosenDir=null;
 
       if(forceStep){
@@ -141,6 +142,19 @@ Object.assign(GameScene.prototype, {
             chosenDir={x:c.x-e.tx,y:c.y-e.ty};
           }
         }
+      } else if(hasPatrol){
+        // Advance patrol index when standing on the current waypoint
+        if(e._patrolIdx===undefined) e._patrolIdx=0;
+        const wp=e.ai.patrolPath[e._patrolIdx];
+        if(e.tx===wp.x&&e.ty===wp.y){
+          e._patrolIdx=(e._patrolIdx+1)%e.ai.patrolPath.length;
+        }
+        // BFS one step toward the next waypoint
+        const tgt=e.ai.patrolPath[e._patrolIdx];
+        const block=(x,y)=>this.isWallTile(x,y)||(this.isDoorTile(x,y)&&this.isDoorClosed(x,y))||
+          this.enemies.some(o=>o!==e&&o.alive&&o.tx===x&&o.ty===y);
+        const path=bfs(e.tx,e.ty,tgt.x,tgt.y,block);
+        if(path.length) chosenDir={x:path[0].x-e.tx,y:path[0].y-e.ty};
       }
 
       const shuffled=dirs.slice().sort(()=>Math.random()-0.5);

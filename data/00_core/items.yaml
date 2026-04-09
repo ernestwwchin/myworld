@@ -1,0 +1,136 @@
+# ═══════════════════════════════════════════════════════
+# Item Definitions — YAML-driven onUse effect templates
+# Mods can override any entry or add new IDs.
+#
+# onUse.effects — array of effect steps executed in order:
+#   { type: heal,         amount: "<dice>" }
+#   { type: removeStatus, statusId: "<id>" }
+#   { type: applyStatus,  statusId: "<id>", duration: <turns>, trigger: "turn_end"|"turn_start" }
+#   { type: modifyStat,   stat: "<stat>",   bonus: <n>, duration: <turns> }
+#   { type: log,          message: "<text>" }
+#   { type: useAbility,   abilityId: "<id>" }   — hand off to ability system (targeted scrolls)
+#
+# onUse.consumeOnUse — default true; set false to keep item after use
+# onUse.requiresTarget — default false; set true for targeted effects
+# ═══════════════════════════════════════════════════════
+
+items:
+
+  # ── Healing potions ──────────────────────────────────
+  potion_heal:
+    name: "Healing Potion"
+    icon: "🧪"
+    type: consumable
+    description: "A ruby-red vial that restores 2d4+2 hit points."
+    onUse:
+      effects:
+        - { type: heal, amount: "2d4+2" }
+        - { type: log, message: "You drink the healing potion." }
+
+  potion_heal_greater:
+    name: "Greater Healing Potion"
+    icon: "🧪"
+    type: consumable
+    description: "Restores 4d4+4 hit points."
+    onUse:
+      effects:
+        - { type: heal, amount: "4d4+4" }
+        - { type: log, message: "Warmth spreads through your body." }
+
+  potion_heal_superior:
+    name: "Superior Healing Potion"
+    icon: "🧪"
+    type: consumable
+    description: "Restores 8d4+8 hit points."
+    onUse:
+      effects:
+        - { type: heal, amount: "8d4+8" }
+        - { type: log, message: "A golden glow mends your wounds completely." }
+
+  # ── Stat potions ─────────────────────────────────────
+  potion_str:
+    name: "Potion of Strength"
+    icon: "🧪"
+    type: consumable
+    description: "Gain +4 STR for 10 turns."
+    onUse:
+      effects:
+        - { type: modifyStat, stat: str, bonus: 4, duration: 10 }
+        - { type: log, message: "Your muscles surge with power!" }
+
+  potion_invis:
+    name: "Potion of Invisibility"
+    icon: "🧪"
+    type: consumable
+    description: "Become hidden for 3 turns."
+    onUse:
+      effects:
+        - { type: applyStatus, statusId: invisible, duration: 3, trigger: turn_end }
+        - { type: log, message: "You fade from sight." }
+
+  potion_fly:
+    name: "Potion of Flying"
+    icon: "🧪"
+    type: consumable
+    description: "Gain flying movement for 5 turns."
+    onUse:
+      effects:
+        - { type: applyStatus, statusId: flying, duration: 5, trigger: turn_end }
+        - { type: log, message: "Your feet leave the ground!" }
+
+  potion_resist_fire:
+    name: "Potion of Fire Resistance"
+    icon: "🧪"
+    type: consumable
+    description: "Resist fire damage for 10 turns."
+    onUse:
+      effects:
+        - { type: applyStatus, statusId: resist_fire, duration: 10, trigger: turn_end }
+        - { type: log, message: "A cool tingle spreads across your skin." }
+
+  # ── Utility potions ───────────────────────────────────
+  antidote:
+    name: "Antidote"
+    icon: "🧪"
+    type: consumable
+    description: "Cure the Poisoned condition."
+    onUse:
+      effects:
+        - { type: removeStatus, statusId: poisoned }
+        - { type: log, message: "The poison is neutralized." }
+
+  # ── Scrolls ───────────────────────────────────────────
+  scroll_shield:
+    name: "Scroll of Shield"
+    icon: "📜"
+    type: consumable
+    description: "Gain +5 AC until end of next turn."
+    onUse:
+      effects:
+        - { type: modifyStat, stat: ac, bonus: 5, duration: 2 }
+        - { type: log, message: "A shimmering barrier forms around you." }
+
+  scroll_misty_step:
+    name: "Scroll of Misty Step"
+    icon: "📜"
+    type: consumable
+    description: "Teleport up to 6 tiles. (Not yet implemented — consumed without effect.)"
+    onUse:
+      effects:
+        - { type: log, message: "A flash of silver mist... (Misty Step not yet implemented)" }
+
+  scroll_fireball:
+    name: "Scroll of Fireball"
+    icon: "📜"
+    type: consumable
+    description: "Hurl a ball of fire dealing 8d6 damage to all in range."
+    onUse:
+      useAbility: fireball
+
+  scroll_lightning:
+    name: "Scroll of Lightning Bolt"
+    icon: "📜"
+    type: consumable
+    description: "Strike with lightning dealing 8d6 damage."
+    onUse:
+      useAbility: lightning_bolt
