@@ -681,7 +681,7 @@ class GameScene extends Phaser.Scene {
     this.updateHUD();
     if(typeof SidePanel!=='undefined') SidePanel.refresh();
     if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
-  },
+  }
 
   /** Tick down modifyStat durations — call at turn start/end */
   tickStatMods(){
@@ -696,7 +696,7 @@ class GameScene extends Phaser.Scene {
         mods.splice(i,1);
       }
     }
-  },
+  }
 
   equipItem(item){
     if(!item) return;
@@ -732,7 +732,7 @@ class GameScene extends Phaser.Scene {
 
     if(typeof SidePanel!=='undefined') SidePanel.refresh();
     if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
-  },
+  }
 
   dropItem(item){
     if(!item) return;
@@ -744,7 +744,7 @@ class GameScene extends Phaser.Scene {
     this.showStatus(`Dropped ${item.name||item.id}.`);
     if(typeof SidePanel!=='undefined') SidePanel.refresh();
     if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
-  },
+  }
 
   showDicePopup(rollLine,detailLine,type,diceValues){
     if(this.ui) return this.ui.showDicePopup(rollLine,detailLine,type,diceValues);
