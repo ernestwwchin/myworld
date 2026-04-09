@@ -136,8 +136,16 @@ Object.assign(GameScene.prototype, {
     for (const item of resolved.items) {
       const icon = item.icon ? `${item.icon} ` : '';
       rewards.push({ text: `${icon}${item.name || item.id || 'item'}`, color: '#a8e6cf' });
-      if (item.value) this.pStats.gold = (this.pStats.gold || 0) + item.value;
+      // Gems/valuables with a value field go straight to gold; all other items go to inventory
+      if (item.type === 'gem' && item.value) {
+        this.pStats.gold = (this.pStats.gold || 0) + item.value;
+      } else {
+        if (!Array.isArray(this.pStats.inventory)) this.pStats.inventory = [];
+        this.pStats.inventory.push({ ...item });
+      }
     }
+    if (typeof SidePanel !== 'undefined' && SidePanel._activeTab === 'inventory') SidePanel.refresh();
+    if (typeof Hotbar !== 'undefined') Hotbar.refreshItems();
 
     if (rewards.length) {
       rewards.forEach((r, i) => {

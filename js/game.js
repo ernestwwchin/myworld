@@ -31,7 +31,8 @@ class GameScene extends Phaser.Scene {
         // Explicit name from data (encounter or creature template)
         e.displayName=e.name;
       } else {
-        const cap=e.type.charAt(0).toUpperCase()+e.type.slice(1);
+        const raw=e.type||e.id||'Unknown';
+        const cap=raw.charAt(0).toUpperCase()+raw.slice(1);
         if(counts[e.type]>1){
           const idx=indices[e.type]=(indices[e.type]||0);
           e.displayName=`${cap} ${LETTERS[idx]||idx+1}`;
@@ -112,6 +113,11 @@ class GameScene extends Phaser.Scene {
     this.pStats=Object.assign({},PLAYER_STATS);
     this.pStats.features=[...PLAYER_STATS.features];
     this.pStats.savingThrows=new Set(PLAYER_STATS.savingThrows);
+    this.pStats.inventory=[...PLAYER_STATS.inventory];
+    this.pStats.equippedWeapon=PLAYER_STATS.equippedWeapon?{...PLAYER_STATS.equippedWeapon}:null;
+    this.pStats.equippedArmor=PLAYER_STATS.equippedArmor?{...PLAYER_STATS.equippedArmor}:null;
+    this.pStats.baseAC=PLAYER_STATS.baseAC||this.pStats.ac;
+    this.pStats._statMods=[];
     this.playerHP=this.pStats.maxHP; this.playerMaxHP=this.pStats.maxHP;
     this.playerTile={x:PLAYER_STATS.startTile.x, y:PLAYER_STATS.startTile.y};
     this.isMoving=false; this.movePath=[]; this.onArrival=null; this.pathDots=[]; this._movingToAttack=false; this.lastCompletedTile={...PLAYER_STATS.startTile};
@@ -576,6 +582,169 @@ class GameScene extends Phaser.Scene {
   // animEnemyMove, selectAction, clearPendingAction, playerAttackEnemy, tryMoveAndAttack,
   // _handleDiceDismiss, showMoveRange, clearMoveRange, inMoveRange, showAtkRange,
   // clearAtkRange — implemented in combat-system.js
+
+  // ─────────────────────────────────────────
+  // INVENTORY ACTIONS
+  // ─────────────────────────────────────────
+  useItem(item){
+    if(!item) return;
+    const inv=this.pStats.inventory;
+    if(!Array.isArray(inv)) return;
+    const idx=inv.indexOf(item);
+    if(idx<0) return;
+
+    // Look up the canonical item definition; fall back to inline item data
+    const def=ITEM_DEFS[item.id]||item;
+    const onUse=def.onUse;
+
+    // useAbility: hand off to the ability system for targeted effects
+    if(onUse?.useAbility){
+      if(typeof this.selectAction==='function') this.selectAction(onUse.useAbility);
+      inv.splice(idx,1);
+      if(typeof SidePanel!=='undefined') SidePanel.refresh();
+      if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
+      return;
+    }
+
+    const effects=onUse?.effects||[];
+
+    // Legacy fallback: inline heal field (no ITEM_DEF)
+    if(!effects.length&&item.heal){
+      effects.push({type:'heal',amount:item.heal});
+    }
+
+    if(!effects.length){
+      this.showStatus(`${item.name||item.id} can't be used right now.`);
+      return;
+    }
+
+    let consumed=onUse?.consumeOnUse!==false;
+    let didSomething=false;
+
+    for(const fx of effects){
+      switch(fx.type){
+        case 'heal':{
+          const healed=dnd.rollDamageSpec(fx.amount||'1d4',false).total;
+          this.playerHP=Math.min(this.playerMaxHP,this.playerHP+healed);
+          this.showStatus(`${item.icon||''} ${item.name||item.id}: restored ${healed} HP!`);
+          if(typeof CombatLog!=='undefined') CombatLog.log(`${item.icon||''}${item.name||item.id}: +${healed} HP`,'player');
+          didSomething=true;
+          break;
+        }
+        case 'removeStatus':{
+          const efx=this.playerEffects;
+          const i=efx.findIndex(e=>(e.id||e.type)===fx.statusId);
+          if(i>=0){
+            efx.splice(i,1);
+            this.showStatus(`${item.name||item.id}: ${fx.statusId} cured!`);
+          } else {
+            this.showStatus(`${item.name||item.id}: you aren't ${fx.statusId}.`);
+          }
+          didSomething=true;
+          break;
+        }
+        case 'applyStatus':{
+          const base=STATUS_DEFS[fx.statusId]||{};
+          this.playerEffects.push({
+            id: fx.statusId,
+            type: fx.statusId,
+            duration: fx.duration??base.duration??3,
+            trigger: fx.trigger||base.trigger||'turn_end',
+            ...(base.onTrigger?{onTrigger:base.onTrigger}:{}),
+          });
+          this.showStatus(`${item.name||item.id}: ${fx.statusId} applied!`);
+          didSomething=true;
+          break;
+        }
+        case 'modifyStat':{
+          const stat=fx.stat;
+          if(!stat) break;
+          const prev=this.pStats[stat]??0;
+          this.pStats[stat]=prev+fx.bonus;
+          // Track for later removal
+          if(!this.pStats._statMods) this.pStats._statMods=[];
+          const turns=fx.duration??10;
+          this.pStats._statMods.push({stat,bonus:fx.bonus,turnsLeft:turns});
+          this.showStatus(`${item.name||item.id}: ${stat.toUpperCase()} ${fx.bonus>=0?'+':''}${fx.bonus} for ${turns} turns.`);
+          didSomething=true;
+          break;
+        }
+        case 'log':{
+          if(typeof CombatLog!=='undefined') CombatLog.log(fx.message||'','system');
+          break;
+        }
+      }
+    }
+
+    if(consumed&&didSomething) inv.splice(idx,1);
+
+    this.updateHUD();
+    if(typeof SidePanel!=='undefined') SidePanel.refresh();
+    if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
+  },
+
+  /** Tick down modifyStat durations — call at turn start/end */
+  tickStatMods(){
+    const mods=this.pStats._statMods;
+    if(!Array.isArray(mods)||!mods.length) return;
+    for(let i=mods.length-1;i>=0;i--){
+      const m=mods[i];
+      m.turnsLeft--;
+      if(m.turnsLeft<=0){
+        this.pStats[m.stat]=(this.pStats[m.stat]||0)-m.bonus;
+        this.showStatus(`${m.stat.toUpperCase()} bonus expired.`);
+        mods.splice(i,1);
+      }
+    }
+  },
+
+  equipItem(item){
+    if(!item) return;
+    const inv=this.pStats.inventory;
+    if(!Array.isArray(inv)||!inv.includes(item)) return;
+
+    if(item.type==='weapon'&&item.weaponId){
+      // Return previously equipped weapon to inventory
+      const old=this.pStats.equippedWeapon;
+      if(old) inv.push(old);
+      // Remove new item from inventory and put it in the weapon slot
+      inv.splice(inv.indexOf(item),1);
+      this.pStats.equippedWeapon=item;
+      this.pStats.weaponId=item.weaponId;
+      const weapon=WEAPON_DEFS[item.weaponId];
+      if(weapon){
+        this.pStats.damageFormula=dnd.damageSpecToString(weapon.damageDice);
+        this.pStats.atkRange=weapon.range||1;
+      }
+      this.showStatus(`Equipped ${item.name||item.id}.`);
+    } else if(item.type==='armor'&&item.acBonus){
+      // Return old armor to inventory
+      const old=this.pStats.equippedArmor;
+      if(old) inv.push(old);
+      // Remove new armor from inventory and put it in the armor slot
+      inv.splice(inv.indexOf(item),1);
+      this.pStats.equippedArmor=item;
+      this.pStats.ac=(this.pStats.baseAC||10)+item.acBonus;
+      this.showStatus(`Equipped ${item.name||item.id} (+${item.acBonus} AC).`);
+    } else {
+      this.showStatus(`Can't equip ${item.name||item.id}.`);
+    }
+
+    if(typeof SidePanel!=='undefined') SidePanel.refresh();
+    if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
+  },
+
+  dropItem(item){
+    if(!item) return;
+    const inv=this.pStats.inventory;
+    if(!Array.isArray(inv)) return;
+    const idx=inv.indexOf(item);
+    if(idx<0) return;
+    inv.splice(idx,1);
+    this.showStatus(`Dropped ${item.name||item.id}.`);
+    if(typeof SidePanel!=='undefined') SidePanel.refresh();
+    if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
+  },
 
   showDicePopup(rollLine,detailLine,type,diceValues){
     if(this.ui) return this.ui.showDicePopup(rollLine,detailLine,type,diceValues);

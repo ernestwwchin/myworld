@@ -65,12 +65,21 @@ const T = {
   combatSection: (p) => {
     const m = s => T.sign(dnd.mod(s));
     const dmg = dnd.damageSpecToString(p.damageFormula || '1d4');
+    const wpnLabel = p.equippedWeapon
+      ? `${p.equippedWeapon.icon||'⚔️'} ${p.equippedWeapon.name}`
+      : (p.weaponId ? `⚔️ ${p.weaponId}` : '— unarmed');
+    const armLabel = p.equippedArmor
+      ? `${p.equippedArmor.icon||'🛡️'} ${p.equippedArmor.name}`
+      : '— none';
     return `
     ${T.section('COMBAT', '10px')}
     ${T.row('AC', p.ac)}
     ${T.row('Attack', `d20+${dnd.mod(p.str) + p.profBonus} / ${dmg}`)}
     ${T.row('Speed', '6 tiles (30ft)')}
-    ${T.row('Initiative', m(p.dex))}`;
+    ${T.row('Initiative', m(p.dex))}
+    ${T.section('EQUIPMENT', '8px')}
+    ${T.row('Weapon', wpnLabel)}
+    ${T.row('Armor', armLabel)}`;
   },
 
   /** Class features list */

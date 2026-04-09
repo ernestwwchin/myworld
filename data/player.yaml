@@ -22,3 +22,7 @@ player:
   equipment:
     ac: 16
     weaponId: longsword
+
+  startingGold: 10
+  startingInventory:
+    - { id: potion_heal, name: "Healing Potion", icon: "🧪", type: consumable, heal: "2d4+2" }

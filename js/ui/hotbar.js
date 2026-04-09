@@ -88,13 +88,33 @@ const Hotbar = {
       }
     }
 
-    // Items: empty for now (Phase 2)
+    // Items: populated from pStats.inventory
+    this.refreshItems();
     // Passives: empty for now (Phase 2)
   },
 
-  _setCatSlot(cat, row, col, type, id) {
+  /** Sync items tab from pStats.inventory — call after any inventory change */
+  refreshItems() {
+    const s = this._scene;
+    const inv = s?.pStats?.inventory;
+    // Clear items tab row 0 first
+    if (this._catSlots?.items) {
+      for (let c = 0; c < this.COLS; c++) {
+        this._catSlots.items[0][c] = { type: null, id: null };
+      }
+    }
+    if (!Array.isArray(inv)) return;
+    let col = 0;
+    for (const item of inv) {
+      if (col >= this.COLS) break;
+      this._setCatSlot('items', 0, col++, 'item', item.id, item);
+    }
+    if (this._currentCat === 'items') this.render();
+  },
+
+  _setCatSlot(cat, row, col, type, id, _item = null) {
     if (this._catSlots[cat]?.[row]) {
-      this._catSlots[cat][row][col] = { type, id };
+      this._catSlots[cat][row][col] = { type, id, _item };
     }
   },
 
@@ -117,6 +137,17 @@ const Hotbar = {
       if (e.key === 'e' || e.key === 'E') {
         const s = this._scene;
         if (s && s.mode === MODE.COMBAT && typeof s.endPlayerTurn === 'function') s.endPlayerTurn();
+      }
+      // H = quick-use first healing consumable from inventory
+      if (e.key === 'h' || e.key === 'H') {
+        const s = this._scene;
+        if (s && Array.isArray(s.pStats?.inventory)) {
+          const potion = s.pStats.inventory.find(i => i.type === 'consumable' && i.heal);
+          if (potion && typeof s.useItem === 'function') {
+            s.useItem(potion);
+            this.refreshItems();
+          }
+        }
       }
     });
 
@@ -260,6 +291,15 @@ const Hotbar = {
         this._selectedSlot = null;
       }
       this.render();
+    } else if (slot.type === 'item' && slot._item) {
+      const item = slot._item;
+      if (item.type === 'consumable' && typeof s.useItem === 'function') {
+        s.useItem(item);
+        this.refreshItems();
+      } else if ((item.type === 'weapon' || item.type === 'armor') && typeof s.equipItem === 'function') {
+        s.equipItem(item);
+        this.refreshItems();
+      }
     }
   },
 
@@ -416,7 +456,7 @@ const Hotbar = {
         const isMoveFrom = this._moveMode && this._moveFrom &&
           this._moveFrom.cat === cat && this._moveFrom.row === r && this._moveFrom.col === c;
 
-        const typeClass = isEmpty ? '' : this._getSlotTypeClass(slot.id);
+        const typeClass = isEmpty ? '' : this._getSlotTypeClass(slot.id, slot);
         let cls = 'hb-slot';
         if (isEmpty) cls += ' empty';
         if (typeClass) cls += ' ' + typeClass;
@@ -442,8 +482,9 @@ const Hotbar = {
   },
 
   // ── Type Classification ──
-  _getSlotTypeClass(id) {
+  _getSlotTypeClass(id, slot) {
     if (!id) return '';
+    if (slot?.type === 'item') return this.TYPE_COLORS.item;
     const def = this._getAbilityDef(id);
     if (!def) return '';
     // Check explicit category overrides
@@ -500,6 +541,7 @@ const Hotbar = {
 
   _getSlotIcon(slot) {
     if (!slot?.id) return '+';
+    if (slot.type === 'item' && slot._item) return slot._item.icon || '📦';
     const icons = {
       attack: '⚔️', dash: '💨', hide: '🕶', flee: '🏳', sleep_cloud: '🌫',
       poison_strike: '☠️', second_wind: '❤️', action_surge: '⚡',
@@ -510,6 +552,7 @@ const Hotbar = {
 
   _getSlotName(slot) {
     if (!slot?.id) return '';
+    if (slot.type === 'item' && slot._item) return slot._item.name || slot._item.id || 'Item';
     const def = this._getAbilityDef(slot.id);
     return def?.name || slot.id;
   },

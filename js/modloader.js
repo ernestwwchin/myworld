@@ -152,13 +152,8 @@ const ModLoader = {
     // 2. Build mod list — core always first, deduped.
     const modList = ['00_core', ...(settings.mods || []).filter(m => m !== '00_core')];
 
-    const modData = { rules: {}, classes: {}, weapons: {}, creatures: {}, maps: {}, abilities: {}, statuses: {}, statusRules: {}, lootTables: {} };
+    const modData = { rules: {}, classes: {}, weapons: {}, creatures: {}, maps: {}, abilities: {}, statuses: {}, statusRules: {}, lootTables: {}, items: {} };
 
-    // Load core loot tables (standalone file, not part of mod includes)
-    try {
-      const lt = await this.loadYaml('data/00_core/loot-tables.yaml');
-      if (lt && typeof lt === 'object') Object.assign(modData.lootTables, lt);
-    } catch (_e) { /* no loot tables file — ok */ }
     this._stageRegistry = {};
     let activeMap = settings.activeMap || null; // legacy fallback
 
@@ -187,6 +182,18 @@ const ModLoader = {
       if (meta.flag_overrides && typeof Flags !== 'undefined') {
         Flags.applyOverrides(meta.flag_overrides);
       }
+
+      // Load loot-tables.yaml for this mod (flat table map, merged into modData.lootTables)
+      try {
+        const lt = await this.loadYaml(`data/${modId}/loot-tables.yaml`);
+        if (lt && typeof lt === 'object') Object.assign(modData.lootTables, lt);
+      } catch (_e) { /* no loot-tables.yaml — ok */ }
+
+      // Load items.yaml for this mod (merged into modData.items)
+      try {
+        const it = await this.loadYaml(`data/${modId}/items.yaml`);
+        if (it?.items && typeof it.items === 'object') Object.assign(modData.items, it.items);
+      } catch (_e) { /* no items.yaml — ok */ }
 
       // Register this mod's stages — later mod wins on same ID.
       for (const stageId of (meta.stages || [])) {
@@ -264,6 +271,7 @@ const ModLoader = {
     this.applyWeapons(modData);
     this.applyAbilities(modData);
     this.applyStatuses(modData);
+    this.applyItems(modData);
     this.applyMap(modData, activeMap);
     this.applyCreatures(modData, activeMap);
     this.applyPlayer(playerFile.player, modData);
@@ -459,6 +467,13 @@ const ModLoader = {
     }
   },
 
+  applyItems(data) {
+    if (!data.items) return;
+    for (const [id, item] of Object.entries(data.items)) {
+      ITEM_DEFS[id] = { id, ...item };
+    }
+  },
+
   applyMap(data, activeMap) {
     if (!data.maps || !data.maps[activeMap]) return;
     const mapDef = data.maps[activeMap];
@@ -556,6 +571,7 @@ const ModLoader = {
 
     // Equipment
     PLAYER_STATS.ac = p.equipment.ac;
+    PLAYER_STATS.baseAC = p.equipment.ac;
 
     // Weapon resolution (new weaponId model + legacy fallback)
     const weaponId = p.equipment.weaponId || null;
@@ -586,6 +602,14 @@ const ModLoader = {
     // Derived stats
     PLAYER_STATS.profBonus = dnd.profBonus(p.level);
     PLAYER_STATS.maxHP = cls ? cls.hitDie + dnd.mod(p.abilities.con) : 12;
+
+    // Starting inventory
+    if (Array.isArray(p.startingInventory)) {
+      PLAYER_STATS.inventory = p.startingInventory.map(item => ({ ...item }));
+    }
+    if (typeof p.startingGold === 'number') {
+      PLAYER_STATS.gold = p.startingGold;
+    }
 
     // Starting tile from map
     if (window._MAP_META?.playerStart) {

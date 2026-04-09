@@ -10,67 +10,67 @@ starter_common:
   gold: [5, 20]
   rolls: 1
   pool:
-    - { id: potion_heal,    name: "Healing Potion",     weight: 35, icon: "🧪" }
-    - { id: ration,         name: "Rations (x3)",       weight: 25, icon: "🍖" }
-    - { id: torch_bundle,   name: "Torches (x5)",       weight: 20, icon: "🔥" }
-    - { id: arrow_bundle,   name: "Arrows (x10)",       weight: 15, icon: "🏹" }
-    - { id: gem_quartz,     name: "Quartz Gem",         weight: 5,  icon: "💎", value: 10 }
+    - { id: potion_heal,    name: "Healing Potion",     weight: 35, icon: "🧪", type: consumable, heal: "2d4+2" }
+    - { id: ration,         name: "Rations (x3)",       weight: 25, icon: "🍖", type: misc }
+    - { id: torch_bundle,   name: "Torches (x5)",       weight: 20, icon: "🔥", type: misc }
+    - { id: arrow_bundle,   name: "Arrows (x10)",       weight: 15, icon: "🏹", type: misc }
+    - { id: gem_quartz,     name: "Quartz Gem",         weight: 5,  icon: "💎", type: gem, value: 10 }
 
 starter_uncommon:
   gold: [15, 40]
   rolls: 2
   pool:
-    - { id: potion_heal,    name: "Healing Potion",     weight: 25, icon: "🧪" }
-    - { id: potion_str,     name: "Potion of Strength", weight: 10, icon: "🧪" }
-    - { id: scroll_shield,  name: "Scroll of Shield",   weight: 15, icon: "📜" }
-    - { id: dagger_plus1,   name: "Dagger +1",          weight: 8,  icon: "🗡️" }
-    - { id: lockpick_set,   name: "Thieves' Tools",     weight: 12, icon: "🔧" }
-    - { id: gem_amethyst,   name: "Amethyst",           weight: 10, icon: "💎", value: 25 }
-    - { id: antidote,       name: "Antidote",           weight: 20, icon: "🧪" }
+    - { id: potion_heal,    name: "Healing Potion",     weight: 25, icon: "🧪", type: consumable, heal: "2d4+2" }
+    - { id: potion_str,     name: "Potion of Strength", weight: 10, icon: "🧪", type: consumable }
+    - { id: scroll_shield,  name: "Scroll of Shield",   weight: 15, icon: "📜", type: consumable }
+    - { id: dagger_plus1,   name: "Dagger +1",          weight: 8,  icon: "🗡️", type: weapon, weaponId: shortsword, atkBonus: 1, dmgBonus: 1 }
+    - { id: lockpick_set,   name: "Thieves' Tools",     weight: 12, icon: "🔧", type: misc }
+    - { id: gem_amethyst,   name: "Amethyst",           weight: 10, icon: "💎", type: gem, value: 25 }
+    - { id: antidote,       name: "Antidote",           weight: 20, icon: "🧪", type: consumable }
 
 # ── Tier 2: Mid dungeon (levels 4-6) ────────────────
 dungeon_common:
   gold: [20, 60]
   rolls: 1
   pool:
-    - { id: potion_heal_greater, name: "Greater Healing Potion", weight: 25, icon: "🧪" }
-    - { id: potion_invis,   name: "Potion of Invisibility", weight: 10, icon: "🧪" }
-    - { id: scroll_fireball, name: "Scroll of Fireball", weight: 8,  icon: "📜" }
-    - { id: arrow_fire,     name: "Fire Arrows (x5)",   weight: 15, icon: "🏹" }
-    - { id: gem_ruby,       name: "Ruby",               weight: 12, icon: "💎", value: 50 }
-    - { id: potion_heal,    name: "Healing Potion",     weight: 30, icon: "🧪" }
+    - { id: potion_heal_greater, name: "Greater Healing Potion", weight: 25, icon: "🧪", type: consumable, heal: "4d4+4" }
+    - { id: potion_invis,   name: "Potion of Invisibility", weight: 10, icon: "🧪", type: consumable }
+    - { id: scroll_fireball, name: "Scroll of Fireball", weight: 8,  icon: "📜", type: consumable }
+    - { id: arrow_fire,     name: "Fire Arrows (x5)",   weight: 15, icon: "🏹", type: misc }
+    - { id: gem_ruby,       name: "Ruby",               weight: 12, icon: "💎", type: gem, value: 50 }
+    - { id: potion_heal,    name: "Healing Potion",     weight: 30, icon: "🧪", type: consumable, heal: "2d4+2" }
 
 dungeon_uncommon:
   gold: [40, 100]
   rolls: 2
   pool:
-    - { id: potion_heal_greater, name: "Greater Healing Potion", weight: 20, icon: "🧪" }
-    - { id: shortsword_plus1, name: "Shortsword +1",    weight: 8,  icon: "🗡️" }
-    - { id: shield_plus1,  name: "Shield +1",           weight: 6,  icon: "🛡️" }
-    - { id: ring_protection, name: "Ring of Protection", weight: 4,  icon: "💍" }
-    - { id: scroll_misty_step, name: "Scroll of Misty Step", weight: 12, icon: "📜" }
-    - { id: gem_sapphire,   name: "Sapphire",           weight: 10, icon: "💎", value: 75 }
-    - { id: potion_invis,   name: "Potion of Invisibility", weight: 10, icon: "🧪" }
-    - { id: lockpick_set,   name: "Thieves' Tools",     weight: 15, icon: "🔧" }
-    - { id: potion_resist_fire, name: "Potion of Fire Resistance", weight: 15, icon: "🧪" }
+    - { id: potion_heal_greater, name: "Greater Healing Potion", weight: 20, icon: "🧪", type: consumable, heal: "4d4+4" }
+    - { id: shortsword_plus1, name: "Shortsword +1",   weight: 8,  icon: "🗡️", type: weapon, weaponId: shortsword, atkBonus: 1, dmgBonus: 1 }
+    - { id: shield_plus1,  name: "Shield +1",           weight: 6,  icon: "🛡️", type: armor, acBonus: 1 }
+    - { id: ring_protection, name: "Ring of Protection", weight: 4, icon: "💍", type: armor, acBonus: 1 }
+    - { id: scroll_misty_step, name: "Scroll of Misty Step", weight: 12, icon: "📜", type: consumable }
+    - { id: gem_sapphire,   name: "Sapphire",           weight: 10, icon: "💎", type: gem, value: 75 }
+    - { id: potion_invis,   name: "Potion of Invisibility", weight: 10, icon: "🧪", type: consumable }
+    - { id: lockpick_set,   name: "Thieves' Tools",     weight: 15, icon: "🔧", type: misc }
+    - { id: potion_resist_fire, name: "Potion of Fire Resistance", weight: 15, icon: "🧪", type: consumable }
 
 # ── Tier 3: Deep dungeon (levels 7+) ────────────────
 dungeon_rare:
   gold: [80, 200]
   rolls: 3
   pool:
-    - { id: potion_heal_superior, name: "Superior Healing Potion", weight: 15, icon: "🧪" }
-    - { id: longsword_plus2, name: "Longsword +2",      weight: 5,  icon: "🗡️" }
-    - { id: cloak_displacement, name: "Cloak of Displacement", weight: 3, icon: "🧥" }
-    - { id: gem_diamond,    name: "Diamond",             weight: 6,  icon: "💎", value: 150 }
-    - { id: scroll_lightning, name: "Scroll of Lightning Bolt", weight: 10, icon: "📜" }
-    - { id: potion_fly,     name: "Potion of Flying",   weight: 8,  icon: "🧪" }
-    - { id: amulet_health,  name: "Amulet of Health",   weight: 3,  icon: "📿" }
-    - { id: bag_holding,    name: "Bag of Holding",      weight: 2,  icon: "👝" }
-    - { id: potion_heal_greater, name: "Greater Healing Potion", weight: 20, icon: "🧪" }
-    - { id: arrow_fire,     name: "Fire Arrows (x5)",   weight: 12, icon: "🏹" }
-    - { id: gem_emerald,    name: "Emerald",             weight: 8,  icon: "💎", value: 100 }
-    - { id: ring_resistance, name: "Ring of Resistance", weight: 4,  icon: "💍" }
+    - { id: potion_heal_superior, name: "Superior Healing Potion", weight: 15, icon: "🧪", type: consumable, heal: "8d4+8" }
+    - { id: longsword_plus2, name: "Longsword +2",      weight: 5,  icon: "🗡️", type: weapon, weaponId: longsword, atkBonus: 2, dmgBonus: 2 }
+    - { id: cloak_displacement, name: "Cloak of Displacement", weight: 3, icon: "🧥", type: misc }
+    - { id: gem_diamond,    name: "Diamond",             weight: 6,  icon: "💎", type: gem, value: 150 }
+    - { id: scroll_lightning, name: "Scroll of Lightning Bolt", weight: 10, icon: "📜", type: consumable }
+    - { id: potion_fly,     name: "Potion of Flying",   weight: 8,  icon: "🧪", type: consumable }
+    - { id: amulet_health,  name: "Amulet of Health",   weight: 3,  icon: "📿", type: misc }
+    - { id: bag_holding,    name: "Bag of Holding",      weight: 2,  icon: "👝", type: misc }
+    - { id: potion_heal_greater, name: "Greater Healing Potion", weight: 20, icon: "🧪", type: consumable, heal: "4d4+4" }
+    - { id: arrow_fire,     name: "Fire Arrows (x5)",   weight: 12, icon: "🏹", type: misc }
+    - { id: gem_emerald,    name: "Emerald",             weight: 8,  icon: "💎", type: gem, value: 100 }
+    - { id: ring_resistance, name: "Ring of Resistance", weight: 4,  icon: "💍", type: misc }
 
 # ── Empty/Trap chests ───────────────────────────────
 empty:

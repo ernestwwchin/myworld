@@ -597,6 +597,341 @@ function testCommandStripTBButton() {
   assert.ok(htmlSrc.includes('.cmd-btn.sys.active'), 'CSS missing active style for sys command buttons');
 }
 
+// ── Bug fix regression tests ──
+
+/** Patrol paths: wanderEnemies must read ai.patrolPath and step toward waypoints */
+function testPatrolPathContracts() {
+  const src = fs.readFileSync(path.join(root, 'js', 'systems', 'movement-system.js'), 'utf8');
+
+  // Must detect patrol enemies
+  assert.ok(src.includes('ai?.patrolPath') || src.includes("e.ai.patrolPath"),
+    'wanderEnemies must read ai.patrolPath from enemy');
+
+  // Patrol enemies must not be skipped by the 40% random check
+  assert.ok(src.includes('hasPatrol') && src.includes('!hasPatrol'),
+    'wanderEnemies must bypass random skip for patrol enemies');
+
+  // Must advance waypoint index on arrival
+  assert.ok(src.includes('_patrolIdx') && src.includes('e.ai.patrolPath.length'),
+    'wanderEnemies must advance _patrolIdx and wrap around patrol path length');
+
+  // Must BFS toward the target waypoint
+  assert.ok(src.includes('bfs(e.tx,e.ty,tgt.x,tgt.y'),
+    'wanderEnemies must BFS from enemy tile toward patrol waypoint');
+
+  // gw_b1f encounters must have patrolPath on relevant enemies
+  const stage = loadYaml('data/01_goblin_invasion/stages/gw_b1f/stage.yaml');
+  const patrolEncs = stage.encounters.filter(enc => enc.ai && enc.ai.patrolPath);
+  assert.ok(patrolEncs.length > 0, 'gw_b1f must have at least one encounter with ai.patrolPath');
+  for (const enc of patrolEncs) {
+    assert.ok(Array.isArray(enc.ai.patrolPath), `encounter at (${enc.x},${enc.y}) patrolPath must be an array`);
+    assert.ok(enc.ai.patrolPath.length >= 2, `patrol path must have at least 2 waypoints`);
+    for (const wp of enc.ai.patrolPath) {
+      assert.ok(typeof wp.x === 'number' && typeof wp.y === 'number',
+        `patrol waypoint must have numeric x,y`);
+    }
+  }
+}
+
+/** BUG-1: gw_b1f stage.yaml must declare nextStage so stairs transition works */
+function testBug1_StairsNextStage() {
+  const stage = loadYaml('data/01_goblin_invasion/stages/gw_b1f/stage.yaml');
+  assert.ok(stage.nextStage, 'BUG-1: gw_b1f stage.yaml must declare nextStage');
+  assert.strictEqual(stage.nextStage, 'gw_b2f', 'BUG-1: gw_b1f nextStage must be gw_b2f');
+
+  // Target stage must actually exist
+  const targetPath = path.join(root, 'data/01_goblin_invasion/stages/gw_b2f/stage.yaml');
+  assert.ok(fs.existsSync(targetPath), 'BUG-1: gw_b2f stage file must exist for stairs to work');
+
+  // Stairs handling code must read nextStage from _MAP_META
+  const moveSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'movement-system.js'), 'utf8');
+  assert.ok(moveSrc.includes('_MAP_META?.nextStage'), 'BUG-1: movement-system must read nextStage from _MAP_META');
+  assert.ok(moveSrc.includes('ModLoader.transitionToStage'), 'BUG-1: movement-system must call ModLoader.transitionToStage');
+}
+
+/** BUG-2: _assignEnemyDisplayNames must not produce 'undefined' displayNames when e.type is missing */
+function testBug2_DisplayNameFallback() {
+  const gameSrc = fs.readFileSync(path.join(root, 'js', 'game.js'), 'utf8');
+
+  // Guard must be present: e.type||e.id||'Unknown' (or equivalent) before charAt
+  assert.ok(
+    gameSrc.includes("e.type||e.id||'Unknown'") || gameSrc.includes('e.type || e.id'),
+    "BUG-2: _assignEnemyDisplayNames must guard against undefined e.type with e.id||'Unknown' fallback"
+  );
+
+  // Combat log message must not use bare alerted.size without guard
+  const combatSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'mode-combat.js'), 'utf8');
+  assert.ok(
+    combatSrc.includes('alerted?.size') || combatSrc.includes('alerted?.size ??'),
+    'BUG-2: combat log message must guard alerted?.size with null-coalescing fallback'
+  );
+}
+
+/** BUG-3: showFleeZone must not call setAlpha on flee tiles (baked texture alpha is sufficient) */
+function testBug3_FleeZoneAlpha() {
+  const combatSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'mode-combat.js'), 'utf8');
+
+  // setAlpha(0.6) on flee tiles would multiply with the baked 0.18 texture alpha → ~0.11 (invisible)
+  // The fix removes setAlpha from flee tile creation, matching showMoveRange's approach
+  const fleeZoneBlock = combatSrc.substring(combatSrc.indexOf('showFleeZone('));
+  const fleeAddImage = fleeZoneBlock.match(/this\.add\.image[^;]+t_flee[^;]+;/);
+  assert.ok(fleeAddImage, 'BUG-3: showFleeZone must add a t_flee image');
+  assert.ok(!fleeAddImage[0].includes('setAlpha('), 'BUG-3: flee tile must not call setAlpha (baked texture alpha is sufficient)');
+
+  // Flee zone must use depth >= 16 (above fog layer at 15)
+  assert.ok(fleeAddImage[0].includes('setDepth(16)'), 'BUG-3: flee zone tiles must use depth 16 (above fog)');
+
+  // t_flee texture must be defined in sprites.js
+  const spritesSrc = fs.readFileSync(path.join(root, 'js', 'sprites.js'), 'utf8');
+  assert.ok(spritesSrc.includes("dt('t_flee'"), 'BUG-3: t_flee procedural texture must be defined in sprites.js');
+}
+
+// ── Inventory system tests ──
+
+/** PLAYER_STATS must declare gold and inventory fields */
+function testInventoryPlayerStatsFields() {
+  const configSrc = fs.readFileSync(path.join(root, 'js', 'config.js'), 'utf8');
+
+  // gold field must be initialized to 0
+  assert.ok(configSrc.includes('gold: 0'), 'PLAYER_STATS must declare gold: 0');
+
+  // inventory field must be initialized to empty array
+  assert.ok(configSrc.includes('inventory: []'), 'PLAYER_STATS must declare inventory: []');
+}
+
+/** game.js must clone inventory from PLAYER_STATS and have action methods */
+function testInventoryGameSceneMethods() {
+  const gameSrc = fs.readFileSync(path.join(root, 'js', 'game.js'), 'utf8');
+
+  // pStats.inventory must be cloned from PLAYER_STATS.inventory in create()
+  assert.ok(
+    gameSrc.includes('this.pStats.inventory=[...PLAYER_STATS.inventory]') ||
+    gameSrc.includes('this.pStats.inventory = [...PLAYER_STATS.inventory]'),
+    'game.js create() must clone PLAYER_STATS.inventory into pStats.inventory'
+  );
+
+  // useItem must exist and remove item from inventory
+  assert.ok(gameSrc.includes('useItem(item)'), 'game.js missing useItem method');
+  assert.ok(gameSrc.includes('inv.splice(idx,1)') || gameSrc.includes('inv.splice(idx, 1)'),
+    'useItem must splice item out of inventory after use');
+
+  // equipItem must exist
+  assert.ok(gameSrc.includes('equipItem(item)'), 'game.js missing equipItem method');
+
+  // dropItem must exist and remove item from inventory
+  assert.ok(gameSrc.includes('dropItem(item)'), 'game.js missing dropItem method');
+
+  // equipItem: weapon path must set pStats.weaponId
+  assert.ok(gameSrc.includes("item.type==='weapon'&&item.weaponId") ||
+    gameSrc.includes("item.type === 'weapon' && item.weaponId"),
+    'equipItem must handle weapon type with weaponId');
+  assert.ok(gameSrc.includes('this.pStats.weaponId=item.weaponId') ||
+    gameSrc.includes('this.pStats.weaponId = item.weaponId'),
+    'equipItem must assign pStats.weaponId from equipped weapon');
+
+  // equipItem: armor path must add acBonus
+  assert.ok(gameSrc.includes('this.pStats.ac') && gameSrc.includes('item.acBonus'),
+    'equipItem must apply acBonus to pStats.ac for armor items');
+
+  // All three handlers must call SidePanel.refresh after mutation
+  const useBlock = gameSrc.substring(gameSrc.indexOf('useItem(item)'), gameSrc.indexOf('equipItem(item)'));
+  const equipBlock = gameSrc.substring(gameSrc.indexOf('equipItem(item)'), gameSrc.indexOf('dropItem(item)'));
+  const dropBlock = gameSrc.substring(gameSrc.indexOf('dropItem(item)'), gameSrc.indexOf('showDicePopup('));
+  assert.ok(useBlock.includes('SidePanel.refresh'), 'useItem must call SidePanel.refresh');
+  assert.ok(equipBlock.includes('SidePanel.refresh'), 'equipItem must call SidePanel.refresh');
+  assert.ok(dropBlock.includes('SidePanel.refresh'), 'dropItem must call SidePanel.refresh');
+}
+
+/** Loot table items must have type, and consumable items with heal must have heal formula */
+function testInventoryLootTableItemTypes() {
+  const tables = loadYaml('data/00_core/loot-tables.yaml');
+
+  // Check every pool item has a type field
+  for (const [tableId, table] of Object.entries(tables)) {
+    if (!Array.isArray(table.pool)) continue;
+    for (const item of table.pool) {
+      assert.ok(item.type, `loot table '${tableId}': item '${item.id}' missing type field`);
+    }
+  }
+
+  // Consumables with heal must have a parseable dice formula
+  const { dnd } = loadConfigExports();
+  for (const [tableId, table] of Object.entries(tables)) {
+    if (!Array.isArray(table.pool)) continue;
+    for (const item of table.pool) {
+      if (item.type === 'consumable' && item.heal) {
+        let parsed;
+        try { parsed = toHostObject(dnd.normalizeDamageSpec(item.heal)); } catch (e) { parsed = null; }
+        assert.ok(parsed && parsed.dice.length > 0,
+          `loot table '${tableId}': item '${item.id}' heal formula '${item.heal}' is not parseable`);
+      }
+    }
+  }
+}
+
+/** Weapon items in loot tables must reference valid weapon IDs in weapons.yaml */
+function testInventoryLootWeaponReferences() {
+  const tables = loadYaml('data/00_core/loot-tables.yaml');
+  const weapons = loadYaml('data/00_core/weapons.yaml').weapons;
+
+  for (const [tableId, table] of Object.entries(tables)) {
+    if (!Array.isArray(table.pool)) continue;
+    for (const item of table.pool) {
+      if (item.type === 'weapon') {
+        assert.ok(item.weaponId, `loot table '${tableId}': weapon item '${item.id}' missing weaponId`);
+        assert.ok(item.weaponId in weapons,
+          `loot table '${tableId}': weapon item '${item.id}' references unknown weaponId '${item.weaponId}'`);
+      }
+    }
+  }
+}
+
+/** Chest handler must push non-gem items to pStats.inventory and convert gems to gold */
+function testInventoryChestHandlerLootRouting() {
+  const chestSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'chest-handler.js'), 'utf8');
+
+  // Non-gem items must go to pStats.inventory
+  assert.ok(chestSrc.includes('pStats.inventory.push'),
+    'chest-handler must push non-gem items to pStats.inventory');
+
+  // Gems with a value must be converted to gold, not pushed to inventory
+  assert.ok(
+    (chestSrc.includes("item.type === 'gem'") || chestSrc.includes("item.type==='gem'")) &&
+    chestSrc.includes('item.value'),
+    "chest-handler must detect gem type with value field"
+  );
+  // The gem branch adds gold
+  assert.ok(chestSrc.includes('pStats.gold') && chestSrc.includes('item.value'),
+    'chest-handler must add gem value to pStats.gold');
+
+  // After loot resolution, side panel must be refreshed if inventory tab is active
+  assert.ok(chestSrc.includes("SidePanel._activeTab === 'inventory'") &&
+    chestSrc.includes('SidePanel.refresh'),
+    "chest-handler must refresh SidePanel when inventory tab is active after opening chest");
+}
+
+/** Side panel must have _renderInventoryTab and inventory tab CSS must exist in index.html */
+function testInventorySidePanelUI() {
+  const panelSrc = fs.readFileSync(path.join(root, 'js', 'ui', 'side-panel.js'), 'utf8');
+
+  assert.ok(panelSrc.includes('_renderInventoryTab('), 'side-panel missing _renderInventoryTab method');
+  assert.ok(
+    panelSrc.includes("tabId === 'inventory'"),
+    "side-panel refreshTab must handle 'inventory' tab"
+  );
+
+  // Inventory tab must display gold
+  assert.ok(panelSrc.includes('inv-gold') || panelSrc.includes('gold'),
+    'side-panel _renderInventoryTab must show gold');
+
+  // Item rows must have Use/Equip/Drop buttons wired to scene methods
+  assert.ok(panelSrc.includes('useItem') && panelSrc.includes('equipItem') && panelSrc.includes('dropItem'),
+    'side-panel inventory rows must wire Use/Equip/Drop buttons to scene methods');
+
+  const htmlSrc = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert.ok(htmlSrc.includes('.inv-row') || htmlSrc.includes('inv-row'),
+    'index.html must define inv-row CSS for inventory item rows');
+  assert.ok(htmlSrc.includes('.inv-btn') || htmlSrc.includes('inv-btn'),
+    'index.html must define inv-btn CSS for inventory action buttons');
+}
+
+// ── Item definition system tests ──
+
+function testItemDefsRegistry() {
+  // ITEM_DEFS must exist as a global in config.js
+  const configSrc = fs.readFileSync(path.join(root, 'js', 'config.js'), 'utf8');
+  assert.ok(configSrc.includes('const ITEM_DEFS'), 'config.js must declare ITEM_DEFS');
+
+  // items.yaml must exist and have an items: map
+  const items = loadYaml('data/00_core/items.yaml');
+  assert.ok(items?.items && typeof items.items === 'object', 'items.yaml must have top-level items: map');
+
+  // Every item must have name, type, and onUse
+  for (const [id, item] of Object.entries(items.items)) {
+    assert.ok(item.name, `item '${id}' missing name`);
+    assert.ok(item.type, `item '${id}' missing type`);
+    assert.ok(item.onUse, `item '${id}' missing onUse`);
+  }
+}
+
+function testItemOnUseEffectTypes() {
+  const items = loadYaml('data/00_core/items.yaml');
+  const { dnd } = loadConfigExports();
+  const validTypes = new Set(['heal', 'removeStatus', 'applyStatus', 'modifyStat', 'log', 'useAbility']);
+
+  for (const [id, item] of Object.entries(items.items)) {
+    // useAbility items: just need the abilityId string
+    if (item.onUse.useAbility) {
+      assert.ok(typeof item.onUse.useAbility === 'string', `item '${id}' useAbility must be a string`);
+      continue;
+    }
+
+    assert.ok(Array.isArray(item.onUse.effects), `item '${id}' onUse must have effects array`);
+    for (const fx of item.onUse.effects) {
+      assert.ok(validTypes.has(fx.type), `item '${id}' has unknown effect type '${fx.type}'`);
+
+      // heal effects must have parseable dice amount
+      if (fx.type === 'heal') {
+        let parsed;
+        try { parsed = toHostObject(dnd.normalizeDamageSpec(fx.amount)); } catch (_e) { parsed = null; }
+        assert.ok(parsed?.dice?.length > 0, `item '${id}' heal amount '${fx.amount}' not parseable`);
+      }
+
+      // modifyStat effects must have stat and bonus
+      if (fx.type === 'modifyStat') {
+        assert.ok(fx.stat, `item '${id}' modifyStat missing stat`);
+        assert.ok(typeof fx.bonus === 'number', `item '${id}' modifyStat bonus must be a number`);
+      }
+
+      // removeStatus / applyStatus must have statusId
+      if (fx.type === 'removeStatus' || fx.type === 'applyStatus') {
+        assert.ok(fx.statusId, `item '${id}' ${fx.type} missing statusId`);
+      }
+    }
+  }
+}
+
+function testItemModLoaderWiring() {
+  const modloaderSrc = fs.readFileSync(path.join(root, 'js', 'modloader.js'), 'utf8');
+
+  // modData must include items key
+  assert.ok(modloaderSrc.includes("items: {}"), 'modloader modData must initialise items: {}');
+
+  // must load items.yaml per mod
+  assert.ok(modloaderSrc.includes("items.yaml") && modloaderSrc.includes('modData.items'),
+    'modloader must load items.yaml and merge into modData.items');
+
+  // must call applyItems
+  assert.ok(modloaderSrc.includes('applyItems(modData)'), 'modloader must call applyItems(modData)');
+  assert.ok(modloaderSrc.includes('applyItems(data)'), 'modloader must define applyItems method');
+
+  // applyItems must write to ITEM_DEFS
+  assert.ok(modloaderSrc.includes('ITEM_DEFS[id]'), 'applyItems must populate ITEM_DEFS');
+}
+
+function testItemUseItemExecutor() {
+  const gameSrc = fs.readFileSync(path.join(root, 'js', 'game.js'), 'utf8');
+
+  // useItem must consult ITEM_DEFS
+  assert.ok(gameSrc.includes('ITEM_DEFS[item.id]'), 'useItem must look up ITEM_DEFS[item.id]');
+
+  // must handle all effect types
+  for (const effectType of ['heal', 'removeStatus', 'applyStatus', 'modifyStat', 'log']) {
+    assert.ok(gameSrc.includes(`case '${effectType}'`), `useItem missing case for effect type '${effectType}'`);
+  }
+
+  // useAbility delegation
+  assert.ok(gameSrc.includes('onUse?.useAbility'), 'useItem must handle useAbility delegation');
+
+  // modifyStat must track in _statMods for expiry
+  assert.ok(gameSrc.includes('_statMods'), 'useItem modifyStat must track in pStats._statMods');
+
+  // tickStatMods must exist and be called at turn end
+  assert.ok(gameSrc.includes('tickStatMods()'), 'game.js must define tickStatMods');
+  const combatSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'mode-combat.js'), 'utf8');
+  assert.ok(combatSrc.includes('tickStatMods'), 'mode-combat must call tickStatMods at turn end');
+}
+
 function run() {
   const { dnd, MODE } = loadConfigExports();
 
@@ -648,6 +983,28 @@ function run() {
   testDialogRunnerContracts();
   testEventsYamlExistence();
   testGoblinInvasionFlags();
+
+  // Patrol path tests
+  testPatrolPathContracts();
+
+  // Bug fix regression tests
+  testBug1_StairsNextStage();
+  testBug2_DisplayNameFallback();
+  testBug3_FleeZoneAlpha();
+
+  // Item definition system tests
+  testItemDefsRegistry();
+  testItemOnUseEffectTypes();
+  testItemModLoaderWiring();
+  testItemUseItemExecutor();
+
+  // Inventory system tests
+  testInventoryPlayerStatsFields();
+  testInventoryGameSceneMethods();
+  testInventoryLootTableItemTypes();
+  testInventoryLootWeaponReferences();
+  testInventoryChestHandlerLootRouting();
+  testInventorySidePanelUI();
 
   console.log('All tests passed.');
 }

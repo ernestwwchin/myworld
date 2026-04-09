@@ -50,8 +50,10 @@ const SidePanel = {
 
     if (tabId === 'character') {
       this._renderCharacterTab(s);
+    } else if (tabId === 'inventory') {
+      this._renderInventoryTab(s);
     }
-    // inventory, abilities, journal — Phase 2+
+    // abilities, journal — Phase 2+
   },
 
   toggleCollapse() {
@@ -100,6 +102,44 @@ const SidePanel = {
     if (!el) return;
     const p = s.pStats;
     el.innerHTML = T.statsPanel(p, s.playerHP, s.playerMaxHP);
+  },
+
+  _renderInventoryTab(s) {
+    const el = document.getElementById('tab-content-inventory');
+    if (!el) return;
+    const p = s.pStats;
+    const inv = Array.isArray(p.inventory) ? p.inventory : [];
+    const gold = p.gold || 0;
+
+    const TYPE_COLOR = { weapon: '#e8a87c', armor: '#7ec8e3', consumable: '#a8e6cf', gem: '#f5d76e', misc: '#b0b0b0' };
+    const TYPE_LABEL = { weapon: 'WPN', armor: 'ARM', consumable: 'USE', gem: 'GEM', misc: '···' };
+
+    const rows = inv.map((item, i) => {
+      const tc = TYPE_COLOR[item.type] || '#b0b0b0';
+      const tl = TYPE_LABEL[item.type] || '···';
+      const canUse = item.type === 'consumable' && item.heal;
+      const canEquip = item.type === 'weapon' || item.type === 'armor';
+      const useBtn = canUse
+        ? `<button class="inv-btn" onclick="window._scene&&window._scene.useItem(window._scene.pStats.inventory[${i}])" style="color:#a8e6cf">Use</button>`
+        : '';
+      const eqBtn = canEquip
+        ? `<button class="inv-btn" onclick="window._scene&&window._scene.equipItem(window._scene.pStats.inventory[${i}])" style="color:#e8a87c">Equip</button>`
+        : '';
+      const dropBtn = `<button class="inv-btn" onclick="window._scene&&window._scene.dropItem(window._scene.pStats.inventory[${i}])" style="color:#ef5350">Drop</button>`;
+      return `<div class="inv-row">
+        <span class="inv-icon">${item.icon||'📦'}</span>
+        <span class="inv-name">${item.name||item.id||'Item'}</span>
+        <span class="inv-type" style="color:${tc}">${tl}</span>
+        <span class="inv-actions">${useBtn}${eqBtn}${dropBtn}</span>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="inv-gold">💰 ${gold} gold</div>
+      ${inv.length === 0
+        ? '<div style="color:#666;text-align:center;margin-top:16px;font-size:11px">Inventory is empty</div>'
+        : `<div class="inv-list">${rows}</div>`
+      }`;
   },
 
   /** Full refresh: header + active tab */
