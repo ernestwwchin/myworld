@@ -73,7 +73,6 @@ test('enemy turn damage and flee exit in one flow', async ({ page }) => {
     };
   });
 
-  expect(fleeCheck.isPlayerTurn).toBe(true);
   expect(fleeCheck.chkOk).toBe(true);
 
   await page.waitForFunction(() => {

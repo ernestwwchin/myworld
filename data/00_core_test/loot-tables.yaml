@@ -1,0 +1,10 @@
+# Test loot tables for e2e verification
+
+treasure_table:
+  gold: [10, 30]
+  rolls: 2
+  pool:
+    - { id: potion_heal,    name: "Healing Potion",     weight: 40, icon: "🧪", type: consumable, heal: "2d4+2" }
+    - { id: gem_emerald,    name: "Emerald",            weight: 20, icon: "💎", type: gem, value: 35 }
+    - { id: scroll_magic,   name: "Magic Scroll",       weight: 15, icon: "📜", type: consumable }
+    - { id: lockpicks,      name: "Lockpick Set",       weight: 25, icon: "🔧", type: misc }

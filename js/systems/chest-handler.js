@@ -35,7 +35,7 @@ Object.assign(GameScene.prototype, {
       glow.strokeCircle(cx, cy, S * 0.5);
       this.tweens.add({
         targets: glow, alpha: 0.12,
-        duration: 1200 + Math.random() * 400,
+        duration: 1200 + (window.rng?.vfx ?? Math.random)() * 400,
         yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
       });
       this._chestGlows[this._entityKey(ent.x, ent.y)] = glow;
@@ -93,24 +93,25 @@ Object.assign(GameScene.prototype, {
     });
 
     // 3. Golden sparkle particles bursting up
+    const _vfx = window.rng?.vfx ?? Math.random;
     for (let i = 0; i < 12; i++) {
-      const angle = (Math.PI * 2 * i) / 12 + (Math.random() - 0.5) * 0.4;
-      const dist = 8 + Math.random() * 18;
+      const angle = (Math.PI * 2 * i) / 12 + (_vfx() - 0.5) * 0.4;
+      const dist = 8 + _vfx() * 18;
       const px = cx + Math.cos(angle) * 4;
       const py = cy + Math.sin(angle) * 4;
       const spark = this.add.text(px, py, '✦', {
-        fontSize: `${8 + Math.floor(Math.random() * 7)}px`,
-        fill: Math.random() > 0.4 ? '#f0c060' : '#ffe8a0',
+        fontSize: `${8 + Math.floor(_vfx() * 7)}px`,
+        fill: _vfx() > 0.4 ? '#f0c060' : '#ffe8a0',
       }).setOrigin(0.5).setDepth(26).setAlpha(0);
 
       this.tweens.add({
         targets: spark,
         x: px + Math.cos(angle) * dist,
-        y: py + Math.sin(angle) * dist - 16 - Math.random() * 20,
+        y: py + Math.sin(angle) * dist - 16 - _vfx() * 20,
         alpha: { from: 1, to: 0 },
         scale: { from: 1.2, to: 0.3 },
-        duration: 500 + Math.random() * 400,
-        delay: 80 + Math.random() * 200,
+        duration: 500 + _vfx() * 400,
+        delay: 80 + _vfx() * 200,
         ease: 'Cubic.easeOut',
         onComplete: () => spark.destroy(),
       });
@@ -136,13 +137,8 @@ Object.assign(GameScene.prototype, {
     for (const item of resolved.items) {
       const icon = item.icon ? `${item.icon} ` : '';
       rewards.push({ text: `${icon}${item.name || item.id || 'item'}`, color: '#a8e6cf' });
-      // Gems/valuables with a value field go straight to gold; all other items go to inventory
-      if (item.type === 'gem' && item.value) {
-        this.pStats.gold = (this.pStats.gold || 0) + item.value;
-      } else {
-        if (!Array.isArray(this.pStats.inventory)) this.pStats.inventory = [];
-        this.pStats.inventory.push({ ...item });
-      }
+      if (!Array.isArray(this.pStats.inventory)) this.pStats.inventory = [];
+      this.pStats.inventory.push({ ...item });
     }
     withSidePanel(() => {
       if (SidePanel._activeTab === 'inventory') SidePanel.refresh();

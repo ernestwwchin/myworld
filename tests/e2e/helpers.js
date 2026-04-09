@@ -73,4 +73,10 @@ module.exports = {
   waitUntilIdle,
   tapTile,
   dismissDiceIfNeeded,
+  // Convenience: build a URL with a fixed seed so all randomness is deterministic.
+  // Usage: page.goto(seededUrl('/?map=ts_combat_entry', 42))
+  seededUrl(base, seed) {
+    const sep = base.includes('?') ? '&' : '?';
+    return `${base}${sep}seed=${seed >>> 0}`;
+  },
 };

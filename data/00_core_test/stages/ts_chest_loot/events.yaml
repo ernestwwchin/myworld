@@ -1,0 +1,6 @@
+autoplay:
+  - do: wait
+    ms: 100
+
+dialogues: {}
+

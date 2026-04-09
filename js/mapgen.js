@@ -30,7 +30,11 @@ const MapGen = {
     const rows   = Number(cfg.rows   || cfg.height || 36);
     const fill   = Number(cfg.fillPct || 48) / 100;  // % of cells start as wall
     const steps  = Number(cfg.steps  || 5);
-    const seed   = Number(cfg.seed   || Math.floor(Math.random() * 0xFFFFFF));
+    // If an explicit seed is provided in config use it; otherwise draw from the
+    // dedicated map RNG stream so procedural maps are deterministic without
+    // consuming from the logic stream (which would shift dice/loot rolls).
+    const _mapRng = window.rng?.map ?? Math.random;
+    const seed   = Number(cfg.seed   || Math.floor(_mapRng() * 0xFFFFFF));
 
     const rng = this._rng(seed);
     const W = tile.WALL, F = tile.FLOOR;

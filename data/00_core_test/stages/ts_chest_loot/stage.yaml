@@ -1,0 +1,54 @@
+# Test: Chest Loot Resolution
+# Test opening chests with fixed loot, gold, and loot tables
+
+name: "Test: Chest Loot"
+floor: TE
+globalLight: bright
+
+grid:
+  - "#######"
+  - "#.....#"
+  - "#.C.C.#"
+  - "#.....#"
+  - "#######"
+
+playerStart: { x: 2, y: 1 }
+encounters: []
+
+# Loot table defined inline so it loads even when the test mod is disabled
+lootTables:
+  treasure_table:
+    gold: [10, 30]
+    rolls: 2
+    pool:
+      - { id: potion_heal,  name: "Healing Potion", weight: 40, icon: "🧪", type: consumable, heal: "2d4+2" }
+      - { id: gem_emerald,  name: "Emerald",         weight: 20, icon: "💎", type: gem, value: 35 }
+      - { id: scroll_magic, name: "Magic Scroll",    weight: 15, icon: "📜", type: consumable }
+      - { id: lockpicks,    name: "Lockpick Set",    weight: 25, icon: "🔧", type: misc }
+
+interactables:
+  # Fixed loot chest (no randomness)
+  - id: chest_fixed_loot
+    kind: chest
+    x: 2
+    y: 2
+    open: false
+    gold: 50
+    loot:
+      - id: sword_iron
+        name: Iron Sword
+        type: weapon
+        icon: "⚔"
+      - id: shield_wooden
+        name: Wooden Shield
+        type: armor
+        icon: "🛡"
+
+  # Random loot chest (uses loot table)
+  - id: chest_random_loot
+    kind: chest
+    x: 4
+    y: 2
+    open: false
+    lootTable: treasure_table
+    gold: 25
