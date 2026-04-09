@@ -58,17 +58,23 @@ class ChestEntity extends InteractableEntity {
           const [min, max] = table.gold;
           result.gold += min + Math.floor(Math.random() * (max - min + 1));
         }
-        // Weighted random item rolls
+        // Weighted random item rolls.
+        // Default keeps legacy behavior (duplicates allowed) unless table sets allowDuplicates: false.
         const rolls = Number(table.rolls || 0);
         const pool = Array.isArray(table.pool) ? table.pool : [];
         if (pool.length && rolls > 0) {
-          const totalWeight = pool.reduce((s, e) => s + (Number(e.weight) || 1), 0);
-          for (let r = 0; r < rolls; r++) {
+          const allowDuplicates = table.allowDuplicates !== false;
+          const sourcePool = allowDuplicates ? pool : [...pool];
+          const rollCount = allowDuplicates ? rolls : Math.min(rolls, sourcePool.length);
+          for (let r = 0; r < rollCount; r++) {
+            const totalWeight = sourcePool.reduce((s, e) => s + (Number(e.weight) || 1), 0);
             let roll = Math.random() * totalWeight;
-            for (const entry of pool) {
+            for (let i = 0; i < sourcePool.length; i++) {
+              const entry = sourcePool[i];
               roll -= (Number(entry.weight) || 1);
               if (roll <= 0) {
                 result.items.push({ ...entry });
+                if (!allowDuplicates) sourcePool.splice(i, 1);
                 break;
               }
             }

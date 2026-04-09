@@ -2,43 +2,47 @@
 # Goblin Invasion — Loot Tables
 # Stage-specific pools for the goblin warren dungeon.
 # These extend the core loot tables (00_core/loot-tables.yaml).
+# Tables may set allowDuplicates: false to enforce unique picks per chest open.
 # ═══════════════════════════════════════════════════════
 
 # ── Hidden stash (B1F bunk area) ─────────────────────
 hidden_stash:
-  gold: [8, 25]
+  gold: [6, 16]
   rolls: 2
+  allowDuplicates: false
   pool:
-    - { id: potion_heal,    name: "Healing Potion",     weight: 40, icon: "🧪", type: consumable, heal: "2d4+2" }
-    - { id: goblin_ear,     name: "Goblin Ear",          weight: 20, icon: "👂", type: misc }
+    - { id: potion_heal,    name: "Healing Potion",      weight: 34, icon: "🧪", type: consumable, heal: "2d4+2" }
     - { id: torch_bundle,   name: "Torches (x5)",        weight: 20, icon: "🔥", type: misc }
-    - { id: gem_quartz,     name: "Quartz Gem",          weight: 12, icon: "💎", type: gem, value: 10 }
-    - { id: crude_dagger,   name: "Crude Dagger",        weight: 8,  icon: "🗡️", type: weapon, weaponId: shortsword, atkBonus: 0, dmgBonus: 0 }
+    - { id: goblin_ear,     name: "Goblin Ear",          weight: 18, icon: "👂", type: misc }
+    - { id: gem_quartz,     name: "Quartz Gem",          weight: 16, icon: "💎", type: gem, value: 10 }
+    - { id: crude_dagger,   name: "Crude Dagger",        weight: 12, icon: "🗡️", type: weapon, weaponId: shortsword, atkBonus: 0, dmgBonus: 0 }
 
 # ── Prison key chest (captain's quarters) ────────────
 prison_key:
-  gold: [15, 30]
+  gold: [10, 22]
   rolls: 1
   pool:
     - { id: iron_key,       name: "Iron Key",            weight: 100, icon: "🗝️", type: misc }
 
 # ── Descent key chest (ritual chamber) ───────────────
 descent_key:
-  gold: [20, 50]
-  rolls: 2
+  gold: [14, 28]
+  rolls: 1
+  allowDuplicates: false
   pool:
-    - { id: descent_key_item, name: "Descent Key",       weight: 80, icon: "🔑", type: misc }
-    - { id: potion_heal,    name: "Healing Potion",      weight: 15, icon: "🧪", type: consumable, heal: "2d4+2" }
-    - { id: scroll_shield,  name: "Scroll of Shield",    weight: 5,  icon: "📜", type: consumable }
+    - { id: descent_key_item, name: "Descent Key",       weight: 72, icon: "🔑", type: misc }
+    - { id: potion_heal,      name: "Healing Potion",    weight: 20, icon: "🧪", type: consumable, heal: "2d4+2" }
+    - { id: scroll_shield,    name: "Scroll of Shield",  weight: 8,  icon: "📜", type: consumable }
 
 # ── Boss preparation (descent chest) ─────────────────
 boss_prep:
-  gold: [30, 80]
-  rolls: 3
+  gold: [18, 40]
+  rolls: 2
+  allowDuplicates: false
   pool:
-    - { id: potion_heal,    name: "Healing Potion",      weight: 30, icon: "🧪", type: consumable, heal: "2d4+2" }
-    - { id: potion_heal_greater, name: "Greater Healing Potion", weight: 20, icon: "🧪", type: consumable, heal: "4d4+4" }
-    - { id: scroll_fireball, name: "Scroll of Fireball", weight: 10, icon: "📜", type: consumable }
-    - { id: gem_ruby,       name: "Ruby",                weight: 15, icon: "💎", type: gem, value: 50 }
-    - { id: dagger_plus1,   name: "Dagger +1",           weight: 12, icon: "🗡️", type: weapon, weaponId: shortsword, atkBonus: 1, dmgBonus: 1 }
-    - { id: antidote,       name: "Antidote",            weight: 13, icon: "🧪", type: consumable }
+    - { id: potion_heal,          name: "Healing Potion",         weight: 30, icon: "🧪", type: consumable, heal: "2d4+2" }
+    - { id: potion_heal_greater,  name: "Greater Healing Potion", weight: 24, icon: "🧪", type: consumable, heal: "4d4+4" }
+    - { id: antidote,             name: "Antidote",               weight: 16, icon: "🧪", type: consumable }
+    - { id: gem_ruby,             name: "Ruby",                   weight: 12, icon: "💎", type: gem, value: 50 }
+    - { id: scroll_fireball,      name: "Scroll of Fireball",     weight: 10, icon: "📜", type: consumable }
+    - { id: dagger_plus1,         name: "Dagger +1",              weight: 8,  icon: "🗡️", type: weapon, weaponId: shortsword, atkBonus: 1, dmgBonus: 1 }
