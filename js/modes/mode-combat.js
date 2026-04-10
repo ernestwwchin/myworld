@@ -156,7 +156,6 @@ Object.assign(GameScene.prototype, {
   tryEngageEnemyFromExplore(enemy) {
     if (!enemy || !enemy.alive) return;
     if (!this.isExploreMode()) return;
-    if (this.mode === MODE.EXPLORE_TB && this._exploreTBEnemyPhase) return;
     if (this.isMoving) return;
 
     const dx = Math.abs(this.playerTile.x - enemy.tx);
@@ -284,7 +283,6 @@ Object.assign(GameScene.prototype, {
   // ─────────────────────────────────────────
   enterCombat(triggers, opts = {}) {
     if (this.mode === MODE.COMBAT) return;
-    this._returnToExploreTB = this.mode === MODE.EXPLORE_TB;
     this.mode = MODE.COMBAT;
     this.syncExploreBar();
 
@@ -371,7 +369,6 @@ Object.assign(GameScene.prototype, {
   },
 
   exitCombat(reason='victory'){
-    this._returnToExploreTB=false;
     this.mode=MODE.EXPLORE;
     if (this.playerHidden) this._breakStealth(null);
     this.syncExploreBar();
@@ -755,10 +752,9 @@ Object.assign(GameScene.prototype, {
         this.showStatus('Attack cancelled.');
         return;
       }
-      // Auto-switch to turn-based so player can plan approach
+      // Auto-switch to attack targeting in explore
       if(this.mode===MODE.EXPLORE){
-        this._targetingAutoTB=true;
-        this.toggleExploreTurnBased();
+        this._targetingAutoTB=false;
       }
       this.pendingAction='attack';
       withHotbar(hotbar => hotbar.setSelected('attack'));
@@ -826,11 +822,7 @@ Object.assign(GameScene.prototype, {
     this.setSelectedActionButton('');
     withHotbar(hotbar => hotbar.clearSelection());
     this.clearAtkRange(); this.clearFleeZone();
-    // If we auto-switched to TB for targeting, revert to real-time explore
-    if(this._targetingAutoTB && this.mode===MODE.EXPLORE_TB){
-      this._targetingAutoTB=false;
-      this.toggleExploreTurnBased();
-    }
+    // If we auto-switched to TB for targeting, no longer applicable
     this._targetingAutoTB=false;
   },
 

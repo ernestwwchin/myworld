@@ -61,7 +61,6 @@ const GameSceneInputSystem = {
 
     // Delegate to active mode handler
     if(this.mode===MODE.COMBAT){ this.onTapCombat(tx,ty,enemy); return; }
-    if(this.mode===MODE.EXPLORE_TB){ this.onTapExploreTB(tx,ty,enemy,ptr); return; }
     this.onTapExplore(tx,ty,enemy,ptr);
   },
 
@@ -83,7 +82,7 @@ const GameSceneInputSystem = {
     this._holdWorldY=ptr.worldY;
     this._holdTimer=this.time.delayedCall(this._holdMoveThreshold,()=>{
       this._holdTimer=null;
-      if(!this.isExploreMode()||this.mode===MODE.EXPLORE_TB||this.mode===MODE.COMBAT) return;
+      if(!this.isExploreMode()||this.mode===MODE.COMBAT) return;
       this._holdMoveActive=true;
       // Truncate existing path so update loop takes over after current step
       if(this.movePath.length>0){ this.movePath=[]; this.clearPathDots(); }

@@ -7,10 +7,6 @@ function testSystemArchitectureContracts() {
   assert.ok(combatSrc.includes('tryEngageEnemyFromExplore('));
   assert.ok(combatSrc.includes('executeEngageOpenerAttack('));
 
-  const etbSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'mode-explore-tb.js'), 'utf8');
-  assert.ok(etbSrc.includes('toggleExploreTurnBased()'));
-  assert.ok(etbSrc.includes('beginExploreTurnBasedPlayerTurn()'));
-
   const abilitySrc = fs.readFileSync(path.join(root, 'js', 'systems', 'ability-system.js'), 'utf8');
   assert.ok(abilitySrc.includes('checkStealthVsEnemies('));
   assert.ok(!abilitySrc.includes('this.add.sprite('));
@@ -31,13 +27,7 @@ function testUiAndTargetingContracts() {
   assert.ok(autoplaySrc.includes('test_engage_flow'));
 
   const combatSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'mode-combat.js'), 'utf8');
-  assert.ok(combatSrc.includes('this._targetingAutoTB=true;'));
   assert.ok(combatSrc.includes('this._targetingAutoTB=false;'));
-
-  const htmlSrc = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-  assert.ok(htmlSrc.includes('id="cmd-tb"'));
-  const hotbarSrc = fs.readFileSync(path.join(root, 'js', 'ui', 'hotbar.js'), 'utf8');
-  assert.ok(hotbarSrc.includes('toggleExploreTurnBased'));
 }
 
 function testBugRegressions() {

@@ -183,7 +183,6 @@ const Hotbar = {
     if (action === 'end_turn' && typeof s.endPlayerTurn === 'function') s.endPlayerTurn();
     else if (action === 'flee' && typeof s.tryFleeCombat === 'function') s.tryFleeCombat();
     else if (action === 'reset_move' && typeof s.resetMove === 'function') s.resetMove();
-    else if (action === 'toggle_tb' && typeof s.toggleExploreTurnBased === 'function') { s.toggleExploreTurnBased(); s.syncExploreBar(); }
     else if (action === 'quest_log') { /* Phase 2 */ }
     else if (action === 'settings') { /* Phase 2 */ }
   },
@@ -198,12 +197,6 @@ const Hotbar = {
     if (endBtn) endBtn.classList.toggle('hidden', !inCombat);
     if (fleeBtn) fleeBtn.classList.toggle('hidden', !inCombat);
     if (resetBtn) resetBtn.classList.toggle('hidden', !inCombat);
-    // TB toggle: show in explore, highlight when active
-    const tbBtn = document.getElementById('cmd-tb');
-    if (tbBtn) {
-      tbBtn.classList.toggle('hidden', inCombat);
-      tbBtn.classList.toggle('active', s && s.mode === MODE.EXPLORE_TB);
-    }
   },
 
   // ── Resource Pips ──

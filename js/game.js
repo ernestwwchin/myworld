@@ -17,7 +17,7 @@ class GameScene extends Phaser.Scene {
   }
 
   isExploreMode(){
-    return this.mode===MODE.EXPLORE||this.mode===MODE.EXPLORE_TB;
+    return this.mode===MODE.EXPLORE;
   }
 
   /** Assign unique displayName to each enemy; appends A/B/C when multiples of same type exist */
@@ -158,11 +158,6 @@ class GameScene extends Phaser.Scene {
     this._queuedEngageEnemy=null;
     this._engageInProgress=false;
     this._suppressExploreSightChecks=false;
-    this._manualExploreTurnBased=false;
-    this._returnToExploreTB=false;
-    this._exploreTBMovesRemaining=0;
-    this._exploreTBEnemyPhase=false;
-    this._exploreTBInputLatch=false;
     this.mapLights=[];
     this.globalLight='dark';
     this.doorStates={};
@@ -277,11 +272,9 @@ class GameScene extends Phaser.Scene {
     // Explore hotbar (touch/tablet — BG3-style persistent bottom bar)
     const eHide = document.getElementById('btn-explore-hide');
     const eSight = document.getElementById('btn-explore-sight');
-    const eTB = document.getElementById('btn-explore-tb');
     const eStats = document.getElementById('btn-explore-stats');
     if (eHide) eHide.onclick = () => { if(this.isExploreMode()) this.tryHideInExplore(); this.syncExploreBar(); };
     if (eSight) eSight.onclick = () => { this.toggleEnemySight(); this.syncExploreBar(); };
-    if (eTB) eTB.onclick = () => { this.toggleExploreTurnBased(); this.syncExploreBar(); };
     if (eStats) eStats.onclick = () => { toggleStats(); };
     this.syncExploreBar();
 
@@ -517,9 +510,6 @@ class GameScene extends Phaser.Scene {
 
   // toggleEnemySight — implemented in sight-system.js
 
-  // toggleExploreTurnBased, beginExploreTurnBasedPlayerTurn, endExploreTurnBasedPlayerTurn,
-  // runExploreTurnBasedEnemyPhase — implemented in explore-tb-system.js
-
   // clearDetectMarkers, showDetectedEnemyMarker, drawSightOverlays, clearSightOverlays,
   // checkSight, toggleEnemySight — implemented in sight-system.js
   // computeVisibleTiles, updateFogOfWar, updateEnemyVisibilityByFog, syncEnemySightRings,
@@ -543,8 +533,6 @@ class GameScene extends Phaser.Scene {
       if (hideBtn) hideBtn.classList.toggle('active', !!this.playerHidden);
       const sightBtn = document.getElementById('btn-explore-sight');
       if (sightBtn) sightBtn.classList.toggle('off', !this.enemySightEnabled);
-      const tbBtn = document.getElementById('btn-explore-tb');
-      if (tbBtn) tbBtn.classList.toggle('off', this.mode !== MODE.EXPLORE_TB);
     }
     // Sync hotbar expand/collapse with mode
     withHotbar(hotbar => {
@@ -556,7 +544,7 @@ class GameScene extends Phaser.Scene {
 
   // tryHideAction — implemented in ability-system.js
   // tryHideInExplore — implemented in ability-system.js
-  // hideContextMenu, showContextMenu, onTap, toggleExploreDoor, toggleExploreTBDoor — implemented in input-system.js
+  // hideContextMenu, showContextMenu, onTap, toggleExploreDoor — implemented in input-system.js
 
   onTapEnemy(enemy){
     if(!enemy.alive) return;
@@ -962,7 +950,6 @@ class GameScene extends Phaser.Scene {
     // Hold-to-move: step toward cursor each time player finishes a tile
     if(this._holdMoveActive&&!this.isMoving){ this._holdMoveStep(); return; }
     if(this.isMoving) return;
-    if(this.mode===MODE.EXPLORE_TB) this.updateExploreTB(delta);
-    else this.updateExplore(delta);
+    this.updateExplore(delta);
   }
 }

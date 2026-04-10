@@ -123,7 +123,7 @@ Object.assign(GameScene.prototype, {
   // WANDERING
   // ─────────────────────────────────────────
   wanderEnemies(forceStep=false){
-    if(this.mode!==MODE.EXPLORE&&this.mode!==MODE.EXPLORE_TB) return;
+    if(this.mode!==MODE.EXPLORE) return;
     if(this._engageInProgress&&!forceStep) return;
     const dirs=[{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0},{x:-1,y:-1},{x:1,y:-1},{x:-1,y:1},{x:1,y:1}];
     for(const e of this.enemies){
