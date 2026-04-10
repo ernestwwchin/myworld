@@ -949,6 +949,14 @@ function testItemModLoaderWiring() {
 
   // applyItems must write to ITEM_DEFS
   assert.ok(modloaderSrc.includes('ITEM_DEFS[id]'), 'applyItems must populate ITEM_DEFS');
+
+  // Creature loot metadata must be mapped into ENEMY_DEFS for drop resolution
+  assert.ok(modloaderSrc.includes('lootTable: enc.lootTable || tmpl.lootTable || null'),
+    'modloader applyCreatures must map lootTable from encounter/template');
+  assert.ok(modloaderSrc.includes('loot: enc.loot || tmpl.loot || []'),
+    'modloader applyCreatures must map loot array from encounter/template');
+  assert.ok(modloaderSrc.includes('gold: Number(enc.gold ?? tmpl.gold ?? 0)'),
+    'modloader applyCreatures must map fixed gold from encounter/template');
 }
 
 function testItemUseItemExecutor() {

@@ -6,6 +6,13 @@ name: "Test: Melee Attack"
 floor: T3
 globalLight: bright
 
+lootTables:
+  enemy_drop_test:
+    gold: [7, 7]
+    rolls: 1
+    pool:
+      - { id: potion_heal, name: "Healing Potion", weight: 100, icon: "🧪", type: consumable, heal: "2d4+2" }
+
 grid:
   - "#####"
   - "#...#"
@@ -15,4 +22,4 @@ grid:
 
 playerStart: { x: 1, y: 2 }
 encounters:
-  - { creature: goblin, x: 2, y: 2, facing: 180, group: ~ }
+  - { creature: goblin, x: 2, y: 2, facing: 180, group: ~, lootTable: enemy_drop_test }

@@ -643,6 +643,44 @@ class GameScene extends Phaser.Scene {
     return firstResult;
   }
 
+  handleEnemyDefeatLoot(enemy){
+    if(!enemy||enemy._lootDropped) return {gold:0,items:[]};
+    enemy._lootDropped=true;
+
+    const tables=(window._MAP_META&&window._MAP_META.lootTables)||{};
+    const table=enemy.lootTable?tables[enemy.lootTable]:null;
+    const fixedGold=Number(enemy.gold||0);
+    const fixedItems=Array.isArray(enemy.loot)?enemy.loot:[];
+
+    const resolved=(typeof ChestEntity!=='undefined'&&typeof ChestEntity.resolveTableLoot==='function')
+      ? ChestEntity.resolveTableLoot(fixedGold,fixedItems,table)
+      : { gold: fixedGold, items: fixedItems.map(i=>({ ...i })) };
+
+    if(!resolved.gold&&(!resolved.items||!resolved.items.length)) return resolved;
+
+    const drops=[];
+    if(resolved.gold>0){
+      this.pStats.gold=(this.pStats.gold||0)+resolved.gold;
+      drops.push(`+${resolved.gold} gold`);
+      this.spawnFloat(enemy.tx*S+S/2,enemy.ty*S-20,`+${resolved.gold}g`,'#f0c060');
+    }
+
+    for(const item of (resolved.items||[])){
+      this.addItemToInventory(item,Number(item.qty||1));
+      drops.push(`${item.icon?item.icon+' ':''}${item.name||item.id||'item'}`);
+    }
+
+    if(drops.length){
+      const msg=`Looted ${enemy.displayName||enemy.type}: ${drops.join(', ')}`;
+      if(typeof CombatLog!=='undefined') CombatLog.log(msg,'loot','system');
+      this.showStatus(msg);
+      if(typeof SidePanel!=='undefined'&&SidePanel._activeTab==='inventory') SidePanel.refresh();
+      if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
+      this.updateHUD();
+    }
+    return resolved;
+  }
+
   useItem(item){
     if(!item) return;
     const inv=this.pStats.inventory;

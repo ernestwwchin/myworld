@@ -68,6 +68,41 @@ test.describe('Attack scenarios', () => {
     }
   });
 
+  test('defeated enemy grants loot-table rewards', async ({ page }) => {
+    await page.goto('/?map=ts_melee_attack', { waitUntil: 'networkidle' });
+    await waitForScene(page);
+
+    const before = await page.evaluate(() => {
+      const scene = window.game.scene.getScene('GameScene');
+      const inv = Array.isArray(scene.pStats?.inventory) ? scene.pStats.inventory : [];
+      return {
+        gold: Number(scene.pStats?.gold || 0),
+        qty: inv.reduce((sum, item) => sum + Math.max(1, Number(item?.qty || 1)), 0),
+      };
+    });
+
+    await enterSingleEnemyCombat(page);
+    await attackWithForcedD20(page, 19);
+    await page.waitForTimeout(750);
+
+    const after = await page.evaluate(() => {
+      const scene = window.game.scene.getScene('GameScene');
+      const inv = Array.isArray(scene.pStats?.inventory) ? scene.pStats.inventory : [];
+      const potion = inv.find(i => i.id === 'potion_heal');
+      return {
+        aliveEnemies: (scene.enemies || []).filter(e => e.alive).length,
+        gold: Number(scene.pStats?.gold || 0),
+        qty: inv.reduce((sum, item) => sum + Math.max(1, Number(item?.qty || 1)), 0),
+        potionQty: Number(potion?.qty || 0),
+      };
+    });
+
+    expect(after.aliveEnemies).toBe(0);
+    expect(after.gold - before.gold).toBe(7);
+    expect(after.qty).toBeGreaterThan(before.qty);
+    expect(after.potionQty).toBeGreaterThanOrEqual(1);
+  });
+
   test('hit and miss outcomes are deterministic', async ({ page }) => {
     await page.goto('/?map=ts_combat_reset', { waitUntil: 'networkidle' });
     await waitForScene(page);
