@@ -1,5 +1,45 @@
 // Treasure chest entity with loot, lock, and trap behaviors.
 class ChestEntity extends InteractableEntity {
+  static resolveTableLoot(baseGold = 0, fixedItems = [], table = null) {
+    const result = {
+      gold: Number(baseGold || 0),
+      items: Array.isArray(fixedItems) ? fixedItems.map(i => ({ ...i })) : [],
+    };
+
+    if (!table) return result;
+
+    // Gold range: [min, max]
+    if (Array.isArray(table.gold) && table.gold.length === 2) {
+      const [min, max] = table.gold;
+      result.gold += min + Math.floor(Math.random() * (max - min + 1));
+    }
+
+    // Weighted random item rolls.
+    // Default keeps legacy behavior (duplicates allowed) unless table sets allowDuplicates: false.
+    const rolls = Number(table.rolls || 0);
+    const pool = Array.isArray(table.pool) ? table.pool : [];
+    if (pool.length && rolls > 0) {
+      const allowDuplicates = table.allowDuplicates !== false;
+      const sourcePool = allowDuplicates ? pool : [...pool];
+      const rollCount = allowDuplicates ? rolls : Math.min(rolls, sourcePool.length);
+      for (let r = 0; r < rollCount; r++) {
+        const totalWeight = sourcePool.reduce((s, e) => s + (Number(e.weight) || 1), 0);
+        let roll = Math.random() * totalWeight;
+        for (let i = 0; i < sourcePool.length; i++) {
+          const entry = sourcePool[i];
+          roll -= (Number(entry.weight) || 1);
+          if (roll <= 0) {
+            result.items.push({ ...entry });
+            if (!allowDuplicates) sourcePool.splice(i, 1);
+            break;
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
   static behaviorPresets = {
     standard: {
       canOpen: () => ({ ok: true }),
@@ -48,40 +88,8 @@ class ChestEntity extends InteractableEntity {
   // Resolve loot at open time: fixed loot + random rolls from table
   resolveLoot(lootTables) {
     if (this._resolvedLoot) return this._resolvedLoot;
-    const result = { gold: this.gold, items: [...this.loot] };
-
-    if (this.lootTable && lootTables) {
-      const table = lootTables[this.lootTable];
-      if (table) {
-        // Gold range: [min, max]
-        if (Array.isArray(table.gold) && table.gold.length === 2) {
-          const [min, max] = table.gold;
-          result.gold += min + Math.floor(Math.random() * (max - min + 1));
-        }
-        // Weighted random item rolls.
-        // Default keeps legacy behavior (duplicates allowed) unless table sets allowDuplicates: false.
-        const rolls = Number(table.rolls || 0);
-        const pool = Array.isArray(table.pool) ? table.pool : [];
-        if (pool.length && rolls > 0) {
-          const allowDuplicates = table.allowDuplicates !== false;
-          const sourcePool = allowDuplicates ? pool : [...pool];
-          const rollCount = allowDuplicates ? rolls : Math.min(rolls, sourcePool.length);
-          for (let r = 0; r < rollCount; r++) {
-            const totalWeight = sourcePool.reduce((s, e) => s + (Number(e.weight) || 1), 0);
-            let roll = Math.random() * totalWeight;
-            for (let i = 0; i < sourcePool.length; i++) {
-              const entry = sourcePool[i];
-              roll -= (Number(entry.weight) || 1);
-              if (roll <= 0) {
-                result.items.push({ ...entry });
-                if (!allowDuplicates) sourcePool.splice(i, 1);
-                break;
-              }
-            }
-          }
-        }
-      }
-    }
+    const table = (this.lootTable && lootTables) ? lootTables[this.lootTable] : null;
+    const result = ChestEntity.resolveTableLoot(this.gold, this.loot, table);
 
     this._resolvedLoot = result;
     this.looted = true;

@@ -246,6 +246,7 @@ Object.assign(GameScene.prototype, {
         });
         if (enemy.fa) this.tweens.add({ targets: enemy.fa, alpha: 0, duration: 300 });
         this.spawnFloat(enemy.tx * S + S / 2, enemy.ty * S - 10, 'DEFEATED!', '#f0c060', 700);
+        if(typeof this.handleEnemyDefeatLoot==='function') this.handleEnemyDefeatLoot(enemy);
         this.pStats.xp += enemy.xp || 50;
         this.checkLevelUp();
 
@@ -925,6 +926,7 @@ Object.assign(GameScene.prototype, {
         this.tweens.add({targets:[enemy.img,enemy.hpBg,enemy.hpFg,enemy.lbl,enemy.sightRing],alpha:0,duration:500,onComplete:()=>{[enemy.img,enemy.hpBg,enemy.hpFg,enemy.lbl,enemy.sightRing,enemy.fa].forEach(o=>{if(o&&o.destroy)o.destroy();});}});
         if(enemy.fa) this.tweens.add({targets:enemy.fa,alpha:0,duration:300});
         this.spawnFloat(enemy.tx*S+S/2,enemy.ty*S-10,'DEFEATED!','#f0c060',700);
+        if(typeof this.handleEnemyDefeatLoot==='function') this.handleEnemyDefeatLoot(enemy);
         CombatLog.log(`${enemy.displayName} defeated! +${enemy.xp||50} XP`,'player','combat');
         this.pStats.xp+=enemy.xp||50; this.checkLevelUp();
         if(this.combatGroup.every(e=>!e.alive)){ this.time.delayedCall(600,()=>this.exitCombat()); return; }
