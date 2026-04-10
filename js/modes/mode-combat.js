@@ -81,11 +81,7 @@ Object.assign(GameScene.prototype, {
   },
 
   _isEnemyAwareOfPlayer(enemy) {
-    if (!enemy || !enemy.alive) return false;
-    const dist = Math.sqrt((enemy.tx - this.playerTile.x) ** 2 + (enemy.ty - this.playerTile.y) ** 2);
-    if (dist > this.effectiveEnemySight(enemy)) return false;
-    if (!inFOV(enemy, this.playerTile.x, this.playerTile.y)) return false;
-    return hasLOS(enemy.tx, enemy.ty, this.playerTile.x, this.playerTile.y);
+    return this.canEnemySeePlayer(enemy);
   },
 
   _buildAlertedEnemySet(triggers, opts = {}) {
@@ -252,13 +248,10 @@ Object.assign(GameScene.prototype, {
         const wasHiddenKill = this.playerHidden;
         const witnesses = this.enemies.filter(e => {
           if (!e.alive || e === enemy) return false;
-          const sight = this.effectiveEnemySight(e);
           // Can see the player?
-          const dist = Math.sqrt((e.tx - this.playerTile.x) ** 2 + (e.ty - this.playerTile.y) ** 2);
-          if (dist <= sight && inFOV(e, this.playerTile.x, this.playerTile.y) && hasLOS(e.tx, e.ty, this.playerTile.x, this.playerTile.y)) return true;
+          if (this.canEnemySeePlayer(e)) return true;
           // Can see the kill location? (heard the body drop)
-          const dKill = Math.sqrt((e.tx - enemy.tx) ** 2 + (e.ty - enemy.ty) ** 2);
-          if (dKill <= sight && hasLOS(e.tx, e.ty, enemy.tx, enemy.ty)) return true;
+          if (this.canEnemySeeTile(e, enemy.tx, enemy.ty, {checkFOV:false})) return true;
           return false;
         });
 
@@ -1043,8 +1036,7 @@ Object.assign(GameScene.prototype, {
 
     if(COMBAT_RULES.fleeRequiresNoLOS!==false){
       const seen=alive.some(e=>{
-        const dist=Math.sqrt((e.tx-this.playerTile.x)**2+(e.ty-this.playerTile.y)**2);
-        return dist<=e.sight&&hasLOS(e.tx,e.ty,this.playerTile.x,this.playerTile.y);
+        return this.canEnemySeeTile(e,this.playerTile.x,this.playerTile.y,{checkFOV:false,useEffectiveSight:false});
       });
       if(seen) return { ok:false, reason:'Cannot flee while enemies still have line of sight.' };
     }
@@ -1217,10 +1209,7 @@ Object.assign(GameScene.prototype, {
       if(nearest<minDist) continue;
       // Check LOS from all enemies
       if(checkLOS){
-        const seen=alive.some(e=>{
-          const dist=Math.sqrt((e.tx-x)**2+(e.ty-y)**2);
-          return dist<=e.sight&&hasLOS(e.tx,e.ty,x,y);
-        });
+        const seen=alive.some(e=>this.canEnemySeeTile(e,x,y,{checkFOV:false,useEffectiveSight:false}));
         if(seen) continue;
       }
       const o=this.add.image(x*S+S/2,y*S+S/2,'t_flee').setDisplaySize(S,S).setDepth(16);

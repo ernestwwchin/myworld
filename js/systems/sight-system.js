@@ -1,5 +1,24 @@
 // Sight overlays, enemy detection, and detection markers extracted from GameScene.
 const GameSceneSightSystem = {
+
+  // ── Core sight utilities ─────────────────────────────
+  // Can enemy see a specific tile?
+  // opts.checkFOV (default true) — include facing/FOV cone check
+  // opts.useEffectiveSight (default true) — apply light/hidden sight penalties
+  canEnemySeeTile(enemy, tx, ty, opts = {}) {
+    if (!enemy || !enemy.alive) return false;
+    const { checkFOV = true, useEffectiveSight = true } = opts;
+    const dist = Math.sqrt((enemy.tx - tx) ** 2 + (enemy.ty - ty) ** 2);
+    const sightRange = useEffectiveSight ? this.effectiveEnemySight(enemy) : enemy.sight;
+    if (dist > sightRange) return false;
+    if (checkFOV && !inFOV(enemy, tx, ty)) return false;
+    return hasLOS(enemy.tx, enemy.ty, tx, ty);
+  },
+
+  canEnemySeePlayer(enemy) {
+    return this.canEnemySeeTile(enemy, this.playerTile.x, this.playerTile.y);
+  },
+
   drawSightOverlays() {
     this.clearSightOverlays();
     if (!this.isExploreMode() || !this.enemySightEnabled) {
@@ -38,10 +57,7 @@ const GameSceneSightSystem = {
     if (!this.isExploreMode()) return;
     const seenBy = this.enemies.filter(e => {
       if (!e.alive || e.inCombat) return false;
-      const dist = Math.sqrt((e.tx - this.playerTile.x) ** 2 + (e.ty - this.playerTile.y) ** 2);
-      if (dist > this.effectiveEnemySight(e)) return false;
-      if (!inFOV(e, this.playerTile.x, this.playerTile.y)) return false;
-      return hasLOS(e.tx, e.ty, this.playerTile.x, this.playerTile.y);
+      return this.canEnemySeePlayer(e);
     });
     if (!seenBy.length) return;
 

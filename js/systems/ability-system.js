@@ -161,14 +161,10 @@ const GameSceneAbilitySystem = {
   // Returns { spotted, reason } or { spotted: false }.
   _stealthContestEnemy(enemy) {
     if (!enemy.alive) return { spotted: false };
-    const px = this.playerTile.x, py = this.playerTile.y;
-    const dist = Math.sqrt((enemy.tx - px) ** 2 + (enemy.ty - py) ** 2);
-    const sightRange = this.effectiveEnemySight(enemy);
-    if (dist > sightRange) return { spotted: false };
-    if (!inFOV(enemy, px, py)) return { spotted: false };
-    if (!hasLOS(enemy.tx, enemy.ty, px, py)) return { spotted: false };
+    if (!this.canEnemySeePlayer(enemy)) return { spotted: false };
 
     // Light at player position
+    const px = this.playerTile.x, py = this.playerTile.y;
     const light = this.tileLightLevel(px, py);
 
     // Bright light + in FOV + LOS → auto-spotted (no check)
@@ -185,6 +181,7 @@ const GameSceneAbilitySystem = {
 
     // Dim light with darkvision or dark with darkvision → normal contest
     // Adjacent (dist <= 1.5) → Perception gets +5 (proximity awareness)
+    const dist = Math.sqrt((enemy.tx - px) ** 2 + (enemy.ty - py) ** 2);
     const proxBonus = dist <= 1.5 ? 5 : 0;
     const effectivePerception = perception + proxBonus;
 
@@ -274,12 +271,7 @@ const GameSceneAbilitySystem = {
 
     // Bright light: cannot hide if ANY enemy has LOS+FOV
     if (light === 2) {
-      const exposed = this.enemies.some(e => {
-        if (!e.alive) return false;
-        const d = Math.sqrt((e.tx - this.playerTile.x) ** 2 + (e.ty - this.playerTile.y) ** 2);
-        return d <= e.sight && inFOV(e, this.playerTile.x, this.playerTile.y)
-          && hasLOS(e.tx, e.ty, this.playerTile.x, this.playerTile.y);
-      });
+      const exposed = this.enemies.some(e => e.alive && this.canEnemySeePlayer(e));
       if (exposed) {
         this.showStatus('Too exposed! Cannot hide in bright light within enemy sight.');
         return;
@@ -298,10 +290,7 @@ const GameSceneAbilitySystem = {
     let spottersList = [];
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
-      const d = Math.sqrt((enemy.tx - this.playerTile.x) ** 2 + (enemy.ty - this.playerTile.y) ** 2);
-      if (d > enemy.sight) continue;
-      if (!inFOV(enemy, this.playerTile.x, this.playerTile.y)) continue;
-      if (!hasLOS(enemy.tx, enemy.ty, this.playerTile.x, this.playerTile.y)) continue;
+      if (!this.canEnemySeePlayer(enemy)) continue;
       const hasDV = !!(enemy.traits?.darkvision || enemy.darkvision);
       if (light === 0 && !hasDV) continue;
       const perception = this.getEnemyPassivePerception(enemy);
