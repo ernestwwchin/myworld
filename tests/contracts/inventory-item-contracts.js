@@ -40,7 +40,7 @@ function testItemDefinitionContracts() {
   const modloaderSrc = fs.readFileSync(path.join(root, 'js', 'modloader.js'), 'utf8');
   assert.ok(modloaderSrc.includes('applyItems(modData)'));
 
-  const invSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'inventory-system.js'), 'utf8');
+   const invSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'inventory-system.js'), 'utf8');
   assert.ok(invSrc.includes('ITEM_DEFS[item.id]'));
 }
 
