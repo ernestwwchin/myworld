@@ -15,7 +15,11 @@ module.exports = defineConfig({
     viewport: { width: 1400, height: 900 },
   },
   webServer: {
-    command: `PORT=${E2E_PORT} npm start`,
+    command: 'npm start',
+    env: {
+      ...process.env,
+      PORT: String(E2E_PORT),
+    },
     url: E2E_BASE_URL,
     reuseExistingServer: true,
     timeout: 30000,
