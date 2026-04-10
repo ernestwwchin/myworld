@@ -269,11 +269,4 @@ Object.assign(GameScene.prototype, {
     return kind;
   },
 
-  // Legacy aliases
-  doorKey(x, y) { return this._entityKey(x, y); },
-  initInteractables() { /* handled by initEntities */ },
-  initDoorStates() { /* handled by initEntities */ },
-  getInteractableById(id) { return this.getEntityById(id); },
-  getInteractableAt(x, y, kind) { return this.getEntityAt(x, y, kind); },
-
 });

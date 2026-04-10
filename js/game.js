@@ -101,6 +101,28 @@ class GameScene extends Phaser.Scene {
     return this.hasEntityType(x, y, 'chest');
   }
 
+  /** Check if a tile blocks movement.
+   * @param {'passable'|'closed'|false} [opts.doorMode='passable']
+   *   'passable' — blocks when !isDoorPassable (locked+closed; player pathing)
+   *   'closed'   — blocks when isDoorClosed (any closed door; enemy/keyboard)
+   *   false      — skip door checks
+   * @param {Object} [opts.excludeEnemy] enemy to exclude from check
+   * @param {boolean} [opts.skipEnemies] skip enemy blocking entirely */
+  isBlockedTile(x, y, { doorMode = 'passable', excludeEnemy = null, skipEnemies = false } = {}) {
+    if (this.isWallTile(x, y)) return true;
+    if (doorMode === 'passable' && this.isDoorTile(x, y) && !this.isDoorPassable(x, y)) return true;
+    if (doorMode === 'closed' && this.isDoorTile(x, y) && this.isDoorClosed(x, y)) return true;
+    if (!skipEnemies && this.enemies.some(e => e.alive && e.tx === x && e.ty === y && e !== excludeEnemy)) return true;
+    return false;
+  }
+
+  /** Check if diagonal movement from (ox,oy) to (nx,ny) is valid (no corner-cutting). */
+  canMoveDiagonal(ox, oy, nx, ny) {
+    const hBlk = this.isWallTile(nx, oy) || (this.isDoorTile(nx, oy) && this.isDoorClosed(nx, oy));
+    const vBlk = this.isWallTile(ox, ny) || (this.isDoorTile(ox, ny) && this.isDoorClosed(ox, ny));
+    return !(hBlk && vBlk);
+  }
+
   // cancelCurrentMove — implemented in movement-system.js
 
   preload(){ generateSprites(this); }
@@ -126,7 +148,7 @@ class GameScene extends Phaser.Scene {
     this.detectMarkers=[];
     this.combatGroup=[]; this.turnOrder=[]; this.turnIndex=0;
     this.playerAP=1; this.playerMoves=Number(COMBAT_RULES.playerMovePerTurn||5); this.playerMovesUsed=0;
-    this.pendingAction=null; this.wanderTimer=0;
+    this.pendingAction=null;
     this.diceWaiting=false; this._afterPlayerDice=null;
     this.turnStartTile={...PLAYER_STATS.startTile};
     this.enemySightEnabled=true;
@@ -240,7 +262,9 @@ class GameScene extends Phaser.Scene {
 
     // input
     const hz=this.add.zone(0,0,COLS*S,ROWS*S).setOrigin(0,0).setDepth(0).setInteractive();
-    hz.on('pointerdown',ptr=>this.onTap(ptr));
+    hz.on('pointerdown',ptr=>this._onHzPointerDown(ptr));
+    this.input.on('pointermove',ptr=>this._onHzPointerMove(ptr));
+    this.input.on('pointerup',()=>this._onHzPointerUp());
     this.initInputHandlers();
 
     this.cursors=this.input.keyboard.createCursorKeys();
@@ -934,7 +958,10 @@ class GameScene extends Phaser.Scene {
   // ─────────────────────────────────────────
   update(time,delta){
     if(this.diceWaiting){ this.keyDelay=0; return; }
-    if(!this.isExploreMode()||this.isMoving) return;
+    if(!this.isExploreMode()) return;
+    // Hold-to-move: step toward cursor each time player finishes a tile
+    if(this._holdMoveActive&&!this.isMoving){ this._holdMoveStep(); return; }
+    if(this.isMoving) return;
     if(this.mode===MODE.EXPLORE_TB) this.updateExploreTB(delta);
     else this.updateExplore(delta);
   }

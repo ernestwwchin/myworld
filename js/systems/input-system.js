@@ -64,6 +64,42 @@ const GameSceneInputSystem = {
     if(this.mode===MODE.EXPLORE_TB){ this.onTapExploreTB(tx,ty,enemy,ptr); return; }
     this.onTapExplore(tx,ty,enemy,ptr);
   },
+
+  // ── Hold-to-move (BG3-style) ──────────────────────────
+  // Pointer held >200ms on walkable ground → character walks toward cursor.
+  _holdMoveThreshold: 200,
+  _holdMoveActive: false,
+  _holdWorldX: 0,
+  _holdWorldY: 0,
+  _holdTimer: null,
+
+  _onHzPointerDown(ptr){
+    if(ptr.button!==0) return;
+    // Fire tap immediately (pathfind / interact / dismiss)
+    this.onTap(ptr);
+    // Start hold-to-move timer (explore-realtime only)
+    if(this._holdTimer){ this._holdTimer.remove(); this._holdTimer=null; }
+    this._holdWorldX=ptr.worldX;
+    this._holdWorldY=ptr.worldY;
+    this._holdTimer=this.time.delayedCall(this._holdMoveThreshold,()=>{
+      this._holdTimer=null;
+      if(!this.isExploreMode()||this.mode===MODE.EXPLORE_TB||this.mode===MODE.COMBAT) return;
+      this._holdMoveActive=true;
+      // Truncate existing path so update loop takes over after current step
+      if(this.movePath.length>0){ this.movePath=[]; this.clearPathDots(); }
+    });
+  },
+
+  _onHzPointerMove(ptr){
+    if(!this._holdMoveActive) return;
+    this._holdWorldX=ptr.worldX;
+    this._holdWorldY=ptr.worldY;
+  },
+
+  _onHzPointerUp(){
+    if(this._holdTimer){ this._holdTimer.remove(); this._holdTimer=null; }
+    this._holdMoveActive=false;
+  },
 };
 
 Object.assign(GameScene.prototype, GameSceneInputSystem);

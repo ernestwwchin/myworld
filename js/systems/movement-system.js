@@ -31,7 +31,7 @@ Object.assign(GameScene.prototype, {
   setDestination(tx,ty,onArrival){
     // Hidden movement: allowed (BG3-style). checkSight per step handles contests.
     if(this.enemies.some(e=>e.alive&&e.tx===tx&&e.ty===ty)) return;
-    const blk=(x,y)=>this.isWallTile(x,y)||(this.isDoorTile(x,y)&&!this.isDoorPassable(x,y))||this.enemies.some(e=>e.alive&&e.tx===x&&e.ty===y);
+    const blk=(x,y)=>this.isBlockedTile(x,y);
     const path=bfs(this.playerTile.x,this.playerTile.y,tx,ty,blk);
     if(!path.length) return;
     this.tweens.killTweensOf(this.player);
@@ -133,8 +133,7 @@ Object.assign(GameScene.prototype, {
       let chosenDir=null;
 
       if(forceStep){
-        const block=(x,y)=>this.isWallTile(x,y)||(this.isDoorTile(x,y)&&this.isDoorClosed(x,y))||
-          this.enemies.some(o=>o!==e&&o.alive&&o.tx===x&&o.ty===y);
+        const block=(x,y)=>this.isBlockedTile(x,y,{doorMode:'closed',excludeEnemy:e});
         const chase=bfs(e.tx,e.ty,this.playerTile.x,this.playerTile.y,block);
         if(chase.length){
           const c=chase[0];
@@ -151,8 +150,7 @@ Object.assign(GameScene.prototype, {
         }
         // BFS one step toward the next waypoint
         const tgt=e.ai.patrolPath[e._patrolIdx];
-        const block=(x,y)=>this.isWallTile(x,y)||(this.isDoorTile(x,y)&&this.isDoorClosed(x,y))||
-          this.enemies.some(o=>o!==e&&o.alive&&o.tx===x&&o.ty===y);
+        const block=(x,y)=>this.isBlockedTile(x,y,{doorMode:'closed',excludeEnemy:e});
         const path=bfs(e.tx,e.ty,tgt.x,tgt.y,block);
         if(path.length) chosenDir={x:path[0].x-e.tx,y:path[0].y-e.ty};
       }
@@ -162,16 +160,8 @@ Object.assign(GameScene.prototype, {
       for(const d of candidateDirs){
         const nx=e.tx+d.x, ny=e.ty+d.y;
         if(nx<0||ny<0||nx>=COLS||ny>=ROWS) continue;
-        if(this.isWallTile(nx,ny)) continue;
-        // [BUG-5 fix] Enemies respect closed doors while wandering
-        if(this.isDoorTile(nx,ny)&&this.isDoorClosed(nx,ny)) continue;
-        // Diagonal: skip corner cuts
-        if(d.x!==0&&d.y!==0){
-          const hBlk=this.isWallTile(nx,e.ty)||(this.isDoorTile(nx,e.ty)&&this.isDoorClosed(nx,e.ty));
-          const vBlk=this.isWallTile(e.tx,ny)||(this.isDoorTile(e.tx,ny)&&this.isDoorClosed(e.tx,ny));
-          if(hBlk&&vBlk) continue;
-        }
-        if(this.enemies.some(o=>o!==e&&o.alive&&o.tx===nx&&o.ty===ny)) continue;
+        if(this.isBlockedTile(nx,ny,{doorMode:'closed',excludeEnemy:e})) continue;
+        if(d.x!==0&&d.y!==0&&!this.canMoveDiagonal(e.tx,e.ty,nx,ny)) continue;
         if(nx===this.playerTile.x&&ny===this.playerTile.y) continue;
         e.tx=nx; e.ty=ny;
         e.facing=Math.atan2(d.y,d.x)*180/Math.PI;

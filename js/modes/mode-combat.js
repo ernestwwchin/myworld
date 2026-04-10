@@ -54,10 +54,7 @@ Object.assign(GameScene.prototype, {
       { x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 },
       { x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 },
     ];
-    const moveBlk = (x, y) =>
-      this.isWallTile(x, y) ||
-      (this.isDoorTile(x, y) && !this.isDoorPassable(x, y)) ||
-      this.enemies.some((e) => e.alive && e.tx === x && e.ty === y);
+    const moveBlk = (x, y) => this.isBlockedTile(x, y);
 
     let best = null;
     for (const d of dirs) {
@@ -960,7 +957,7 @@ Object.assign(GameScene.prototype, {
     if(this.playerMoves<=0){ this.showStatus('No movement left.'); return; }
 
     const dirs=[{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
-    const moveBlk=(x,y)=>this.isWallTile(x,y)||this.enemies.some(e=>e.alive&&e.tx===x&&e.ty===y);
+    const moveBlk=(x,y)=>this.isBlockedTile(x,y,{doorMode:false});
     let bestReachPath=null, bestReachAdj=null;
     let bestAnyPath=null;
     for(const d of dirs){
@@ -1128,7 +1125,7 @@ Object.assign(GameScene.prototype, {
       if(this.isWallTile(tx,ty)) continue;
       if(tx===px&&ty===py) continue;
       if(this.enemies.some(e=>e.alive&&e.tx===tx&&e.ty===ty)) continue;
-      const moveBlk=(x,y)=>this.isWallTile(x,y)||this.enemies.some(e=>e.alive&&e.tx===x&&e.ty===y);
+      const moveBlk=(x,y)=>this.isBlockedTile(x,y,{doorMode:false});
       const path=bfs(px,py,tx,ty,moveBlk);
       if(path.length&&path.length<=range){
         const o=this.add.image(tx*S+S/2,ty*S+S/2,'t_move').setDisplaySize(S,S).setDepth(3);
@@ -1145,7 +1142,7 @@ Object.assign(GameScene.prototype, {
     const px=this.playerTile.x, py=this.playerTile.y;
     const atkRange=this.pStats.atkRange||1;
     const moves=this.playerMoves||0;
-    const moveBlk=(x,y)=>this.isWallTile(x,y)||this.enemies.some(e=>e.alive&&e.tx===x&&e.ty===y);
+    const moveBlk=(x,y)=>this.isBlockedTile(x,y,{doorMode:false});
 
     // BFS to find all reachable tiles within movement range
     const reachable=new Map(); // key "x,y" → cost
