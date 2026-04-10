@@ -231,9 +231,9 @@ const Hotbar = {
     const baGroup = document.getElementById('rp-bonus');
     if (baGroup) {
       const total = 1;
-      // TODO: track bonus action usage
+      const used = s.playerBA <= 0 ? total : 0;
       let html = '<span class="rp-label">BA</span>';
-      for (let i = 0; i < total; i++) html += `<div class="rp-pip bonus"></div>`;
+      for (let i = 0; i < total; i++) html += `<div class="rp-pip bonus${i < used ? ' spent' : ''}"></div>`;
       baGroup.innerHTML = html;
     }
 

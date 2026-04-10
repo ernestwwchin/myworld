@@ -22,7 +22,7 @@ This document provides a comprehensive index of all documentation in the project
 - **[API Documentation](#api-documentation)** - Technical references
 - **[Testing](#testing)** - Test frameworks and patterns
 - **[BUGS.md](BUGS.md)** - Known bugs and immediate fixes needed
-- **[TODO (repo memory)](/memories/repo/TODO.md)** - Full feature roadmap
+- **[BUGS.md](BUGS.md)** - Known bugs and resolved issues
 
 ## Reference Documents
 
@@ -74,19 +74,30 @@ This document provides a comprehensive index of all documentation in the project
 
 ```
 js/
-├── game.js                 # Main game scene (1700+ lines)
+├── game.js                 # Main game scene
+├── config.js               # Game configuration & constants
 ├── systems/                # Modular game systems
 │   ├── fog-system.js       # Fog of war & visibility
 │   ├── sight-system.js     # Sight overlays & detection
-│   ├── explore-tb-system.js # Turn-based exploration
-│   ├── movement-system.js  # Player movement (planned)
-│   ├── wander-system.js    # Enemy wandering (planned)
-│   ├── combat-system.js    # Combat mechanics (planned)
-│   ├── ability-system.js   # Ability system
-│   └── combat-init-system.js # Combat initialization
+│   ├── ability-system.js   # Stealth, hide, abilities
+│   ├── damage-system.js    # Damage calculation
+│   ├── status-effect-system.js # Buffs/debuffs
+│   ├── movement-system.js  # Player movement
+│   ├── entity-system.js    # Entity management
+│   ├── input-system.js     # Input handling
+│   ├── light-system.js     # Dynamic lighting
+│   ├── chest-handler.js    # Chest interactions
+│   ├── door-handler.js     # Door interactions
+│   ├── dialog-runner.js    # Dialog system
+│   ├── event-runner.js     # Scripted event runner
+│   └── flags.js            # Persistent game flags
+├── modes/                  # Game mode controllers
+│   ├── mode-explore.js     # Real-time exploration
+│   ├── mode-explore-tb.js  # Turn-based exploration
+│   └── mode-combat.js      # Combat mode
 ├── ui/
-│   └── core-ui.js          # UI components & interactions
-├── config.js               # Game configuration & constants
+│   ├── core-ui.js          # UI components & interactions
+│   └── hotbar.js           # Combat hotbar & resource pips
 └── data/                   # Game data (YAML files)
     ├── core/               # Core game content
     └── player.yaml         # Player configuration
@@ -129,11 +140,16 @@ js/
 
 ```
 tests/
-├── run-tests.js            # Main test runner
-├── test-fog-system.js      # Fog system unit tests
-├── test-sight-system.js    # Sight system unit tests (planned)
-├── test-explore-tb.js      # Explore TB tests (planned)
-└── autoplay.js             # Integration test scenarios
+├── unit/                   # Unit tests
+│   ├── pure/               # Pure logic tests (no DOM)
+│   └── sandbox/            # VM sandbox tests
+├── e2e/                    # Playwright browser tests
+│   ├── combat.spec.js
+│   ├── movement.spec.js
+│   ├── inventory.spec.js
+│   ├── chests.spec.js
+│   └── ...
+└── contracts/              # Contract & schema validation tests
 ```
 
 ### Test Categories

@@ -86,8 +86,8 @@ const GameSceneSightSystem = {
     const scale = Number(COMBAT_RULES.enemySightScale || 1);
     let s = Math.max(1, Math.round(enemy.sight * scale));
     const light = this.tileLightLevel(this.playerTile.x, this.playerTile.y);
-    if (light === 0) s -= Number(LIGHT_RULES.darkSightPenalty || 3);
-    else if (light === 1) s -= Number(LIGHT_RULES.dimSightPenalty || 1);
+    if (light === 0) s -= Number(LIGHT_RULES.darkSightPenalty ?? 3);
+    else if (light === 1) s -= Number(LIGHT_RULES.dimSightPenalty ?? 0);
     if (this.playerHidden) s -= Number(LIGHT_RULES.hiddenSightPenalty || 2);
     return Math.max(1, s);
   },

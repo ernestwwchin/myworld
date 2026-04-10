@@ -35,17 +35,30 @@ hasLOS(sx,sy,tx,ty)  // Line of sight check
 
 ```
 js/
-├── game.js              # Main GameScene (being modularized)
+├── game.js              # Main GameScene
 ├── config.js            # Constants, dnd helper, rules
-├── autoplay.js          # Integration test scenarios
 ├── systems/             # Extracted game systems
 │   ├── fog-system.js
 │   ├── sight-system.js
-│   ├── explore-tb-system.js
 │   ├── ability-system.js
-│   └── combat-init-system.js
+│   ├── damage-system.js
+│   ├── status-effect-system.js
+│   ├── movement-system.js
+│   ├── entity-system.js
+│   ├── input-system.js
+│   ├── light-system.js
+│   ├── chest-handler.js
+│   ├── door-handler.js
+│   ├── dialog-runner.js
+│   ├── event-runner.js
+│   └── flags.js
+├── modes/               # Game mode controllers
+│   ├── mode-explore.js
+│   ├── mode-explore-tb.js
+│   └── mode-combat.js
 ├── ui/
-│   └── core-ui.js       # UI components
+│   ├── core-ui.js       # UI components
+│   └── hotbar.js        # Combat hotbar & resource pips
 data/
 ├── core/                # weapons.yaml, creatures.yaml, etc.
 ├── player.yaml
@@ -54,8 +67,9 @@ docs/
 ├── skills/              # AI skills documentation (this folder)
 ├── modding_guide.md
 tests/
-├── run-tests.js         # Main test runner
-└── test-*.js            # Individual test files
+├── unit/                # Unit tests (pure/, sandbox/)
+├── e2e/                 # Playwright browser tests
+└── contracts/           # Contract/schema tests
 ```
 
 ## Quick Commands
