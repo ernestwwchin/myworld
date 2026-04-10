@@ -15,6 +15,7 @@ class ChestEntity extends InteractableEntity {
     }
 
     // Weighted random item rolls.
+    // Each item can have rolls:N to add N copies when selected (default 1).
     // Default keeps legacy behavior (duplicates allowed) unless table sets allowDuplicates: false.
     const rolls = Number(table.rolls || 0);
     const pool = Array.isArray(table.pool) ? table.pool : [];
@@ -29,7 +30,16 @@ class ChestEntity extends InteractableEntity {
           const entry = sourcePool[i];
           roll -= (Number(entry.weight) || 1);
           if (roll <= 0) {
-            result.items.push({ ...entry });
+            // Resolve item rolls: can be a single number or array of choices
+            let itemRolls;
+            if (Array.isArray(entry.rolls)) {
+              itemRolls = entry.rolls[Math.floor(Math.random() * entry.rolls.length)];
+            } else {
+              itemRolls = Number(entry.rolls || 1);
+            }
+            for (let c = 0; c < itemRolls; c++) {
+              result.items.push({ ...entry });
+            }
             if (!allowDuplicates) sourcePool.splice(i, 1);
             break;
           }
