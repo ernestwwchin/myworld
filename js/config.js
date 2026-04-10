@@ -9,7 +9,7 @@ const TILE = { FLOOR:0, WALL:1, DOOR:3, CHEST:4, STAIRS:5, WATER:6, GRASS:7 };
 
 // ── Grid & Display ───────────────────────────────────
 const S    = 48;  // tile size in pixels (default; overridden by rules.yaml display.tileSize)
-const MODE = { EXPLORE:'explore', EXPLORE_TB:'explore_tb', COMBAT:'combat' };
+const MODE = { EXPLORE:'explore', COMBAT:'combat' };
 
 // ── Combat behavior tuning ──────────────────────────
 const COMBAT_RULES = {

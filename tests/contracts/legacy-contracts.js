@@ -134,19 +134,13 @@ function testCombatInitSystemContracts() {
   assert.ok(src.includes('findApproachPathToEnemy('), 'combat-init missing approach path helper');
   assert.ok(src.includes('tryEngageEnemyFromExplore('), 'combat-init missing engage flow entry');
   assert.ok(src.includes('executeEngageOpenerAttack('), 'combat-init missing opener attack handler');
-  assert.ok(src.includes('this._returnToExploreTB = this.mode === MODE.EXPLORE_TB;'), 'combat-init missing return-to-explore-tb promotion state');
-  assert.ok(src.includes('if (!this.isExploreMode()) return;'), 'combat-init should allow both explore modes via isExploreMode');
+  assert.ok(src.includes('if (!this.isExploreMode()) return;'), 'combat-init should allow explore mode via isExploreMode');
 }
 
 function testExploreTurnBasedContracts() {
-  // Methods in mode-explore-tb.js
+  // TB exploration mode removed in v2 — verify it's gone
   const etbPath = path.join(root, 'js', 'modes', 'mode-explore-tb.js');
-  const src = fs.readFileSync(etbPath, 'utf8');
-
-  assert.ok(src.includes('toggleExploreTurnBased()'), 'explore-tb-system missing explore TB toggle');
-  assert.ok(src.includes('beginExploreTurnBasedPlayerTurn()'), 'explore-tb-system missing explore TB player turn start');
-  assert.ok(src.includes('runExploreTurnBasedEnemyPhase()'), 'explore-tb-system missing explore TB enemy phase');
-  assert.ok(src.includes('this._exploreTBMovesRemaining = 1;'), 'explore TB should grant bounded movement per turn');
+  assert.ok(!fs.existsSync(etbPath), 'mode-explore-tb.js should be deleted');
 }
 
 // ── Mod system tests (from claude/add-claude-documentation merge) ──
@@ -548,34 +542,16 @@ function testEngageAndAutoplayContracts() {
   const autoplaySrc = fs.readFileSync(autoplayPath, 'utf8');
   assert.ok(autoplaySrc.includes('test_engage_flow'), 'autoplay missing engage_flow scenario');
   assert.ok(autoplaySrc.includes('test_engage_adjacent'), 'autoplay missing engage_adjacent scenario');
-  assert.ok(autoplaySrc.includes('test_explore_turn_based'), 'autoplay missing explore_turn_based scenario');
   assert.ok(autoplaySrc.includes('test_alert_locality'), 'autoplay missing alert_locality scenario');
 }
 
 function testAutoTBTargetingContracts() {
+  // Auto-TB targeting removed in v2 — verify cleanup
   const combatSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'mode-combat.js'), 'utf8');
-
-  // selectAction must auto-switch to TB when entering attack targeting in explore
-  assert.ok(combatSrc.includes('this._targetingAutoTB=true;'),
-    'selectAction should set _targetingAutoTB flag before switching to TB');
-  assert.ok(combatSrc.includes('this.toggleExploreTurnBased();'),
-    'selectAction should call toggleExploreTurnBased when auto-switching');
-  // Must only auto-switch from real-time explore, not if already in TB
-  assert.ok(combatSrc.includes('if(this.mode===MODE.EXPLORE){'),
-    'auto-TB should only trigger from real-time explore mode');
-
-  // clearPendingAction must revert to real-time explore if auto-TB was set
-  assert.ok(combatSrc.includes('this._targetingAutoTB && this.mode===MODE.EXPLORE_TB'),
-    'clearPendingAction should check _targetingAutoTB and current mode before reverting');
-  // Flag must be cleared regardless
-  const clearBlock = combatSrc.substring(combatSrc.indexOf('clearPendingAction()'));
-  assert.ok(clearBlock.includes('this._targetingAutoTB=false;'),
-    'clearPendingAction must always clear _targetingAutoTB flag');
-
-  // explore-tb toggleExploreTurnBased must clear _targetingAutoTB on manual toggle
-  const etbSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'mode-explore-tb.js'), 'utf8');
-  assert.ok(etbSrc.includes('this._targetingAutoTB') && etbSrc.includes('this._targetingAutoTB=false'),
-    'toggleExploreTurnBased should clear _targetingAutoTB on manual toggle');
+  assert.ok(!combatSrc.includes('toggleExploreTurnBased'),
+    'mode-combat should no longer reference toggleExploreTurnBased');
+  assert.ok(combatSrc.includes('this._targetingAutoTB=false;'),
+    'clearPendingAction must still clear _targetingAutoTB flag');
 }
 
 function testCommandStripTBButton() {

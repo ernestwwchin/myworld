@@ -42,7 +42,6 @@ function testWeaponDataReferences(dnd) {
 function testExploreTurnBasedModeConstant(MODE) {
   assert.strictEqual(MODE.EXPLORE, 'explore');
   assert.strictEqual(MODE.COMBAT, 'combat');
-  assert.strictEqual(MODE.EXPLORE_TB, 'explore_tb');
 }
 
 function testCoreTestMeta() {

@@ -121,16 +121,6 @@ function toggleEnemySight() {
   btn.classList.toggle('off', !enabled);
 }
 
-function toggleExploreTurnBased() {
-  const scene = game && game.scene && game.scene.getScene('GameScene');
-  if (!scene || typeof scene.toggleExploreTurnBased !== 'function') return;
-  const mode = scene.toggleExploreTurnBased();
-  const btn = document.getElementById('tb-btn');
-  if (!btn) return;
-  const on = mode === MODE.EXPLORE_TB;
-  btn.textContent = on ? '⏱ TB ON' : '⏱ TB OFF';
-  btn.classList.toggle('off', !on);
-}
 document.addEventListener('click', e => {
   const p = document.getElementById('stats-panel'), b = document.getElementById('stats-btn');
   if (p.classList.contains('open') && !p.contains(e.target) && e.target !== b) p.classList.remove('open');
