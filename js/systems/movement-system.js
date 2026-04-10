@@ -101,7 +101,7 @@ Object.assign(GameScene.prototype, {
             this.time.delayedCall(300,()=>ModLoader.transitionToStage(nextStage,this));
             return;
           } else {
-            this.showStatus('The stairs lead deeper... but the way is not yet open.');
+            this.showStatus('These stairs are not linked yet (nextStage is missing for this floor).');
           }
         }
         if(this.mode===MODE.COMBAT&&!this.onArrival){
