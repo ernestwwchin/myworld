@@ -370,7 +370,13 @@ Object.assign(GameScene.prototype, {
     this.syncEnemySightRings(false);
     this.updateFogOfWar();
     CombatLog.logSep('COMBAT');
-    CombatLog.log(`Combat started — ${alerted?.size ?? this.combatGroup.length} enemies`, 'system', 'combat');
+    const enemyNames = this.combatGroup
+      .map((e) => e?.displayName || e?.name || e?.type || e?.id || 'Unknown')
+      .filter(Boolean);
+    const enemyLabel = enemyNames.length
+      ? `${enemyNames.length} ${enemyNames.length === 1 ? 'enemy' : 'enemies'} (${enemyNames.join(', ')})`
+      : `${alerted?.size ?? this.combatGroup.length} enemies`;
+    CombatLog.log(`Combat started — ${enemyLabel}`, 'system', 'combat');
     this.time.delayedCall(700, () => { this.buildInitBar(); this.startNextTurn(); });
   },
 
