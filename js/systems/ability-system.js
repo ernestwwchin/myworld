@@ -158,8 +158,9 @@ const GameSceneAbilitySystem = {
   },
 
   // Check if a specific enemy can see the player through stealth.
-  // Returns { spotted, reason } or { spotted: false }.
-  _stealthContestEnemy(enemy) {
+  // Returns { spotted, reason, perception } or { spotted: false }.
+  // If stealthRoll is provided, uses that instead of stored playerStealthRoll.
+  _stealthContestEnemy(enemy, stealthRoll) {
     if (!enemy.alive) return { spotted: false };
     if (!this.canEnemySeePlayer(enemy)) return { spotted: false };
 
@@ -176,7 +177,8 @@ const GameSceneAbilitySystem = {
     const hasDarkvision = !!(enemy.traits?.darkvision || enemy.darkvision);
     if (light === 0 && !hasDarkvision) return { spotted: false };
 
-    // Contested: stored Stealth roll vs enemy Passive Perception
+    // Contested: stealth roll vs enemy Passive Perception
+    const roll = stealthRoll ?? this.playerStealthRoll;
     const perception = this.getEnemyPassivePerception(enemy);
 
     // Dim light with darkvision or dark with darkvision → normal contest
@@ -185,7 +187,7 @@ const GameSceneAbilitySystem = {
     const proxBonus = dist <= 1.5 ? 5 : 0;
     const effectivePerception = perception + proxBonus;
 
-    if (this.playerStealthRoll < effectivePerception) {
+    if (roll < effectivePerception) {
       return { spotted: true, reason: 'perception', perception: effectivePerception };
     }
     return { spotted: false };
@@ -230,19 +232,17 @@ const GameSceneAbilitySystem = {
     this.setActionButtonsUsed(true);
 
     // Immediate check: can any combat enemy see through this roll?
-    let spotted = false;
-    let spottersList = [];
+    const spotters = [];
     for (const enemy of this.combatGroup) {
-      if (!enemy.alive) continue;
-      const perception = this.getEnemyPassivePerception(enemy);
-      if (stealthRoll.total < perception) {
-        spotted = true;
-        spottersList.push(`${enemy.displayName||enemy.type} (Perception ${perception})`);
+      const result = this._stealthContestEnemy(enemy, stealthRoll.total);
+      if (result.spotted) {
+        const tag = result.reason === 'bright_light' ? 'bright light' : `Perception ${result.perception}`;
+        spotters.push(`${enemy.displayName||enemy.type} (${tag})`);
       }
     }
 
-    if (spotted) {
-      this.showStatus(`Failed to hide (Stealth ${stealthRoll.total}). Spotted by: ${spottersList.join(', ')}`);
+    if (spotters.length) {
+      this.showStatus(`Failed to hide (Stealth ${stealthRoll.total}). Spotted by: ${spotters.join(', ')}`);
       return;
     }
 
@@ -286,23 +286,18 @@ const GameSceneAbilitySystem = {
     if (light === 0) stealthTotal += 5;
 
     // Immediate contest vs nearby enemies who can see this tile
-    let spotted = false;
-    let spottersList = [];
+    const spotters = [];
     for (const enemy of this.enemies) {
-      if (!enemy.alive) continue;
-      if (!this.canEnemySeePlayer(enemy)) continue;
-      const hasDV = !!(enemy.traits?.darkvision || enemy.darkvision);
-      if (light === 0 && !hasDV) continue;
-      const perception = this.getEnemyPassivePerception(enemy);
-      if (stealthTotal < perception) {
-        spotted = true;
-        spottersList.push(`${enemy.displayName||enemy.type} (Perception ${perception})`);
+      const result = this._stealthContestEnemy(enemy, stealthTotal);
+      if (result.spotted) {
+        const tag = result.reason === 'bright_light' ? 'bright light' : `Perception ${result.perception}`;
+        spotters.push(`${enemy.displayName||enemy.type} (${tag})`);
       }
     }
 
-    if (spotted) {
+    if (spotters.length) {
       const lightLabel = light === 0 ? ' (dark)' : light === 1 ? ' (dim)' : '';
-      this.showStatus(`Failed to hide (Stealth ${stealthTotal}${lightLabel}). Spotted by: ${spottersList.join(', ')}`);
+      this.showStatus(`Failed to hide (Stealth ${stealthTotal}${lightLabel}). Spotted by: ${spotters.join(', ')}`);
       return;
     }
 
