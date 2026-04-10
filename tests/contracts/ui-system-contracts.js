@@ -41,8 +41,8 @@ function testBugRegressions() {
   const gameSrc = fs.readFileSync(path.join(root, 'js', 'game.js'), 'utf8');
   assert.ok(gameSrc.includes('e.type||e.id||\'Unknown\'') || gameSrc.includes('e.type || e.id'));
 
-  const combatSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'mode-combat.js'), 'utf8');
-  const fleeZoneBlock = combatSrc.substring(combatSrc.indexOf('showFleeZone('));
+  const rangesSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'combat-ranges.js'), 'utf8');
+  const fleeZoneBlock = rangesSrc.substring(rangesSrc.indexOf('showFleeZone('));
   const fleeAddImage = fleeZoneBlock.match(/this\.add\.image[^;]+t_flee[^;]+;/);
   assert.ok(fleeAddImage);
   assert.ok(!fleeAddImage[0].includes('setAlpha('));

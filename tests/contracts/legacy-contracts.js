@@ -645,11 +645,11 @@ function testBug2_DisplayNameFallback() {
 
 /** BUG-3: showFleeZone must not call setAlpha on flee tiles (baked texture alpha is sufficient) */
 function testBug3_FleeZoneAlpha() {
-  const combatSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'mode-combat.js'), 'utf8');
+  const rangesSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'combat-ranges.js'), 'utf8');
 
   // setAlpha(0.6) on flee tiles would multiply with the baked 0.18 texture alpha → ~0.11 (invisible)
   // The fix removes setAlpha from flee tile creation, matching showMoveRange's approach
-  const fleeZoneBlock = combatSrc.substring(combatSrc.indexOf('showFleeZone('));
+  const fleeZoneBlock = rangesSrc.substring(rangesSrc.indexOf('showFleeZone('));
   const fleeAddImage = fleeZoneBlock.match(/this\.add\.image[^;]+t_flee[^;]+;/);
   assert.ok(fleeAddImage, 'BUG-3: showFleeZone must add a t_flee image');
   assert.ok(!fleeAddImage[0].includes('setAlpha('), 'BUG-3: flee tile must not call setAlpha (baked texture alpha is sufficient)');
