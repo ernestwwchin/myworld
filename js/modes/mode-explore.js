@@ -61,16 +61,23 @@ Object.assign(GameScene.prototype, {
 
     const nx = this.playerTile.x + dx, ny = this.playerTile.y + dy;
     if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) return;
-    if (this.isWallTile(nx, ny)) return;
-    if (this.isDoorTile(nx, ny) && this.isDoorClosed(nx, ny)) return;
+    if (this.isBlockedTile(nx, ny, { doorMode: 'closed' })) return;
     // Diagonal: block if both cardinal neighbours are walls (corner cut)
-    if (dx !== 0 && dy !== 0) {
-      const hBlocked = this.isWallTile(nx, this.playerTile.y) || (this.isDoorTile(nx, this.playerTile.y) && this.isDoorClosed(nx, this.playerTile.y));
-      const vBlocked = this.isWallTile(this.playerTile.x, ny) || (this.isDoorTile(this.playerTile.x, ny) && this.isDoorClosed(this.playerTile.x, ny));
-      if (hBlocked && vBlocked) return;
-    }
-    if (this.enemies.some(e => e.alive && e.tx === nx && e.ty === ny)) return;
+    if (dx !== 0 && dy !== 0 && !this.canMoveDiagonal(this.playerTile.x, this.playerTile.y, nx, ny)) return;
     this.movePath = [{ x: nx, y: ny }]; this.isMoving = true; this.advancePath(); this.keyDelay = 140;
+  },
+
+  // Hold-to-move: take one BFS step toward the held pointer position
+  _holdMoveStep(){
+    const tx=Math.floor(this._holdWorldX/S), ty=Math.floor(this._holdWorldY/S);
+    if(tx<0||ty<0||tx>=COLS||ty>=ROWS) return;
+    if(tx===this.playerTile.x&&ty===this.playerTile.y) return;
+    const blk=(x,y)=>this.isBlockedTile(x,y);
+    const path=bfs(this.playerTile.x,this.playerTile.y,tx,ty,blk);
+    if(!path.length) return;
+    this.movePath=[path[0]];
+    this.isMoving=true;
+    this.advancePath();
   },
 
 });
