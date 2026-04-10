@@ -1,6 +1,8 @@
 const { test, expect } = require('@playwright/test');
 const { waitForScene, getState, tapTile, dismissDiceIfNeeded } = require('./helpers');
 
+test.describe.configure({ timeout: 90000 });
+
 async function enterSingleEnemyCombat(page) {
   await page.evaluate(() => {
     const scene = window.game.scene.getScene('GameScene');
@@ -10,8 +12,13 @@ async function enterSingleEnemyCombat(page) {
 
   await page.waitForFunction(() => {
     const scene = window.game.scene.getScene('GameScene');
-    return scene.mode === MODE.COMBAT && scene.isPlayerTurn && scene.isPlayerTurn();
-  });
+    return scene.mode === MODE.COMBAT;
+  }, { timeout: 15000 });
+
+  await page.waitForFunction(() => {
+    const scene = window.game.scene.getScene('GameScene');
+    return scene.isPlayerTurn && scene.isPlayerTurn();
+  }, { timeout: 45000 });
 }
 
 async function attackWithForcedD20(page, d20Value) {

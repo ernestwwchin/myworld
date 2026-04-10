@@ -65,6 +65,13 @@ Run automated tests:
 npm test
 ```
 
+E2E note:
+
+- `@playwright/test` in `package.json` installs the Playwright library.
+- Browser binaries are separate and may need a one-time install per environment (Windows, WSL, CI image).
+- This repo currently runs `playwright install` via `postinstall` for convenience.
+- Manual fallback: `npm run e2e:install:browsers`
+
 ## Backend Debug Tools
 
 The server now includes opt-in debug helpers for local backend diagnostics.
