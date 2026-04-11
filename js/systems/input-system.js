@@ -53,14 +53,24 @@ const GameSceneInputSystem = {
     if(esp?.style.display==='block'){ esp.style.display='none'; this._statPopupEnemy=null; }
 
     if(this.diceWaiting){ this._handleDiceDismiss(); return; }
-    if(this.isMoving){ this.cancelCurrentMove(); return; }
+    // In combat: allow redirecting/attacking while moving (cancel current move, proceed)
+    // In explore: cancel current move on any tap
+    if(this.isMoving){
+      if(this.mode===MODE.COMBAT){
+        this.cancelCurrentMove();
+        // Fall through to process the tap as combat input
+      } else {
+        this.cancelCurrentMove();
+        return;
+      }
+    }
     this.hideContextMenu();
     const tx=Math.floor(ptr.worldX/S), ty=Math.floor(ptr.worldY/S);
     if(tx<0||ty<0||tx>=COLS||ty>=ROWS) return;
-    const enemy=this.enemies.find(e=>e.alive&&e.tx===tx&&e.ty===ty);
+    let enemy=this.enemies.find(e=>e.alive&&e.tx===tx&&e.ty===ty);
 
     // Delegate to active mode handler
-    if(this.mode===MODE.COMBAT){ this.onTapCombat(tx,ty,enemy); return; }
+    if(this.mode===MODE.COMBAT){ this.onTapCombat(tx,ty,enemy,ptr); return; }
     this.onTapExplore(tx,ty,enemy,ptr);
   },
 
@@ -74,6 +84,8 @@ const GameSceneInputSystem = {
 
   _onHzPointerDown(ptr){
     if(ptr.button!==0) return;
+    // Don't fire tap/hold during two-finger touch pan
+    if(this._touchPanning) return;
     // Fire tap immediately (pathfind / interact / dismiss)
     this.onTap(ptr);
     // Start hold-to-move timer (explore-realtime only)

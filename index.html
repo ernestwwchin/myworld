@@ -89,6 +89,15 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 
 /* ── Hotbar Grid (center) ── */
 #hotbar-grid{display:flex;flex-direction:column;gap:2px;flex:1;min-height:0;}
+#hotbar-grid-wrap{display:flex;gap:6px;flex:1;min-height:0;align-items:flex-start;}
+#default-atk-slot{width:62px;min-width:62px;border-radius:6px;background:rgba(255,255,255,0.06);border:2px solid rgba(240,192,96,0.5);cursor:pointer;display:none;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 2px;transition:all 0.15s;position:relative;}
+#default-atk-slot.show{display:flex;}
+#default-atk-slot:hover{background:rgba(255,255,255,0.1);border-color:rgba(240,192,96,0.8);}
+#default-atk-slot .da-icon{font-size:22px;line-height:1;}
+#default-atk-slot .da-name{font-size:8px;color:#ccc;letter-spacing:0.3px;text-align:center;line-height:1.1;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#default-atk-slot .da-hint{font-size:7px;color:rgba(255,255,255,0.3);letter-spacing:0.5px;}
+#default-atk-slot.unavail{opacity:0.5;border-color:rgba(240,192,96,0.25);}
+#default-atk-slot.unavail::after{content:'!';position:absolute;top:2px;right:4px;font-size:9px;color:#e74c3c;font-weight:bold;}
 .hb-row{display:flex;gap:4px;}
 .hb-slot{width:58px;height:56px;border-radius:5px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-left:3px solid rgba(255,255,255,0.1);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;transition:all 0.15s;flex-shrink:0;}
 .hb-slot:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2);}
@@ -424,7 +433,14 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
       <div class="rp-sep"></div>
       <div class="rp-group" id="rp-charges"><span class="rp-label">CLASS</span></div>
     </div>
-    <div id="hotbar-grid"></div>
+    <div id="hotbar-grid-wrap">
+      <div id="default-atk-slot" onclick="Hotbar._useDefaultAttack()" oncontextmenu="event.preventDefault();Hotbar._showDefaultAtkPicker()">
+        <div class="da-icon">⚔️</div>
+        <div class="da-name">Attack</div>
+        <div class="da-hint">LMB</div>
+      </div>
+      <div id="hotbar-grid"></div>
+    </div>
     <div id="hotbar-tabs">
       <div class="hb-cat-tab active" data-cat="common">Common</div>
       <div class="hb-cat-tab" data-cat="class">Class</div>
@@ -513,10 +529,12 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 <script src="js/entities/interactable-entity.js"></script>
 <script src="js/entities/door-entity.js"></script>
 <script src="js/entities/chest-entity.js"></script>
+<script src="js/entities/floor-item-entity.js"></script>
 <!-- shared systems -->
 <script src="js/systems/entity-system.js"></script>
 <script src="js/systems/door-handler.js"></script>
 <script src="js/systems/chest-handler.js"></script>
+<script src="js/systems/floor-item-handler.js"></script>
 <script src="js/systems/light-system.js"></script>
 <script src="js/systems/ability-system.js"></script>
 <script src="js/systems/fog-system.js"></script>
@@ -534,6 +552,7 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 <script src="js/modes/combat-ranges.js"></script>
 <!-- input router -->
 <script src="js/systems/input-system.js"></script>
+<script src="js/systems/camera-system.js"></script>
 <script src="js/demoplay.js"></script>
 <script src="js/ui/action-buttons.js"></script>
 <script src="js/ui/core-ui.js"></script>

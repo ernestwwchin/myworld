@@ -62,8 +62,17 @@ function generateSprites(scene) {
   dt('t_flee', p => { p.fillStyle(0x2ecc71, 0.18); p.fillRect(0, 0, S, S); p.lineStyle(1, 0x2ecc71, 0.4); p.strokeRect(0, 0, S, S); });
   dt('t_move', p => { p.fillStyle(0x3498db, 0.18); p.fillRect(0, 0, S, S); p.lineStyle(1, 0x3498db, 0.4); p.strokeRect(0, 0, S, S); });
   dt('t_atk',  p => { p.fillStyle(0xe74c3c, 0.15); p.fillRect(0, 0, S, S); p.lineStyle(2, 0xe74c3c, 0.55); p.strokeRect(1, 1, S - 2, S - 2); p.lineStyle(1, 0xe74c3c, 0.3); p.lineBetween(0, 0, S, S); p.lineBetween(S, 0, 0, S); });
-  dt('t_tap',  p => { p.lineStyle(2, 0xf0c060, 0.9); p.strokeRect(4, 4, S - 8, S - 8); p.lineStyle(1, 0xf0c060, 0.4); p.lineBetween(0, S / 2, 8, S / 2); p.lineBetween(S - 8, S / 2, S, S / 2); p.lineBetween(S / 2, 0, S / 2, 8); p.lineBetween(S / 2, S - 8, S / 2, S); });
+  dt('t_tap',  p => { p.fillStyle(0xf0c060, 0.6); p.fillCircle(S/2, S/2, 6); p.lineStyle(1.5, 0xf0c060, 0.8); p.strokeCircle(S/2, S/2, 10); });
   dt('t_turn', p => { p.lineStyle(3, 0xf0c060, 1); p.strokeRect(2, 2, S - 4, S - 4); p.fillStyle(0xf0c060, 0.1); p.fillRect(2, 2, S - 4, S - 4); });
+
+  // Floor loot bag (small golden sack)
+  dt('t_loot_bag', p => {
+    const cx=S/2, cy=S/2;
+    p.fillStyle(0x8b6914); p.fillEllipse(cx, cy+4, 18, 14);
+    p.fillStyle(0xd4a857); p.fillEllipse(cx, cy+2, 14, 11);
+    p.fillStyle(0xf0c060); p.fillCircle(cx, cy-4, 5);
+    p.lineStyle(1, 0x6b4e0a, 0.6); p.strokeEllipse(cx, cy+2, 14, 11);
+  });
 
   const cx = S / 2, cy = S / 2;
   dt('deco_banner', p => {

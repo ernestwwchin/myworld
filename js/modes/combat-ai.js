@@ -143,10 +143,10 @@ Object.assign(GameScene.prototype, {
     this.playActorMove(enemy.img,enemy.type,enemy.spd>=2);
     this.tweens.add({targets:enemy.img,x:nx,y:ny,duration:dur,ease:'Linear',onComplete:()=>this.animEnemyMove(enemy,path,onDone,step.x,step.y)});
     this.tweens.add({targets:enemy.hpBg,x:nx,y:step.y*S-4,duration:dur});
-    this.tweens.add({targets:enemy.hpFg,x:nx,y:step.y*S-4,duration:dur});
+    this.tweens.add({targets:enemy.hpFg,x:nx-(S-8)/2,y:step.y*S-4,duration:dur});
     this.tweens.add({targets:enemy.lbl,x:nx,y:ny+S*0.52,duration:dur});
     this.tweens.add({targets:enemy.sightRing,x:nx,y:ny,duration:dur});
-    if(enemy.fa){ this.tweens.add({targets:enemy.fa,x:nx,y:ny,duration:dur}); enemy.fa.setRotation(enemy.facing*Math.PI/180); }
+    if(enemy.fa){ this.tweens.add({targets:enemy.fa,x:nx,y:step.y*S+S/2,duration:dur}); enemy.fa.draw(enemy.facing); }
     if(!path.length) this.time.delayedCall(dur+10,()=>this.playActorIdle(enemy.img,enemy.type));
   },
 

@@ -42,10 +42,19 @@ function testBugRegressions() {
   assert.ok(gameSrc.includes('e.type||e.id||\'Unknown\'') || gameSrc.includes('e.type || e.id'));
 
   const rangesSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'combat-ranges.js'), 'utf8');
+
+  // BG3-style: circle overlays with GeometryMask wall clipping
+  assert.ok(rangesSrc.includes('_maskedCircle('), 'combat-ranges must use _maskedCircle for circle overlays');
+  assert.ok(rangesSrc.includes('fillCircle('), 'combat-ranges must use fillCircle');
+  assert.ok(rangesSrc.includes('createGeometryMask('), 'combat-ranges must use GeometryMask');
+  // BG3: ranges flood from turn-start position
+  assert.ok(rangesSrc.includes('turnStartTile'), 'combat-ranges must use turnStartTile for BG3-style free movement');
+  assert.ok(rangesSrc.includes('turnStartMoves'), 'combat-ranges must use turnStartMoves for full budget');
+
+  // Flee zone uses flat tile surface
   const fleeZoneBlock = rangesSrc.substring(rangesSrc.indexOf('showFleeZone('));
-  const fleeAddImage = fleeZoneBlock.match(/this\.add\.image[^;]+t_flee[^;]+;/);
-  assert.ok(fleeAddImage);
-  assert.ok(!fleeAddImage[0].includes('setAlpha('));
+  assert.ok(fleeZoneBlock.includes('_drawSurface('), 'showFleeZone must use _drawSurface');
+  assert.ok(fleeZoneBlock.includes('0x2ecc71'), 'showFleeZone must use green color');
 }
 
 function testWorldPositionContracts() {

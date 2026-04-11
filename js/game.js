@@ -204,12 +204,34 @@ class GameScene extends Phaser.Scene {
       if(def.tx<0){ const t=_randomFloorTile(); def={...def,tx:t.x,ty:t.y}; }
       const [eatlas,eframe]=getCharFrame(def.type,'idle',0);
       const img=this.add.sprite(def.tx*S+S/2,def.ty*S+S/2,eatlas,eframe).setScale(S/16).setOrigin(0.5,0.8).setDepth(9).setInteractive();
-      const hpBg=this.add.rectangle(def.tx*S+S/2,def.ty*S-4,S-8,5,0x1a1a2e).setDepth(11);
-      const hpFg=this.add.rectangle(def.tx*S+S/2,def.ty*S-4,S-8,5,0xe74c3c).setDepth(12);
+      const hpBg=this.add.rectangle(def.tx*S+S/2,def.ty*S-4,S-8,5,0x1a1a2e).setOrigin(0.5,0.5).setDepth(11);
+      const hpFg=this.add.rectangle(def.tx*S+S/2-(S-8)/2,def.ty*S-4,S-8,5,0xe74c3c).setOrigin(0,0.5).setDepth(12);
       const lbl=this.add.text(def.tx*S+S/2,def.ty*S+S/2+S*0.52,'',{fontSize:'7px',fill:'#aaaacc',letterSpacing:1}).setOrigin(0.5).setDepth(12).setAlpha(0.7);
       const sightRing=this.add.circle(def.tx*S+S/2,def.ty*S+S/2,def.sight*S,0xe74c3c,0).setDepth(2).setStrokeStyle(1,0xe74c3c,0.08).setAlpha(0);
-      const fa=this.add.triangle(def.tx*S+S/2,def.ty*S+S/2,0,-8,12,0,0,8,0xf0c060,0.7).setDepth(13);
-      fa.setRotation(def.facing*Math.PI/180);
+      // Facing indicator: ground circle with directional arrow on edge
+      // Drawn at origin; positioned via faGfx.x/y so tweens & setPosition work
+      const faGfx = this.add.graphics().setDepth(8);
+      faGfx.x = def.tx * S + S / 2;
+      faGfx.y = def.ty * S + S / 2;
+      const _drawFacing = (facing) => {
+        faGfx.clear();
+        const r = S * 0.45;
+        faGfx.lineStyle(1.5, 0xe74c3c, 0.5);
+        faGfx.strokeCircle(0, 0, r);
+        const ang = (facing || 0) * Math.PI / 180;
+        const ax = Math.cos(ang) * r, ay = Math.sin(ang) * r;
+        const sz = 5;
+        const a1 = ang + Math.PI * 0.8, a2 = ang - Math.PI * 0.8;
+        faGfx.fillStyle(0xe74c3c, 0.9);
+        faGfx.fillTriangle(
+          ax + Math.cos(ang) * sz, ay + Math.sin(ang) * sz,
+          ax + Math.cos(a1) * sz, ay + Math.sin(a1) * sz,
+          ax + Math.cos(a2) * sz, ay + Math.sin(a2) * sz
+        );
+      };
+      _drawFacing(def.facing);
+      const fa = faGfx;
+      fa.draw = _drawFacing;
       const enemy={...def,img,hpBg,hpFg,lbl,sightRing,fa,alive:true,inCombat:false,lastSeenPlayerTile:{x:def.tx,y:def.ty},searchTurnsRemaining:0};
       enemy.effects=this.normalizeEffects(def.effects||def.statuses||[]);
       this.playActorIdle(img, def.type);
@@ -223,9 +245,16 @@ class GameScene extends Phaser.Scene {
         if(enemy._longPressed){ enemy._longPressed=false; return; } // already handled
         this.onTapEnemy(enemy);
       });
+      img.on('pointerover',()=>{
+        if(this.mode===MODE.COMBAT && this.pendingAction==='attack' && enemy.alive){
+          this._atkHoverEnemy = enemy;
+          this._showHitTooltip(enemy);
+        }
+      });
       img.on('pointerout',()=>{
         if(enemy._pressTimer){ enemy._pressTimer.remove(); enemy._pressTimer=null; }
         enemy._longPressed=false;
+        if(this._atkHoverEnemy === enemy) this._hideHitTooltip();
       });
       return enemy;
     });
@@ -237,7 +266,7 @@ class GameScene extends Phaser.Scene {
     this.player=this.add.sprite(this.playerTile.x*S+S/2,this.playerTile.y*S+S/2,patlas,pframe).setScale(S/16).setOrigin(0.5,0.8).setDepth(10);
     this.playActorIdle(this.player,'player');
     this.turnHL=this.add.image(-100,-100,'t_turn').setDisplaySize(S,S).setDepth(9).setAlpha(0);
-    this.tapInd=this.add.image(-100,-100,'t_tap').setDisplaySize(S,S).setDepth(8).setAlpha(0);
+    this.tapInd=this.add.image(-100,-100,'t_tap').setDisplaySize(24,24).setDepth(8).setAlpha(0);
     if(this.textures.exists('_fog_rt')) this.textures.remove('_fog_rt');
     this._fogCanvasTex=this.textures.createCanvas('_fog_rt',COLS*S,ROWS*S);
     this._fogCtx=this._fogCanvasTex.getContext();
@@ -254,6 +283,9 @@ class GameScene extends Phaser.Scene {
     this.cameras.main.setDeadzone(0,0);
     this.cameras.main.setFollowOffset(0,0);
     this.cameras.main.setZoom(1.2);
+
+    // Camera pan/zoom controls (middle-drag, scroll wheel, pinch)
+    this.initCameraControls();
 
     // input
     const hz=this.add.zone(0,0,COLS*S,ROWS*S).setOrigin(0,0).setDepth(0).setInteractive();
@@ -641,7 +673,8 @@ class GameScene extends Phaser.Scene {
     if(!this.isExploreMode()) return;
     // Hold-to-move: step toward cursor each time player finishes a tile
     if(this._holdMoveActive&&!this.isMoving){ this._holdMoveStep(); return; }
-    if(this.isMoving) return;
+    // Allow WASD even during tween-based movement (WASD cancels it)
     this.updateExplore(delta);
+    this._checkWasdIdle();
   }
 }
