@@ -254,6 +254,7 @@ const GameSceneAbilitySystem = {
         const searchTurns = Math.max(1, Number(enemy?.ai?.searchTurns || enemy?.searchTurns || 4));
         enemy.lastSeenPlayerTile = { x: this.playerTile.x, y: this.playerTile.y };
         enemy.searchTurnsRemaining = searchTurns;
+        enemy._searchAbandonedAnnounced = false;
       }
     }
 
@@ -311,6 +312,7 @@ const GameSceneAbilitySystem = {
         const searchTurns = Math.max(2, Number(enemy?.ai?.searchTurns || enemy?.searchTurns || 4));
         enemy.lastSeenPlayerTile = { x: this.playerTile.x, y: this.playerTile.y };
         enemy.searchTurnsRemaining = searchTurns;
+        enemy._searchAbandonedAnnounced = false;
       }
     }
 

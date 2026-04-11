@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════
 // combat-ranges.js — Range / zone display for combat mode
-// Phase 4: BG3-style smooth circles with wall-clipping masks
+// Tile-rect overlays with flood-fill reachability
 // ═══════════════════════════════════════════════════════
 
 /**
@@ -34,40 +34,24 @@ function _floodReachable(sx, sy, budget, blockFn) {
   return costMap;
 }
 
-/** Build a GeometryMask from tile-aligned S×S rects (not added to display). */
-function _tileMask(scene, tiles) {
-  const ms = scene.make.graphics({ add: false });
-  ms.fillStyle(0xffffff);
-  for (const t of tiles) ms.fillRect(t.x * S, t.y * S, S, S);
-  return ms;
-}
-
-/** Draw a filled+stroked circle, masked to tile rects. Returns {gfx, maskShape}. */
-function _maskedCircle(scene, cx, cy, radius, fillColor, fillAlpha, strokeColor, strokeAlpha, strokeWidth, maskTiles, depth) {
-  const g = scene.add.graphics().setDepth(depth);
-  g.fillStyle(fillColor, fillAlpha);
-  g.fillCircle(cx, cy, radius);
-  if (strokeWidth > 0) {
-    g.lineStyle(strokeWidth, strokeColor, strokeAlpha);
-    g.strokeCircle(cx, cy, radius);
-  }
-  const ms = _tileMask(scene, maskTiles);
-  g.setMask(ms.createGeometryMask());
-  return { gfx: g, maskShape: ms };
-}
-
-/** Draw flat tile surface with edge-only borders (for flee zone etc). */
+/** Draw filled tile rects with optional border outline. */
 function _drawSurface(scene, tileSet, allTiles, fillColor, fillAlpha, borderColor, borderAlpha, depth) {
   const g = scene.add.graphics().setDepth(depth);
+
+  // Fill each tile
   g.fillStyle(fillColor, fillAlpha);
   for (const t of allTiles) g.fillRect(t.x * S, t.y * S, S, S);
-  g.lineStyle(2, borderColor, borderAlpha);
-  for (const t of allTiles) {
-    const x = t.x * S, y = t.y * S;
-    if (!tileSet.has(`${t.x},${t.y - 1}`)) g.lineBetween(x, y, x + S, y);
-    if (!tileSet.has(`${t.x},${t.y + 1}`)) g.lineBetween(x, y + S, x + S, y + S);
-    if (!tileSet.has(`${t.x - 1},${t.y}`)) g.lineBetween(x, y, x, y + S);
-    if (!tileSet.has(`${t.x + 1},${t.y}`)) g.lineBetween(x + S, y, x + S, y + S);
+
+  // Border: stroke edges adjacent to non-set tiles
+  if (borderAlpha > 0) {
+    g.lineStyle(2, borderColor, borderAlpha);
+    for (const t of allTiles) {
+      const {x, y} = t;
+      if (!tileSet.has(`${x},${y-1}`)) g.lineBetween(x*S, y*S, (x+1)*S, y*S);
+      if (!tileSet.has(`${x+1},${y}`)) g.lineBetween((x+1)*S, y*S, (x+1)*S, (y+1)*S);
+      if (!tileSet.has(`${x},${y+1}`)) g.lineBetween(x*S, (y+1)*S, (x+1)*S, (y+1)*S);
+      if (!tileSet.has(`${x-1},${y}`)) g.lineBetween(x*S, y*S, x*S, (y+1)*S);
+    }
   }
   return g;
 }
@@ -85,38 +69,47 @@ Object.assign(GameScene.prototype, {
     const moveBlk = (x, y) => this.isBlockedTile(x, y, { doorMode: false });
     const reachable = _floodReachable(px, py, budget, moveBlk);
 
-    // Mask extends +1 tile beyond budget so the circle edge is smooth in open areas
-    const maskFlood = _floodReachable(px, py, budget + 1, moveBlk);
-    const maskTiles = [];
-    for (const [key] of maskFlood) {
-      const [tx, ty] = key.split(',').map(Number);
-      maskTiles.push({ x: tx, y: ty });
-    }
-
-    // rangeTiles for click validation — excludes enemy tiles, anchor tile, and current player tile
+    // rangeTiles for click validation — excludes enemy tiles and current player tile
     const cpx = this.playerTile.x, cpy = this.playerTile.y;
+    const allTiles = [];
     for (const [key] of reachable) {
       const [tx, ty] = key.split(',').map(Number);
-      if (tx === px && ty === py) continue;
+      allTiles.push({ x: tx, y: ty });
       if (tx === cpx && ty === cpy) continue;
       if (this.enemies.some(e => e.alive && e.tx === tx && e.ty === ty)) continue;
       this.rangeTiles.push({ x: tx, y: ty });
     }
 
-    // Smooth circle, masked to walkable tiles
-    const wcx = px * S + S / 2, wcy = py * S + S / 2;
-    const { gfx, maskShape } = _maskedCircle(
-      this, wcx, wcy, budget * S,
-      0x3498db, 0.20, 0x5dade2, 0.55, 2,
-      maskTiles, 3
+    const tileSet = new Set([...reachable.keys()]);
+    this._moveRangeGfx = _drawSurface(
+      this, tileSet, allTiles,
+      0x3498db, 0.18, 0x5dade2, 0.50, 3
     );
-    this._moveRangeGfx = gfx;
-    this._moveRangeMask = maskShape;
+
+    // Spotting preview: red tiles are positions where non-combat enemies can see you
+    // if you end your turn there (using the same FOV+LOS sight checks).
+    if (this.combatGroup && this.combatGroup.length) {
+      const dangerTiles = [];
+      for (const t of allTiles) {
+        const predicted = (typeof this._predictNewAlertedAtTile === 'function')
+          ? this._predictNewAlertedAtTile(t.x, t.y)
+          : [];
+        if (predicted.length) dangerTiles.push(t);
+      }
+
+      if (dangerTiles.length) {
+        const dangerSet = new Set(dangerTiles.map(t => `${t.x},${t.y}`));
+        this._moveSpotGfx = _drawSurface(
+          this, dangerSet, dangerTiles,
+          0xe74c3c, 0.16, 0xff6b6b, 0.55, 4
+        );
+      }
+    }
   },
 
   clearMoveRange(){
     if (this._moveRangeGfx) { this._moveRangeGfx.destroy(); this._moveRangeGfx = null; }
-    if (this._moveRangeMask) { this._moveRangeMask.destroy(); this._moveRangeMask = null; }
+    if (this._moveSpotGfx) { this._moveSpotGfx.destroy(); this._moveSpotGfx = null; }
     this.rangeTiles = [];
   },
 
@@ -131,20 +124,20 @@ Object.assign(GameScene.prototype, {
     const atkRange = this.pStats.atkRange || 1;
     const moves = this.turnStartMoves || this.playerMoves || 0;
     const moveBlk = (x, y) => this.isBlockedTile(x, y, { doorMode: false });
-    const wcx = px * S + S / 2, wcy = py * S + S / 2;
 
-    // Movement flood + extended mask
+    // Movement flood
     const reachable = _floodReachable(px, py, moves, moveBlk);
-    const moveMaskFlood = _floodReachable(px, py, moves + 1, moveBlk);
-    const moveMaskTiles = [];
-    for (const [key] of moveMaskFlood) {
+    const moveTiles = [];
+    const moveSet = new Set();
+    for (const [key] of reachable) {
       const [tx, ty] = key.split(',').map(Number);
-      moveMaskTiles.push({ x: tx, y: ty });
+      moveTiles.push({ x: tx, y: ty });
+      moveSet.add(key);
     }
 
     // Attackable tiles (union of all tiles within atkRange of any reachable tile)
     const attackSet = new Set();
-    const atkTiles = [];
+    const atkOnlyTiles = []; // tiles in attack range but NOT in move range
     for (const [key] of reachable) {
       const [rx, ry] = key.split(',').map(Number);
       const rng = Math.ceil(atkRange) + 1;
@@ -153,36 +146,27 @@ Object.assign(GameScene.prototype, {
         const ax = rx + dx, ay = ry + dy;
         if (ax < 0 || ay < 0 || ax >= COLS || ay >= ROWS) continue;
         const k = `${ax},${ay}`;
-        if (!attackSet.has(k)) { attackSet.add(k); atkTiles.push({ x: ax, y: ay }); }
+        if (!attackSet.has(k)) {
+          attackSet.add(k);
+          if (!moveSet.has(k)) atkOnlyTiles.push({ x: ax, y: ay });
+        }
       }
     }
-    // Extended mask for attack circle
-    const atkMaskFlood = _floodReachable(px, py, moves + atkRange + 1, moveBlk);
-    const atkMaskTiles = [];
-    for (const [key] of atkMaskFlood) {
-      const [tx, ty] = key.split(',').map(Number);
-      atkMaskTiles.push({ x: tx, y: ty });
+
+    // Blue movement surface (dimmer)
+    const moveGfx = _drawSurface(this, moveSet, moveTiles,
+      0x3498db, 0.10, 0, 0, 3);
+    this.atkRangeTiles.push(moveGfx);
+
+    // Red attack-reach surface (only the fringe beyond move range)
+    if (atkOnlyTiles.length) {
+      const atkFringeSet = new Set(atkOnlyTiles.map(t => `${t.x},${t.y}`));
+      // Merge with moveSet for border computation (borders only on outer edges)
+      const fullSet = new Set([...moveSet, ...atkFringeSet]);
+      const atkGfx = _drawSurface(this, fullSet, atkOnlyTiles,
+        0xe74c3c, 0.08, 0xe74c3c, 0.35, 3);
+      this.atkRangeTiles.push(atkGfx);
     }
-    // Also include attack tiles themselves (they may be beyond the flood)
-    const atkMaskSet = new Set(atkMaskTiles.map(t => `${t.x},${t.y}`));
-    for (const t of atkTiles) {
-      const k = `${t.x},${t.y}`;
-      if (!atkMaskSet.has(k)) { atkMaskSet.add(k); atkMaskTiles.push(t); }
-    }
-
-    this._atkMasks = [];
-
-    // Blue movement circle (dimmer)
-    const m1 = _maskedCircle(this, wcx, wcy, moves * S,
-      0x3498db, 0.12, 0, 0, 0, moveMaskTiles, 3);
-    this.atkRangeTiles.push(m1.gfx);
-    this._atkMasks.push(m1.maskShape);
-
-    // Red attack-reach circle
-    const m2 = _maskedCircle(this, wcx, wcy, (moves + atkRange) * S,
-      0xe74c3c, 0.08, 0xe74c3c, 0.35, 1.5, atkMaskTiles, 3);
-    this.atkRangeTiles.push(m2.gfx);
-    this._atkMasks.push(m2.maskShape);
 
     // Highlight enemies
     for (const e of this.combatGroup) {
@@ -206,7 +190,6 @@ Object.assign(GameScene.prototype, {
   clearAtkRange(){
     this.atkRangeTiles.forEach(o => o.destroy());
     this.atkRangeTiles = [];
-    if (this._atkMasks) { this._atkMasks.forEach(m => m.destroy()); this._atkMasks = null; }
   },
 
   // ─────────────────────────────────────────

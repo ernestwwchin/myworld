@@ -1,0 +1,23 @@
+# Test: Combat Join Reasons
+# Deterministic setup for join-reason logging and combat sight debug overlay checks.
+
+name: "Test: Combat Join Reasons"
+floor: TJR
+globalLight: bright
+
+grid:
+  - "#########"
+  - "#.......#"
+  - "#.......#"
+  - "#.......#"
+  - "#.......#"
+  - "#.......#"
+  - "#.......#"
+  - "#.......#"
+  - "#########"
+
+playerStart: { x: 1, y: 4 }
+encounters:
+  - { creature: goblin, x: 5, y: 4, facing: 180, group: ~ }
+  - { creature: goblin, x: 5, y: 1, facing: 90, group: ~ }
+  - { creature: goblin, x: 7, y: 7, facing: 0, group: ~ }

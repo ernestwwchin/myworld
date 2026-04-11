@@ -1,6 +1,28 @@
 // Sight overlays, enemy detection, and detection markers extracted from GameScene.
 const GameSceneSightSystem = {
 
+  _sightRangesByLight(enemy) {
+    const scale = Number(COMBAT_RULES.enemySightScale || 1);
+    const base = Math.max(1, Math.round(Number(enemy?.sight || 1) * scale));
+    const dim = Math.max(1, base - Number(LIGHT_RULES.dimSightPenalty || 1));
+    const dark = Math.max(1, base - Number(LIGHT_RULES.darkSightPenalty || 3));
+    return { base, dim, dark };
+  },
+
+  _updateEnemySightDebugLabels(enabled) {
+    for (const e of this.enemies) {
+      if (!e || !e.lbl) continue;
+      const baseName = (e.displayName || e.type || '').toUpperCase();
+      if (enabled) {
+        const base = Number(e.sight || 0);
+        const eff = this.effectiveEnemySight(e);
+        e.lbl.setText(`${baseName} S:${base} E:${eff}`);
+      } else {
+        e.lbl.setText(baseName);
+      }
+    }
+  },
+
   // ── Core sight utilities ─────────────────────────────
   // Can enemy see a specific tile?
   // opts.checkFOV (default true) — include facing/FOV cone check
@@ -21,28 +43,62 @@ const GameSceneSightSystem = {
 
   drawSightOverlays() {
     this.clearSightOverlays();
-    if (!this.isExploreMode() || !this.enemySightEnabled) {
+    const inExplore = this.isExploreMode();
+    const inCombat = this.mode === MODE.COMBAT;
+    if ((!inExplore && !inCombat) || !this.enemySightEnabled) {
       this.syncEnemySightRings(false);
+      this._updateEnemySightDebugLabels(false);
       return;
     }
-    this.syncEnemySightRings(true);
+    this._updateEnemySightDebugLabels(true);
+    this.syncEnemySightRings(true, inCombat);
     for (const e of this.enemies) {
-      if (!e.alive || e.inCombat) continue;
+      if (!e.alive) continue;
       const g = this.add.graphics().setDepth(2);
-      const r = this.effectiveEnemySight(e);
-      for (let dy = -r; dy <= r; dy++) {
-        for (let dx = -r; dx <= r; dx++) {
+      const { base, dim, dark } = this._sightRangesByLight(e);
+
+      // Underlay: raw base sight radius by distance only (no FOV/LOS),
+      // to make the configured sight value obvious in debug.
+      const underlayAlpha = inCombat ? 0.03 : 0.04;
+      g.fillStyle(0x6ec1ff, underlayAlpha);
+      for (let dy = -base; dy <= base; dy++) {
+        for (let dx = -base; dx <= base; dx++) {
           const tx = e.tx + dx, ty = e.ty + dy;
           if (tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS) continue;
           if (this.isWallTile(tx, ty)) continue;
-          if (Math.sqrt(dx * dx + dy * dy) > r + 0.5) continue;
-          if (!inFOV(e, tx, ty)) continue;
-          if (!hasLOS(e.tx, e.ty, tx, ty)) continue;
-          const fade = 1 - (Math.sqrt(dx * dx + dy * dy) / r) * 0.75;
-          g.fillStyle(0xffe8a0, fade * 0.06);
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > base + 0.5) continue;
           g.fillRect(tx * S, ty * S, S, S);
         }
       }
+
+      for (let dy = -base; dy <= base; dy++) {
+        for (let dx = -base; dx <= base; dx++) {
+          const tx = e.tx + dx, ty = e.ty + dy;
+          if (tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS) continue;
+          if (this.isWallTile(tx, ty)) continue;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > base + 0.5) continue;
+          if (!inFOV(e, tx, ty)) continue;
+          if (!hasLOS(e.tx, e.ty, tx, ty)) continue;
+          // Color bands by player-light requirement:
+          // red   = detected even in DARK
+          // amber = detected in DIM/BRIGHT
+          // green = detected only in BRIGHT
+          const combatScale = inCombat ? 0.85 : 1;
+          if (dist <= dark + 0.5) g.fillStyle(0xff5a5a, 0.14 * combatScale);
+          else if (dist <= dim + 0.5) g.fillStyle(0xffc857, 0.11 * combatScale);
+          else g.fillStyle(0x7fd1a0, 0.09 * combatScale);
+          g.fillRect(tx * S, ty * S, S, S);
+        }
+      }
+
+      // If this enemy currently sees the player, draw a clear line indicator.
+      if (this.canEnemySeePlayer(e)) {
+        g.lineStyle(2, 0xfff176, 0.85);
+        g.lineBetween(e.tx * S + S / 2, e.ty * S + S / 2, this.playerTile.x * S + S / 2, this.playerTile.y * S + S / 2);
+      }
+
       this.sightTiles.push(g);
     }
   },
@@ -51,6 +107,7 @@ const GameSceneSightSystem = {
     this.sightTiles.forEach(t => t.destroy());
     this.sightTiles = [];
     this.syncEnemySightRings(false);
+    this._updateEnemySightDebugLabels(false);
   },
 
   checkSight() {
@@ -77,18 +134,21 @@ const GameSceneSightSystem = {
 
   toggleEnemySight() {
     this.enemySightEnabled = !this.enemySightEnabled;
-    if (this.enemySightEnabled && this.isExploreMode()) this.drawSightOverlays();
-    else {
+    if (this.enemySightEnabled) {
+      this.drawSightOverlays();
+    } else {
       this.clearSightOverlays();
       this.syncEnemySightRings(false);
     }
-    this.showStatus(this.enemySightEnabled ? 'Enemy sight overlays ON.' : 'Enemy sight overlays OFF.');
+    this.showStatus(this.enemySightEnabled
+      ? 'Sight ON: blue=base range, red=dark detect, amber=dim detect, green=bright-only, yellow line=currently spotted.'
+      : 'Enemy sight OFF.');
     return this.enemySightEnabled;
   },
 
-  syncEnemySightRings(show) {
+  syncEnemySightRings(show, includeCombat = false) {
     for (const e of this.enemies) {
-      if (!e.sightRing || !e.alive || e.inCombat) {
+      if (!e.sightRing || !e.alive || (!includeCombat && e.inCombat)) {
         if (e.sightRing) e.sightRing.setAlpha(0);
         continue;
       }
@@ -101,7 +161,11 @@ const GameSceneSightSystem = {
   effectiveEnemySight(enemy) {
     const scale = Number(COMBAT_RULES.enemySightScale || 1);
     let s = Math.max(1, Math.round(enemy.sight * scale));
-    const light = this.tileLightLevel(this.playerTile.x, this.playerTile.y);
+    const playerLight = this.tileLightLevel(this.playerTile.x, this.playerTile.y);
+    const enemyLight = this.tileLightLevel(enemy.tx, enemy.ty);
+    // Use the brighter of observer/target lighting so enemies near torches
+    // don't unrealistically lose most of their vision.
+    const light = Math.max(playerLight, enemyLight);
     if (light === 0) s -= Number(LIGHT_RULES.darkSightPenalty || 3);
     else if (light === 1) s -= Number(LIGHT_RULES.dimSightPenalty || 1);
     if (this.playerHidden) s -= Number(LIGHT_RULES.hiddenSightPenalty || 2);

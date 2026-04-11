@@ -5,11 +5,13 @@ display:
 
 combat:
   roomAlertMaxDistance: 8
+  largeRoomTileThreshold: 90
+  largeRoomJoinDistance: 6
   fleeMinDistance: 6
   fleeRequiresNoLOS: true
   playerMovePerTurn: 5
   dashMoveBonus: 4
-  enemySightScale: 0.85
+  enemySightScale: 1.0
   enemySpeedScale: 0.75
 
 fog:
@@ -23,6 +25,10 @@ light:
   darkSightPenalty: 3
   dimSightPenalty: 1
   hiddenSightPenalty: 2
+  torchBrightStrength: 0.85
+  torchDimStrength: 0.55
+  torchRadiusScale: 1.2
+  noTorchVisibleLightFloor: 0.12
   hideDcBright: 16
   hideDcDim: 12
   hideDcDark: 8

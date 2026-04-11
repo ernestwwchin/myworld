@@ -199,6 +199,7 @@ class GameScene extends Phaser.Scene {
       _usedTiles.add(`${pick.x},${pick.y}`);
       return pick;
     };
+    const s = this; // closure ref for enemy sprite event handlers
     this.enemies=ENEMY_DEFS.map(def=>{
       // tx=-1 means "place randomly" (used by procedural maps)
       if(def.tx<0){ const t=_randomFloorTile(); def={...def,tx:t.x,ty:t.y}; }
@@ -234,27 +235,40 @@ class GameScene extends Phaser.Scene {
       fa.draw = _drawFacing;
       const enemy={...def,img,hpBg,hpFg,lbl,sightRing,fa,alive:true,inCombat:false,lastSeenPlayerTile:{x:def.tx,y:def.ty},searchTurnsRemaining:0};
       enemy.effects=this.normalizeEffects(def.effects||def.statuses||[]);
+      // Hit% floating label (hidden until combat)
+      const hitLbl=this.add.text(def.tx*S+S/2,def.ty*S-14,'',{fontSize:'10px',fontFamily:'"Courier New",monospace',fontStyle:'bold',fill:'#ffffff',stroke:'#000000',strokeThickness:3}).setOrigin(0.5).setDepth(13).setAlpha(0);
+      enemy.hitLbl=hitLbl;
       this.playActorIdle(img, def.type);
       img.on('pointerdown',(ptr)=>{
-        if(ptr.rightButtonDown()){ this.showCombatEnemyPopup(enemy); return; }
-        // Long-press → inspect (start timer)
-        enemy._pressTimer=this.time.delayedCall(400,()=>{ enemy._longPressed=true; this.showCombatEnemyPopup(enemy); });
+        if(ptr.rightButtonDown()){
+          // Right-click → examine popup (both explore & combat)
+          enemy._rightClicked=true;
+          if(s.mode===MODE.COMBAT) s.showCombatEnemyPopup(enemy);
+          else s.showEnemyStatPopup(enemy);
+          return;
+        }
+        // Long-press → examine (touch support)
+        enemy._pressTimer=s.time.delayedCall(400,()=>{
+          enemy._longPressed=true;
+          if(s.mode===MODE.COMBAT) s.showCombatEnemyPopup(enemy);
+          else s.showEnemyStatPopup(enemy);
+        });
       });
       img.on('pointerup',()=>{
         if(enemy._pressTimer){ enemy._pressTimer.remove(); enemy._pressTimer=null; }
-        if(enemy._longPressed){ enemy._longPressed=false; return; } // already handled
-        this.onTapEnemy(enemy);
+        if(enemy._longPressed){ enemy._longPressed=false; return; }
+        if(enemy._rightClicked){ enemy._rightClicked=false; return; }
+        s.onTapEnemy(enemy);
       });
       img.on('pointerover',()=>{
-        if(this.mode===MODE.COMBAT && this.pendingAction==='attack' && enemy.alive){
-          this._atkHoverEnemy = enemy;
-          this._showHitTooltip(enemy);
+        if(enemy.alive){
+          enemy.img.setTint(0xffddaa); // highlight on hover
         }
       });
       img.on('pointerout',()=>{
         if(enemy._pressTimer){ enemy._pressTimer.remove(); enemy._pressTimer=null; }
         enemy._longPressed=false;
-        if(this._atkHoverEnemy === enemy) this._hideHitTooltip();
+        enemy.img.clearTint();
       });
       return enemy;
     });
@@ -399,6 +413,10 @@ class GameScene extends Phaser.Scene {
       const alpha=Math.max(0,Math.min(1,Number(s.alpha??1)));
       const scale=Math.max(0.3,Number(s.scale||1));
       const img=this.add.image(tx*S+S/2,ty*S+S/2,...texArgs).setDepth(depth).setAlpha(alpha).setScale(scale);
+      img._stageType = type;
+      img._stageLit = !(s?.state && s.state.lit === false);
+      img._stageLightLevel = String(s.lightLevel || (type === 'torch' ? 'bright' : 'dim')).toLowerCase();
+      img._stageLightRadius = Math.max(0, Number(s.lightRadius || (type === 'torch' ? 3 : 0)));
       if(s.pulse){
         const amp=Math.max(0.02,Number(s.pulseAmount||0.07));
         this.tweens.add({targets:img,alpha:{from:Math.max(0,alpha-amp),to:Math.min(1,alpha+amp)},duration:700,yoyo:true,repeat:-1});
@@ -580,28 +598,48 @@ class GameScene extends Phaser.Scene {
 
   onTapEnemy(enemy){
     if(!enemy.alive) return;
-    // Attack targeting mode: initiate combat / attack this enemy
-    if(this.pendingAction==='attack'){
-      this.clearPendingAction();
-      if(this.mode===MODE.COMBAT){
-        const dx=Math.abs(this.playerTile.x-enemy.tx), dy=Math.abs(this.playerTile.y-enemy.ty);
-        if(dx<=1&&dy<=1) this.playerAttackEnemy(enemy);
-        else if(this.playerMoves>0) this.tryMoveAndAttack(enemy);
-        else this.showStatus('No movement left to reach this enemy.');
-      } else if(this.isExploreMode()){
-        if(typeof this.tryEngageEnemyFromExplore==='function'){
-          this.tryEngageEnemyFromExplore(enemy);
-        } else {
-          this.enterCombat([enemy]);
+
+    // ── Combat: click/tap = attack with pending ability or default attack ──
+    if(this.mode===MODE.COMBAT){
+      if(!this.isPlayerTurn()) return;
+      if(this.playerAP<=0){ this.showStatus('Action already used this turn.'); return; }
+      if(!this.combatGroup.includes(enemy)){ this.showStatus('That enemy is not in this fight.'); return; }
+
+      // Use pending ability if one is selected, otherwise default attack
+      let abilityId;
+      if(this.pendingAction==='attack'){
+        abilityId = this._pendingAtkAbilityId || 'attack';
+        this.clearPendingAction();
+      } else {
+        abilityId = 'attack';
+        if(typeof Hotbar!=='undefined'){
+          abilityId = Hotbar.getEffectiveDefaultAttack();
+          if(abilityId !== Hotbar.getDefaultAttackId()){
+            const defName = Hotbar._getAbilityDef(Hotbar.getDefaultAttackId())?.name || Hotbar.getDefaultAttackId();
+            this.showStatus(`${defName} unavailable — using basic attack.`);
+          }
         }
+      }
+      const d=tileDist(this.playerTile.x,this.playerTile.y,enemy.tx,enemy.ty);
+      const atkR=this.pStats.atkRange||1;
+      if(d<=atkR+0.5){
+        this.playerAttackEnemy(enemy, abilityId);
+      } else {
+        this._defaultAtkIdForMove = abilityId;
+        this.tryMoveAndAttack(enemy);
       }
       return;
     }
+
+    // ── Explore: click/tap = engage (walk to + enter combat) ──
     if(this.isExploreMode()){
-      this.showEnemyStatPopup(enemy);
+      if(typeof this.tryEngageEnemyFromExplore==='function'){
+        this.tryEngageEnemyFromExplore(enemy);
+      } else {
+        this.enterCombat([enemy]);
+      }
       return;
     }
-    this.onTapCombat(enemy.tx,enemy.ty,enemy);
   }
 
   showCombatEnemyPopup(enemy){
@@ -635,7 +673,8 @@ class GameScene extends Phaser.Scene {
   // HUD / UI
   // ─────────────────────────────────────────
   updateResBar(){
-    if(this.ui) return this.ui.updateResBar();
+    if(this.ui) this.ui.updateResBar();
+    if(this.updateHitLabels) this.updateHitLabels();
   }
 
   buildInitBar(){

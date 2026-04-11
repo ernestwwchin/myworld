@@ -268,10 +268,16 @@ Object.assign(GameScene.prototype, {
         this.tweens.add({targets:e.sightRing,x:wx,y:wy,duration:eDur});
         if(e.fa){ e.fa.setPosition(wx,ny*S+S/2); e.fa.draw(e.facing); }
         this.time.delayedCall(eDur+20,()=>{ if(e.alive) this.playActorIdle(e.img,e.type); });
+        
+        // If enemy moved close to player, check sight immediately
+        const distToPlayer = Math.sqrt((nx - this.playerTile.x) ** 2 + (ny - this.playerTile.y) ** 2);
+        if (distToPlayer <= 2.0) {
+          this.time.delayedCall(eDur, () => this.checkSight());
+        }
         break;
       }
     }
-    this.time.delayedCall(400,()=>{ this.drawSightOverlays(); this.updateFogOfWar(); });
+    this.time.delayedCall(400,()=>{ this.drawSightOverlays(); this.updateFogOfWar(); this.checkSight(); });
   },
 
 });

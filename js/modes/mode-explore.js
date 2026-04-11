@@ -6,23 +6,6 @@
 Object.assign(GameScene.prototype, {
 
   onTapExplore(tx, ty, enemy, ptr) {
-    // Attack targeting mode: click enemy → initiate combat
-    if (this.pendingAction === 'attack' && enemy && enemy.alive) {
-      this.clearPendingAction();
-      if (typeof this.tryEngageEnemyFromExplore === 'function') {
-        this.tryEngageEnemyFromExplore(enemy);
-      } else {
-        this.enterCombat([enemy]);
-      }
-      return;
-    }
-    // Clicking empty tile while in attack targeting → cancel
-    if (this.pendingAction === 'attack' && !enemy) {
-      this.clearPendingAction();
-      this.showStatus('Attack cancelled.');
-      return;
-    }
-
     const ents = this.getEntitiesAt(tx, ty);
     const hasEntity = ents.length > 0;
 
@@ -39,6 +22,7 @@ Object.assign(GameScene.prototype, {
     }
     if (this.isWallTile(tx, ty)) return;
     const pop = document.getElementById('enemy-stat-popup'); if (pop) pop.style.display = 'none';
+    const _ap = document.getElementById('atk-predict-popup'); if (_ap) _ap.style.display = 'none';
     this._statPopupEnemy = null;
     this.setDestination(tx, ty, null, ptr ? {wx: ptr.worldX, wy: ptr.worldY} : null);
   },
