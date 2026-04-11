@@ -85,6 +85,58 @@ function hasLOS(x0, y0, x1, y1) {
   }
 }
 
+// ── Bresenham tile list ──────────────────────────────
+// Returns all tiles along the line from (x0,y0) to (x1,y1) inclusive.
+function lineTiles(x0, y0, x1, y1) {
+  const tiles = [];
+  let dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+  let dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy, x = x0, y = y0;
+  while (true) {
+    tiles.push({ x, y });
+    if (x === x1 && y === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x += sx; }
+    if (e2 <= dx) { err += dx; y += sy; }
+  }
+  return tiles;
+}
+
+// ── String-pull (path smoothing) ─────────────────────
+// Takes a BFS tile path and removes unnecessary intermediate waypoints
+// by checking line-of-sight. Returns a shorter path with straight-line
+// segments expanded back to per-tile steps.
+function stringPull(path, start) {
+  if (path.length <= 2) return path;
+  const pts = [start, ...path];
+  const result = [];
+  let i = 0;
+  while (i < pts.length - 1) {
+    let best = i + 1;
+    // Try to skip ahead to the furthest point with clear LOS
+    for (let j = pts.length - 1; j > i + 1; j--) {
+      if (!hasLOS(pts[i].x, pts[i].y, pts[j].x, pts[j].y)) continue;
+      // Verify walkability: no corner-cutting along the line
+      const line = lineTiles(pts[i].x, pts[i].y, pts[j].x, pts[j].y);
+      let valid = true;
+      for (let k = 1; k < line.length; k++) {
+        const ddx = line[k].x - line[k - 1].x, ddy = line[k].y - line[k - 1].y;
+        if (ddx !== 0 && ddy !== 0) {
+          const cx = MAP?.[line[k - 1].y]?.[line[k - 1].x + ddx];
+          const cy = MAP?.[line[k - 1].y + ddy]?.[line[k - 1].x];
+          if (isWallCell(cx) && isWallCell(cy)) { valid = false; break; }
+        }
+      }
+      if (valid) { best = j; break; }
+    }
+    // Expand segment to per-tile steps along the straight line
+    const line = lineTiles(pts[i].x, pts[i].y, pts[best].x, pts[best].y);
+    for (let k = 1; k < line.length; k++) result.push(line[k]);
+    i = best;
+  }
+  return result;
+}
+
 // ── Field of View cone check ─────────────────────────
 function inFOV(enemy, tx, ty) {
   const dx = tx - enemy.tx, dy = ty - enemy.ty;

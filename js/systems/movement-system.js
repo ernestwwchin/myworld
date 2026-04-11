@@ -27,31 +27,93 @@ Object.assign(GameScene.prototype, {
     this.playActorIdle(this.player,'player');
     this.updateHUD();
     if(this.mode===MODE.COMBAT&&this.isPlayerTurn()&&this.playerMoves>0) this.showMoveRange();
-    this.showStatus('Movement canceled.');
+    // Don't show cancel message — caller handles context (redirect, etc.)
+    return true;
     return true;
   },
 
   // ─────────────────────────────────────────
   // MOVEMENT
   // ─────────────────────────────────────────
-  setDestination(tx,ty,onArrival){
+  setDestination(tx,ty,onArrival,finalPos){
+    // finalPos = {wx,wy} — exact world position for the last step (free movement)
     // Hidden movement: allowed (BG3-style). checkSight per step handles contests.
     if(this.enemies.some(e=>e.alive&&e.tx===tx&&e.ty===ty)) return;
+    // Re-follow player if camera was panned away
+    if(this._ensureCamFollow) this._ensureCamFollow();
     const blk=(x,y)=>this.isBlockedTile(x,y);
-    const path=bfs(this.playerTile.x,this.playerTile.y,tx,ty,blk);
+    let path=bfs(this.playerTile.x,this.playerTile.y,tx,ty,blk);
     if(!path.length) return;
+    // String-pull: smooth out zigzag into straight-line segments
+    if(path.length>2) path=stringPull(path,this.playerTile);
     this.tweens.killTweensOf(this.player);
     this.movePath=path; this.isMoving=true; this.onArrival=onArrival||null;
-    this.tapInd.setPosition(tx*S+S/2,ty*S+S/2);
+    this._finalWorldPos=finalPos||null;
+    // Show tap indicator at exact click position (or tile center as fallback)
+    const tapX = this._finalWorldPos ? this._finalWorldPos.wx : tx * S + S / 2;
+    const tapY = this._finalWorldPos ? this._finalWorldPos.wy : ty * S + S / 2;
+    this.tapInd.setPosition(tapX, tapY);
     this.tweens.add({targets:this.tapInd,alpha:{from:0.9,to:0},duration:500});
     this.clearPathDots();
-    for(let i=0;i<path.length-1;i++){
-      const dot=this.add.circle(path[i].x*S+S/2,path[i].y*S+S/2,3,0xd4a857,0.5).setDepth(7);
-      this.pathDots.push(dot);
-    }
+    // BG3-style path line: smooth line from player → waypoints → destination
+    this._drawPathLine(path, finalPos);
     this.advancePath();
   },
-  clearPathDots(){ this.pathDots.forEach(d=>d.destroy()); this.pathDots=[]; },
+
+  _drawPathLine(path, finalPos){
+    if (this._pathLineGfx) { this._pathLineGfx.destroy(); this._pathLineGfx = null; }
+    if (!path.length) return;
+    const g = this.add.graphics().setDepth(7);
+    // Dashed golden line
+    const color = 0xd4a857;
+    const points = [{ x: this.player.x, y: this.player.y }];
+    for (let i = 0; i < path.length - 1; i++) {
+      points.push({ x: path[i].x * S + S / 2, y: path[i].y * S + S / 2 });
+    }
+    // Last point: exact click position or tile center
+    const last = path[path.length - 1];
+    if (finalPos) {
+      const tl = last.x * S + 4, tr = last.x * S + S - 4;
+      const tt = last.y * S + 4, tb = last.y * S + S - 4;
+      points.push({
+        x: Math.max(tl, Math.min(tr, finalPos.wx)),
+        y: Math.max(tt, Math.min(tb, finalPos.wy))
+      });
+    } else {
+      points.push({ x: last.x * S + S / 2, y: last.y * S + S / 2 });
+    }
+    // Draw dashed line segments
+    const dashLen = 8, gapLen = 6;
+    g.lineStyle(2.5, color, 0.7);
+    for (let i = 0; i < points.length - 1; i++) {
+      const ax = points[i].x, ay = points[i].y;
+      const bx = points[i + 1].x, by = points[i + 1].y;
+      const dx = bx - ax, dy = by - ay;
+      const segLen = Math.sqrt(dx * dx + dy * dy);
+      if (segLen < 1) continue;
+      const ux = dx / segLen, uy = dy / segLen;
+      let d = 0;
+      while (d < segLen) {
+        const end = Math.min(d + dashLen, segLen);
+        g.lineBetween(ax + ux * d, ay + uy * d, ax + ux * end, ay + uy * end);
+        d = end + gapLen;
+      }
+    }
+    // Small circle at destination
+    const dest = points[points.length - 1];
+    g.fillStyle(color, 0.8);
+    g.fillCircle(dest.x, dest.y, 4);
+    g.lineStyle(1.5, color, 0.5);
+    g.strokeCircle(dest.x, dest.y, 8);
+    this._pathLineGfx = g;
+    this.pathDots.push(g); // reuse pathDots array for cleanup
+  },
+
+  clearPathDots(){
+    this.pathDots.forEach(d=>d.destroy());
+    this.pathDots=[];
+    if (this._pathLineGfx) { this._pathLineGfx.destroy(); this._pathLineGfx = null; }
+  },
 
   advancePath(){
     if(this.mode===MODE.COMBAT&&!this.onArrival){
@@ -65,7 +127,6 @@ Object.assign(GameScene.prototype, {
       return;
     }
     const next=this.movePath.shift();
-    if(this.pathDots.length){ this.pathDots[0].destroy(); this.pathDots.shift(); }
     const prev={x:this.playerTile.x,y:this.playerTile.y};
 
     // Re-check: enemy may have wandered onto this tile since path was computed
@@ -86,13 +147,31 @@ Object.assign(GameScene.prototype, {
     this.updateFogOfWar();
     this.playActorMove(this.player,'player',this.movePath.length>=2);
     // Distance-based tween duration (constant px/sec)
-    const wx = next.x * S + S / 2, wy = next.y * S + S / 2;
+    // If this is the last step and we have a final world position, use it
+    const isLastStep = this.movePath.length === 0;
+    let wx, wy;
+    if (isLastStep && this._finalWorldPos) {
+      // Clamp to destination tile with 4px margin
+      const tl = next.x * S + 4, tr = next.x * S + S - 4;
+      const tt = next.y * S + 4, tb = next.y * S + S - 4;
+      wx = Math.max(tl, Math.min(tr, this._finalWorldPos.wx));
+      wy = Math.max(tt, Math.min(tb, this._finalWorldPos.wy));
+      this._finalWorldPos = null;
+    } else {
+      wx = next.x * S + S / 2;
+      wy = next.y * S + S / 2;
+    }
     const dx = wx - this.player.x, dy = wy - this.player.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     const speed = this.playerHidden ? MOVE_SPEED_SNK : MOVE_SPEED;
     const moveDur = Math.max(40, (dist / speed) * 1000);
+    // Keep turn highlight following player during combat movement
+    const tweenTargets = [this.player];
+    if (this.mode === MODE.COMBAT && this.turnHL && this.turnHL.alpha > 0) {
+      tweenTargets.push(this.turnHL);
+    }
     this.tweens.add({
-      targets:this.player, x:wx, y:wy, duration:moveDur, ease:'Linear',
+      targets:tweenTargets, x:wx, y:wy, duration:moveDur, ease:'Linear',
       onComplete:()=>{
         if(this.isDoorTile(prev.x,prev.y)){
           const d=this.getDoorState(prev.x,prev.y);
@@ -100,6 +179,8 @@ Object.assign(GameScene.prototype, {
         }
         this.lastCompletedTile={x:next.x,y:next.y};
         try{ if(typeof EventRunner!=='undefined') EventRunner.onPlayerTile(next.x,next.y); }catch(_e){ console.warn('[EventRunner] tile trigger error:',_e); }
+        // Auto-pickup floor items
+        if(typeof this.checkFloorItemPickup==='function') this.checkFloorItemPickup();
         // Stairs — transition to next floor
         const _tileVal = MAP[next.y]?.[next.x];
         if(_tileVal === TILE.STAIRS) console.log(`[STAIRS] Stepped on stairs at (${next.x},${next.y}) tileVal=${_tileVal} TILE.STAIRS=${TILE.STAIRS} nextStage=${window._MAP_META?.nextStage}`);
@@ -182,10 +263,10 @@ Object.assign(GameScene.prototype, {
         this.playActorMove(e.img,e.type,false);
         this.tweens.add({targets:e.img,x:wx,y:wy,duration:eDur});
         this.tweens.add({targets:e.hpBg,x:wx,y:ny*S-4,duration:eDur});
-        this.tweens.add({targets:e.hpFg,x:wx,y:ny*S-4,duration:eDur});
+        this.tweens.add({targets:e.hpFg,x:wx-(S-8)/2,y:ny*S-4,duration:eDur});
         this.tweens.add({targets:e.lbl,x:wx,y:wy+18,duration:eDur});
         this.tweens.add({targets:e.sightRing,x:wx,y:wy,duration:eDur});
-        if(e.fa){ e.fa.setPosition(wx,wy); e.fa.setRotation(e.facing*Math.PI/180); }
+        if(e.fa){ e.fa.setPosition(wx,ny*S+S/2); e.fa.draw(e.facing); }
         this.time.delayedCall(eDur+20,()=>{ if(e.alive) this.playActorIdle(e.img,e.type); });
         break;
       }

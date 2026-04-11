@@ -184,9 +184,9 @@ Object.assign(GameScene.prototype, {
     const ents = this.getEntitiesAt(tx, ty);
     if (!ents.length) return null;
 
-    const adj = Math.abs(this.playerTile.x - tx) + Math.abs(this.playerTile.y - ty) === 1;
+    const dist = tileDist(this.playerTile.x, this.playerTile.y, tx, ty);
     const needsAdj = ents.some(e => e.needsAdjacency());
-    if (needsAdj && !adj) {
+    if (needsAdj && dist > 1.5) {
       this.showStatus(`Move closer to interact with ${ents[0].getLabel()}.`);
       return 'blocked';
     }
@@ -230,9 +230,9 @@ Object.assign(GameScene.prototype, {
       menuItems.push({ label: '⚔ Engage', action: () => this.onTapEnemy(enemy) });
     }
     const ents = this.getEntitiesAt(tx, ty);
-    const adj = Math.abs(this.playerTile.x - tx) + Math.abs(this.playerTile.y - ty) === 1;
+    const dist = tileDist(this.playerTile.x, this.playerTile.y, tx, ty);
     for (const ent of ents) {
-      if (ent.needsAdjacency() && !adj) continue;
+      if (ent.needsAdjacency() && dist > 1.5) continue;
       for (const opt of ent.getMenuOptions(this)) {
         if (!opt.enabled) continue;
         menuItems.push({
@@ -262,6 +262,7 @@ Object.assign(GameScene.prototype, {
     // Type-specific scene handlers (defined in door-handler.js, chest-handler.js, etc.)
     if (kind === 'door' && action === 'toggle') { this.toggleDoor(ent.x, ent.y); return 'door'; }
     if (kind === 'chest' && action === 'open') { this.tryOpenChest(ent.x, ent.y); return 'chest'; }
+    if (kind === 'floor_item' && action === 'pickup') { this.collectFloorItem(ent); return 'floor_item'; }
 
     // Generic fallback
     const result = ent.interact(this, action);

@@ -158,9 +158,7 @@ Object.assign(GameScene.prototype, {
     if (!this.isExploreMode()) return;
     if (this.isMoving) return;
 
-    const dx = Math.abs(this.playerTile.x - enemy.tx);
-    const dy = Math.abs(this.playerTile.y - enemy.ty);
-    if (dx <= 1 && dy <= 1) {
+    if (tileDist(this.playerTile.x, this.playerTile.y, enemy.tx, enemy.ty) <= (this.pStats.atkRange || 1) + 0.01) {
       this.executeEngageOpenerAttack(enemy);
       return;
     }
@@ -185,9 +183,7 @@ Object.assign(GameScene.prototype, {
   executeEngageOpenerAttack(enemy) {
     if (!enemy || !enemy.alive || !this.isExploreMode()) return;
 
-    const dx = Math.abs(this.playerTile.x - enemy.tx);
-    const dy = Math.abs(this.playerTile.y - enemy.ty);
-    if (dx > 1 || dy > 1) {
+    if (tileDist(this.playerTile.x, this.playerTile.y, enemy.tx, enemy.ty) > (this.pStats.atkRange || 1) + 0.01) {
       this.showStatus('Not in melee range to open with attack.');
       return;
     }
@@ -405,46 +401,72 @@ Object.assign(GameScene.prototype, {
   // ─────────────────────────────────────────
   // COMBAT TAP
   // ─────────────────────────────────────────
-  onTapCombat(tx,ty,enemy){
+  onTapCombat(tx,ty,enemy,ptr){
     if(this._movingToAttack) return;
     if(!this.isPlayerTurn()) return;
 
     // Door interaction — but only if no alive enemy is standing on it
     if(this.isDoorTile(tx,ty)&&!(enemy&&enemy.alive)){
-      const adj=Math.abs(this.playerTile.x-tx)+Math.abs(this.playerTile.y-ty)===1;
-      if(!adj){ this.showStatus('Move next to the door to interact.'); return; }
+      if(tileDist(this.playerTile.x,this.playerTile.y,tx,ty)>1.5){ this.showStatus('Move next to the door to interact.'); return; }
       this.toggleDoor(tx,ty);
       return;
     }
 
-    // BG3 flow: Attack selected → click enemy → auto-move into range + attack
-    // Clicking a floor tile in attack mode is ignored (must cancel to move freely)
+    // BG3 flow: Attack selected → click enemy → show hit% + confirm (touch) or attack (mouse)
     if(this.pendingAction==='attack'){
+      const pendAbilId = this._pendingAtkAbilityId || 'attack';
       if(enemy&&this.combatGroup.includes(enemy)){
-        const d=tileDist(this.playerTile.x,this.playerTile.y,enemy.tx,enemy.ty);
-        const atkR=this.pStats.atkRange||1;
-        if(d<=atkR+0.01){
-          this.playerAttackEnemy(enemy);
-        } else if(this.playerMoves>0.5){
-          this.tryMoveAndAttack(enemy);
+        // Touch confirm flow: first tap shows hit%, second tap attacks
+        if(this._atkConfirmEnemy === enemy){
+          // Second tap on same enemy → confirm attack
+          this._atkConfirmEnemy = null;
+          this._hideHitTooltip();
+          const d=tileDist(this.playerTile.x,this.playerTile.y,enemy.tx,enemy.ty);
+          const atkR=this.pStats.atkRange||1;
+          if(d<=atkR+0.5){
+            this.playerAttackEnemy(enemy, pendAbilId);
+          } else if(this.playerMoves>0.5){
+            this._defaultAtkIdForMove = pendAbilId;
+            this.tryMoveAndAttack(enemy);
+          } else {
+            this.showStatus('No movement left to reach this enemy.');
+          }
         } else {
-          this.showStatus('No movement left to reach this enemy.');
+          // First tap → show hit% tooltip, set confirm target
+          this._atkConfirmEnemy = enemy;
+          this._showHitTooltip(enemy);
+          const pct = this.calcHitChance(enemy, pendAbilId);
+          const aName = this.getAbilityDef(pendAbilId)?.name || 'Attack';
+          this.showStatus(`${enemy.displayName} — ${pct}% to hit with ${aName}. Tap again to attack.`);
         }
       } else {
+        // Tap empty → cancel confirm target
+        this._atkConfirmEnemy = null;
+        this._hideHitTooltip();
         this.showStatus('Attack mode: select an enemy, or cancel to move freely.');
       }
       return;
     }
 
-    // No action selected: click enemy → BG3-style direct attack (no pre-selection needed)
+    // No action selected: click enemy → use default attack skill (configurable via hotbar)
     // Long-press on the enemy sprite shows inspect popup (handled in game.js pointer events)
     if(enemy&&this.combatGroup.includes(enemy)){
       if(this.playerAP<=0){ this.showStatus('Action already used this turn.'); return; }
+      // Resolve default attack skill (falls back to 'attack' if unavailable)
+      let defAtkId = 'attack';
+      if(typeof Hotbar!=='undefined'){ 
+        defAtkId = Hotbar.getEffectiveDefaultAttack();
+        if(defAtkId !== Hotbar.getDefaultAttackId()){
+          const defName = Hotbar._getAbilityDef(Hotbar.getDefaultAttackId())?.name || Hotbar.getDefaultAttackId();
+          this.showStatus(`${defName} unavailable — using basic attack.`);
+        }
+      }
       const d=tileDist(this.playerTile.x,this.playerTile.y,enemy.tx,enemy.ty);
       const atkR=this.pStats.atkRange||1;
-      if(d<=atkR+0.01){
-        this.playerAttackEnemy(enemy);
+      if(d<=atkR+0.5){
+        this.playerAttackEnemy(enemy, defAtkId);
       } else if(this.playerMoves>0.5){
+        this._defaultAtkIdForMove = defAtkId;
         this.tryMoveAndAttack(enemy);
       } else {
         this.showStatus('No movement left to reach this enemy.');
@@ -461,22 +483,31 @@ Object.assign(GameScene.prototype, {
       if(this.ui) this.ui.dismissEnemyPopup();
       if(this.playerMoves<0.5){ this.showStatus('No movement left.'); return; }
       if(this.enemies.some(e=>e.alive&&e.tx===tx&&e.ty===ty)){ this.showStatus('Cannot move onto an enemy tile.'); return; }
-      const path=bfs(this.playerTile.x,this.playerTile.y,tx,ty,wallBlk);
-      if(!path.length){ this.showStatus('Cannot reach that tile.'); return; }
-      const moveCost=pathTileCost(path,this.playerTile);
-      if(moveCost>this.playerMoves+0.001){
+      // BG3: check reachability from turn-start, not current position
+      const anchor = this.turnStartTile || this.playerTile;
+      const totalBudget = this.turnStartMoves || this.playerMoves;
+      const wallBlk2=(x,y)=>this.isBlockedTile(x,y,{doorMode:false});
+      const pathFromStart=bfs(anchor.x,anchor.y,tx,ty,wallBlk2);
+      if(!pathFromStart.length){ this.showStatus('Cannot reach that tile.'); return; }
+      const costFromStart=pathTileCost(pathFromStart,anchor);
+      if(costFromStart>totalBudget+0.001){
         this.showMoveRange();
-        this.showStatus(`Too far (${moveCost.toFixed(1)}), you have ${this.playerMoves.toFixed(1)} movement.`);
+        this.showStatus(`Too far (${costFromStart.toFixed(1)}), you have ${totalBudget.toFixed(1)} movement.`);
         return;
       }
-      this.clearMoveRange();
+      // Also need a path from current position for the actual walk
+      const path=bfs(this.playerTile.x,this.playerTile.y,tx,ty,wallBlk2);
+      if(!path.length){ this.showStatus('Cannot reach that tile.'); return; }
+      // BG3: keep move range visible — don't clear it
+      const finalPos=ptr?{wx:ptr.worldX,wy:ptr.worldY}:null;
+      // BG3: don't deduct movement yet — just move freely
       this.setDestination(tx,ty,()=>{
-        this.playerMovesUsed+=moveCost;
-        this.playerMoves=Math.max(0,this.playerMoves-moveCost);
+        // Update how far we've gone from turn start (for display/validation)
+        this.playerMovesUsed=costFromStart;
+        this.playerMoves=Math.max(0,totalBudget-costFromStart);
         this.updateResBar();
-        if(this.playerMoves>0.5) this.showMoveRange();
-        if(this.playerMoves<0.5&&this.playerAP<=0) this.endPlayerTurn();
-      });
+        // Range stays visible — anchored to turn start
+      },finalPos);
     }
   },
 
@@ -528,8 +559,8 @@ Object.assign(GameScene.prototype, {
         hotbar.setExpanded(true);
         hotbar.resetUsed();
       });
-      this.turnHL.setPosition(this.player.x,this.player.y).setAlpha(1);
-      this.tweens.add({targets:this.turnHL,alpha:0.35,duration:600,yoyo:true,repeat:-1});
+      this.turnHL.setPosition(this.player.x,this.player.y).setAlpha(0.6);
+      this.tweens.add({targets:this.turnHL,alpha:0.25,duration:600,yoyo:true,repeat:-1});
       this.updateResBar();
       this.time.delayedCall(100,()=>this.showMoveRange());
       const engageTarget=this._queuedEngageEnemy;
@@ -626,20 +657,22 @@ Object.assign(GameScene.prototype, {
     }
     if(this.mode!==MODE.COMBAT){ this.showStatus('Enter combat first.'); return; }
     if(!this.isPlayerTurn()) return;
-    if(action==='attack'){
+    if(action==='attack'||this._isAttackAbility(action)){
       if(this.playerAP<=0){ this.showStatus('Action already used.'); return; }
-      // Toggle: clicking attack again deselects it
-      if(this.pendingAction==='attack'){
+      // Toggle: clicking same action again deselects it
+      if(this.pendingAction==='attack'&&(this._pendingAtkAbilityId||'attack')===action){
         this.clearPendingAction();
         this.showMoveRange();
         this.showStatus('Attack cancelled.');
         return;
       }
       this.pendingAction='attack';
+      this._pendingAtkAbilityId=action;
       this.setSelectedActionButton('attack');
-      withHotbar(hotbar => hotbar.setSelected('attack'));
+      withHotbar(hotbar => hotbar.setSelected(action));
       this.clearMoveRange(); this.showAtkRange();
-      this.showStatus('Select an enemy to attack.');
+      const aDef = this.getAbilityDef(action);
+      this.showStatus(`Select an enemy to ${aDef?.name||'attack'}.`);
     } else if(action==='sleep_cloud'){
       this.showStatus('Sleep Cloud action setup is not wired to a targeting flow yet.');
       this.pendingAction=null;
@@ -649,6 +682,9 @@ Object.assign(GameScene.prototype, {
       if(this.playerAP<=0){ this.showStatus('Action already used.'); return; }
       this.playerAP=0; this.playerMoves+=Number(COMBAT_RULES.dashMoveBonus||4);
       this.processStatusEffectsForActor('player','on_action',{actionId:'dash'});
+      // Dash commits current movement + extends from current position
+      this.turnStartTile={...this.playerTile};
+      this.turnStartMoves=Math.max(0,this.playerMoves);
       this.snapshotMoveResetAnchor();
       this.pendingAction=null;
       this.setActionButtonsUsed(true);
@@ -682,6 +718,9 @@ Object.assign(GameScene.prototype, {
 
   clearPendingAction(){
     this.pendingAction=null;
+    this._pendingAtkAbilityId=null;
+    this._atkConfirmEnemy=null;
+    this._hideHitTooltip();
     this.setSelectedActionButton('');
     withHotbar(hotbar => hotbar.clearSelection());
     this.clearAtkRange(); this.clearFleeZone();
@@ -689,20 +728,82 @@ Object.assign(GameScene.prototype, {
     this._targetingAutoTB=false;
   },
 
-  playerAttackEnemy(enemy){
+  /** Check if an ability id is an attack-type ability (has attackRoll in template) */
+  _isAttackAbility(id){
+    if(id==='attack') return true;
+    const def=this.getAbilityDef(id);
+    return !!(def?.template?.hit?.attackRoll);
+  },
+
+  /** Calculate hit chance vs enemy (5%-95%, accounting for nat 1/20) */
+  calcHitChance(enemy, abilityId){
+    abilityId = abilityId || this._pendingAtkAbilityId || 'attack';
+    const aDef = this.getAbilityDef(abilityId);
+    const atkStat = aDef?.template?.hit?.attackRoll?.ability || 'str';
+    const addProf = aDef?.template?.hit?.attackRoll?.addProf !== false;
+    const statMod = dnd.mod(this.pStats[atkStat] || 10);
+    const bonus = statMod + (addProf ? this.pStats.profBonus : 0);
+    const needed = enemy.ac - bonus; // need to roll this or higher on d20
+    // Nat 1 always misses (5%), Nat 20 always hits (5%)
+    const raw = (21 - needed) / 20;
+    return Math.round(Math.max(0.05, Math.min(0.95, raw)) * 100);
+  },
+
+  /** Show/hide hit chance tooltip near enemy */
+  _showHitTooltip(enemy){
+    if (!enemy || !enemy.alive) { this._hideHitTooltip(); return; }
+    const pct = this.calcHitChance(enemy);
+    const adv = this.playerHidden ? ' (Adv)' : '';
+    let el = document.getElementById('hit-chance-tip');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'hit-chance-tip';
+      el.style.cssText = 'position:absolute;z-index:35;pointer-events:none;font-family:"Courier New",monospace;font-size:13px;font-weight:bold;padding:4px 10px;border-radius:6px;background:rgba(10,10,20,0.92);border:1px solid rgba(231,76,60,0.5);white-space:nowrap;transition:opacity 0.12s;';
+      document.body.appendChild(el);
+    }
+    el.textContent = `${pct}%${adv}`;
+    el.style.color = pct >= 70 ? '#2ecc71' : pct >= 40 ? '#f0c060' : '#e74c3c';
+    // Position above enemy sprite
+    const cam = this.cameras.main;
+    const canvas = document.querySelector('#gc canvas');
+    const cr = canvas ? canvas.getBoundingClientRect() : { left: 0, top: 0, width: 960, height: 1008 };
+    const scaleX = cr.width / cam.width, scaleY = cr.height / cam.height;
+    const sx = (enemy.tx * S + S / 2 - cam.scrollX) * scaleX + cr.left;
+    const sy = (enemy.ty * S - 8 - cam.scrollY) * scaleY + cr.top;
+    el.style.left = (sx - el.offsetWidth / 2) + 'px';
+    el.style.top = (sy - 28) + 'px';
+    el.style.display = 'block';
+    el.style.opacity = '1';
+  },
+
+  _hideHitTooltip(){
+    const el = document.getElementById('hit-chance-tip');
+    if (el) { el.style.opacity = '0'; el.style.display = 'none'; }
+    this._atkHoverEnemy = null;
+  },
+
+  playerAttackEnemy(enemy, abilityId){
+    abilityId = abilityId || 'attack';
     if(!this.isPlayerTurn()||this.playerAP<=0) return;
     if(this.ui) this.ui.dismissEnemyPopup();
 
     const wasHidden = this.playerHidden;
     if (wasHidden) this._breakStealth(null); // silent — attack message shown separately
-    const dx=Math.abs(this.playerTile.x-enemy.tx), dy=Math.abs(this.playerTile.y-enemy.ty);
-    if(dx>1||dy>1){ this.showStatus('Too far — move closer first.'); return; }
+    if(tileDist(this.playerTile.x,this.playerTile.y,enemy.tx,enemy.ty)>(this.pStats.atkRange||1)+0.5){ this.showStatus('Too far — move closer first.'); return; }
     this.clearPendingAction();
     this.playerAP=0;
-    this.processStatusEffectsForActor('player','on_action',{actionId:'attack'});
+    this.processStatusEffectsForActor('player','on_action',{actionId:abilityId});
+    // BG3: action commits movement — recalculate range from current position
+    this.turnStartTile={...this.playerTile};
+    this.turnStartMoves=Math.max(0,this.playerMoves);
     this.snapshotMoveResetAnchor();
 
-    const strMod=dnd.mod(this.pStats.str);
+    // Resolve attack stat from ability definition
+    const abilityDef = this.getAbilityDef(abilityId);
+    const atkStat = abilityDef?.template?.hit?.attackRoll?.ability || 'str';
+    const addProf = abilityDef?.template?.hit?.attackRoll?.addProf !== false;
+    const statMod = dnd.mod(this.pStats[atkStat] || 10);
+    const profBonus = addProf ? this.pStats.profBonus : 0;
 
     let atkRoll, atkRoll2 = null;
     if(wasHidden){
@@ -713,9 +814,11 @@ Object.assign(GameScene.prototype, {
       atkRoll = dnd.roll(1,20);
     }
 
-    const atkTotal=atkRoll+strMod+this.pStats.profBonus;
+    const atkTotal=atkRoll+statMod+profBonus;
     const isCrit=atkRoll===20, isMiss=atkRoll===1;
     const hits=isCrit||(!isMiss&&atkTotal>=enemy.ac);
+
+    const abilityName = abilityDef?.name || 'Attack';
 
     this.setActionButtonsUsed(true);
     withHotbar(hotbar => hotbar.markAllUsed(true));
@@ -724,11 +827,11 @@ Object.assign(GameScene.prototype, {
     if(!hits){
       this.tweens.add({targets:enemy.img,x:enemy.img.x+6,duration:60,yoyo:true,repeat:1});
       { const _ew=this.enemyWorldPos(enemy); this.spawnFloat(_ew.x,_ew.y-S/2,isMiss?'NAT 1!':'MISS','#7fc8f8'); }
-      const totalMod=strMod+this.pStats.profBonus;
+      const totalMod=statMod+profBonus;
       const rollDisplay = wasHidden
         ? `d20(${atkRoll2}|${atkRoll}↑) ${totalMod>=0?'+ '+totalMod:'- '+Math.abs(totalMod)} = ${atkTotal} | AC ${enemy.ac}`
         : this.formatRollLine(atkRoll,totalMod,atkTotal,enemy.ac);
-      this.showStatus(`Missed ${enemy.displayName}! ${rollDisplay}`);
+      this.showStatus(`${abilityName} missed ${enemy.displayName}! ${rollDisplay}`);
       CombatLog.logRoll({actor:'You',target:enemy.displayName,result:isMiss?'crit':'miss',rollDetail:rollDisplay,extra:wasHidden?'advantage':'',});
       
       this._afterPlayerDice=()=>{
@@ -745,10 +848,10 @@ Object.assign(GameScene.prototype, {
       return;
     }
 
-    const dr=this.resolveAbilityDamage('attack','player',isCrit);
+    const dr=this.resolveAbilityDamage(abilityId,'player',isCrit);
     const dmg=Math.max(1,dr.total);
     enemy.hp-=dmg;
-    this.applyAbilityOnHitStatuses('attack','player',enemy);
+    this.applyAbilityOnHitStatuses(abilityId,'player',enemy);
 
     // Damage type color from weapon
     const wpn=WEAPON_DEFS[this.pStats.weaponId];
@@ -762,11 +865,11 @@ Object.assign(GameScene.prototype, {
     if(ratio<0.15) enemy.hpFg.setFillStyle(0xe74c3c);
 
     const dmgText=this.formatDamageBreakdown(dr);
-    const totalMod2=strMod+this.pStats.profBonus;
+    const totalMod2=statMod+profBonus;
     const rollDisplay = wasHidden
       ? `d20(${atkRoll2}|${atkRoll}↑) ${totalMod2>=0?'+ '+totalMod2:'- '+Math.abs(totalMod2)} = ${atkTotal} | AC ${enemy.ac}`
       : this.formatRollLine(atkRoll,totalMod2,atkTotal,enemy.ac);
-    this.showStatus(`${isCrit?'CRIT! ':''}${wasHidden?'SNEAK ':''}Hit ${enemy.displayName} for ${dmg}! ${rollDisplay} | ${dmgText}`);
+    this.showStatus(`${isCrit?'CRIT! ':''}${wasHidden?'SNEAK ':''}${abilityName} hit ${enemy.displayName} for ${dmg}! ${rollDisplay} | ${dmgText}`);
     const pWpn=WEAPON_DEFS[this.pStats.weaponId];
     const pDmgType=pWpn?pWpn.damageType:'';
     CombatLog.logRoll({actor:'You',target:enemy.displayName,result:isCrit?'crit':'hit',damage:dmg,rollDetail:rollDisplay,dmgDetail:`${dmgText}${pDmgType?' '+pDmgType:''}`,extra:wasHidden?'sneak attack':''});
@@ -832,7 +935,9 @@ Object.assign(GameScene.prototype, {
         this.playerMoves=Math.max(0,this.playerMoves-cost);
         this.updateResBar();
         if(this.playerAP>0&&targetEnemy.alive){
-          this.time.delayedCall(100,()=>this.playerAttackEnemy(targetEnemy));
+          const moveAtkId = this._defaultAtkIdForMove || 'attack';
+          this._defaultAtkIdForMove = null;
+          this.time.delayedCall(100,()=>this.playerAttackEnemy(targetEnemy, moveAtkId));
         } else {
           if(this.playerMoves>0.5) this.showMoveRange();
         }
@@ -871,7 +976,7 @@ Object.assign(GameScene.prototype, {
       this.playerMovesUsed+=cost;
       this.playerMoves=Math.max(0,this.playerMoves-cost);
       this.updateResBar();
-      const inRange=tileDist(this.playerTile.x,this.playerTile.y,targetEnemy.tx,targetEnemy.ty)<=(this.pStats.atkRange||1)+0.01;
+      const inRange=tileDist(this.playerTile.x,this.playerTile.y,targetEnemy.tx,targetEnemy.ty)<=(this.pStats.atkRange||1)+0.5;
       if(inRange&&this.playerAP>0&&targetEnemy.alive){
         this.time.delayedCall(100,()=>this.playerAttackEnemy(targetEnemy));
       } else if(!inRange&&this.playerMoves<0.5){

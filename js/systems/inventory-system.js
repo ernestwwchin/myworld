@@ -86,25 +86,42 @@ Object.assign(GameScene.prototype, {
 
     if(!resolved.gold&&(!resolved.items||!resolved.items.length)) return resolved;
 
-    const drops=[];
-    if(resolved.gold>0){
-      this.pStats.gold=(this.pStats.gold||0)+resolved.gold;
-      drops.push(`+${resolved.gold} gold`);
-      { const _ew=this.enemyWorldPos(enemy); this.spawnFloat(_ew.x,_ew.y-S/2-20,`+${resolved.gold}g`,'#f0c060'); }
-    }
-
-    for(const item of (resolved.items||[])){
-      this.addItemToInventory(item,Number(item.qty||1));
-      drops.push(`${item.icon?item.icon+' ':''}${item.name||item.id||'item'}`);
-    }
-
-    if(drops.length){
-      const msg=`Looted ${enemy.displayName||enemy.type}: ${drops.join(', ')}`;
-      if(typeof CombatLog!=='undefined') CombatLog.log(msg,'loot','system');
-      this.showStatus(msg);
-      if(typeof SidePanel!=='undefined'&&SidePanel._activeTab==='inventory') SidePanel.refresh();
-      if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
-      this.updateHUD();
+    // Spawn a floor loot bag at the enemy's tile
+    if(typeof this.spawnFloorItem==='function'){
+      const ent=this.spawnFloorItem(enemy.tx,enemy.ty,{
+        gold:resolved.gold,
+        items:resolved.items,
+        sourceLabel:enemy.displayName||enemy.type||'enemy',
+      });
+      const _ew=this.enemyWorldPos(enemy);
+      this.spawnFloat(_ew.x,_ew.y-S/2-20,'LOOT!','#f0c060');
+      const drops=[];
+      if(resolved.gold>0) drops.push(`${resolved.gold} gold`);
+      for(const item of (resolved.items||[])) drops.push(item.name||item.id||'item');
+      if(drops.length){
+        const msg=`${enemy.displayName||enemy.type} dropped: ${drops.join(', ')}`;
+        if(typeof CombatLog!=='undefined') CombatLog.log(msg,'loot','system');
+      }
+    } else {
+      // Fallback: add directly to inventory (legacy path)
+      const drops=[];
+      if(resolved.gold>0){
+        this.pStats.gold=(this.pStats.gold||0)+resolved.gold;
+        drops.push(`+${resolved.gold} gold`);
+        { const _ew=this.enemyWorldPos(enemy); this.spawnFloat(_ew.x,_ew.y-S/2-20,`+${resolved.gold}g`,'#f0c060'); }
+      }
+      for(const item of (resolved.items||[])){
+        this.addItemToInventory(item,Number(item.qty||1));
+        drops.push(`${item.icon?item.icon+' ':''}${item.name||item.id||'item'}`);
+      }
+      if(drops.length){
+        const msg=`Looted ${enemy.displayName||enemy.type}: ${drops.join(', ')}`;
+        if(typeof CombatLog!=='undefined') CombatLog.log(msg,'loot','system');
+        this.showStatus(msg);
+        if(typeof SidePanel!=='undefined'&&SidePanel._activeTab==='inventory') SidePanel.refresh();
+        if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
+        this.updateHUD();
+      }
     }
     return resolved;
   },
