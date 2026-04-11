@@ -50,7 +50,7 @@ Object.assign(GameScene.prototype, {
       enemy.searchTurnsRemaining = 0;
     }
 
-    const isAdj=()=>Math.abs(enemy.tx-targetTile.x)<=1&&Math.abs(enemy.ty-targetTile.y)<=1;
+    const isAdj=()=>tileDist(enemy.tx,enemy.ty,targetTile.x,targetTile.y)<=1.01;
 
     const afterMove=()=>{
       if(this.playerHidden){ this.endEnemyTurn(enemy); return; }
@@ -62,16 +62,20 @@ Object.assign(GameScene.prototype, {
 
     const blockFn = this.playerHidden ? wallBlk : (x,y) => wallBlk(x,y);
     const path=bfs(enemy.tx,enemy.ty,targetTile.x,targetTile.y,blockFn);
-    const enemySpd=Math.max(1,Math.floor(enemy.spd*Number(COMBAT_RULES.enemySpeedScale||1)));
-    const steps=Math.min(enemySpd,Math.max(0,path.length-1));
-    if(steps<=0){ afterMove(); return; }
-
+    const enemyBudget=Math.max(1,Math.floor(enemy.spd*Number(COMBAT_RULES.enemySpeedScale||1)));
+    // Consume path steps within Euclidean tile-distance budget
+    let budget=enemyBudget;
     const mp=[];
-    for(let i=0;i<steps;i++){
+    let prev={x:enemy.tx,y:enemy.ty};
+    for(let i=0;i<Math.max(0,path.length-1);i++){
       const t=path[i];
+      const sc=tileDist(prev.x,prev.y,t.x,t.y);
+      if(budget<sc-0.001) break;
       if(this.enemies.some(e=>e.alive&&e!==enemy&&e.tx===t.x&&e.ty===t.y)) break;
       if(!this.playerHidden&&t.x===this.playerTile.x&&t.y===this.playerTile.y) break;
+      budget-=sc;
       mp.push(t);
+      prev=t;
     }
     if(!mp.length){ afterMove(); return; }
 
