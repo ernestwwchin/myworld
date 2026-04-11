@@ -132,14 +132,18 @@ Object.assign(GameScene.prototype, {
     const fromY=_prevTy!==undefined?_prevTy:enemy.ty;
     const fdx=step.x-fromX, fdy=step.y-fromY;
     if(fdx||fdy) enemy.facing=Math.atan2(fdy,fdx)*180/Math.PI;
+    // Distance-based duration (constant speed)
+    const dx=nx-enemy.img.x, dy=ny-enemy.img.y;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    const dur=Math.max(40,(dist/MOVE_SPEED)*1000);
     this.playActorMove(enemy.img,enemy.type,enemy.spd>=2);
-    this.tweens.add({targets:enemy.img,x:nx,y:ny,duration:200,ease:'Linear',onComplete:()=>this.animEnemyMove(enemy,path,onDone,step.x,step.y)});
-    this.tweens.add({targets:enemy.hpBg,x:nx,y:step.y*S-4,duration:200});
-    this.tweens.add({targets:enemy.hpFg,x:nx,y:step.y*S-4,duration:200});
-    this.tweens.add({targets:enemy.lbl,x:nx,y:ny+S*0.52,duration:200});
-    this.tweens.add({targets:enemy.sightRing,x:nx,y:ny,duration:200});
-    if(enemy.fa){ this.tweens.add({targets:enemy.fa,x:nx,y:ny,duration:200}); enemy.fa.setRotation(enemy.facing*Math.PI/180); }
-    if(!path.length) this.time.delayedCall(210,()=>this.playActorIdle(enemy.img,enemy.type));
+    this.tweens.add({targets:enemy.img,x:nx,y:ny,duration:dur,ease:'Linear',onComplete:()=>this.animEnemyMove(enemy,path,onDone,step.x,step.y)});
+    this.tweens.add({targets:enemy.hpBg,x:nx,y:step.y*S-4,duration:dur});
+    this.tweens.add({targets:enemy.hpFg,x:nx,y:step.y*S-4,duration:dur});
+    this.tweens.add({targets:enemy.lbl,x:nx,y:ny+S*0.52,duration:dur});
+    this.tweens.add({targets:enemy.sightRing,x:nx,y:ny,duration:dur});
+    if(enemy.fa){ this.tweens.add({targets:enemy.fa,x:nx,y:ny,duration:dur}); enemy.fa.setRotation(enemy.facing*Math.PI/180); }
+    if(!path.length) this.time.delayedCall(dur+10,()=>this.playActorIdle(enemy.img,enemy.type));
   },
 
   /** Finish enemy turn without dice overlay (normal hit/miss) */
