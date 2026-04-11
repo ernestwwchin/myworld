@@ -236,10 +236,12 @@ const Hotbar = {
     if (mvGroup) {
       const remaining = Math.max(0, Number(s.playerMoves || 0));
       const used = Math.max(0, Number(s.playerMovesUsed || 0));
-      const total = remaining + used;
+      const dRemaining = Math.floor(remaining);
+      const dUsed = Math.ceil(used);
+      const total = dRemaining + dUsed;
       let html = '<span class="rp-label">MOV</span>';
-      for (let i = 0; i < total; i++) html += `<div class="rp-pip mv${i >= remaining ? ' spent' : ''}"></div>`;
-      html += `<span class="rp-count">${remaining}/${total}</span>`;
+      for (let i = 0; i < total; i++) html += `<div class="rp-pip mv${i >= dRemaining ? ' spent' : ''}"></div>`;
+      html += `<span class="rp-count">${dRemaining}/${total}</span>`;
       mvGroup.innerHTML = html;
     }
 

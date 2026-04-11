@@ -1,27 +1,54 @@
 // ═══════════════════════════════════════════════════════
 // combat-ranges.js — Range / zone display for combat mode
-// Extracted from mode-combat.js (Phase -1.8)
+// Phase 3: Euclidean Dijkstra flood-fill for circular ranges
 // ═══════════════════════════════════════════════════════
+
+/**
+ * Dijkstra flood-fill from (sx,sy) with Euclidean step costs.
+ * Returns Map<"x,y", bestCost> for all reachable tiles within budget.
+ */
+function _floodReachable(sx, sy, budget, blockFn) {
+  const costMap = new Map();
+  costMap.set(`${sx},${sy}`, 0);
+  // Priority queue (simple sorted insert — maps are small)
+  const pq = [{ x: sx, y: sy, cost: 0 }];
+  while (pq.length) {
+    pq.sort((a, b) => a.cost - b.cost);
+    const cur = pq.shift();
+    const curKey = `${cur.x},${cur.y}`;
+    if (costMap.has(curKey) && costMap.get(curKey) < cur.cost) continue;
+    for (const d of DIRS8) {
+      const nx = cur.x + d.x, ny = cur.y + d.y;
+      if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) continue;
+      if (blockFn(nx, ny)) continue;
+      if (d.x !== 0 && d.y !== 0 && blockFn(nx, cur.y) && blockFn(cur.x, ny)) continue;
+      const stepCost = Math.sqrt(d.x * d.x + d.y * d.y);
+      const nc = cur.cost + stepCost;
+      if (nc > budget + 0.001) continue;
+      const key = `${nx},${ny}`;
+      if (!costMap.has(key) || costMap.get(key) > nc + 0.001) {
+        costMap.set(key, nc);
+        pq.push({ x: nx, y: ny, cost: nc });
+      }
+    }
+  }
+  return costMap;
+}
 
 Object.assign(GameScene.prototype, {
 
   showMoveRange(){
     this.clearMoveRange();
-    const range=this.playerMoves||0, px=this.playerTile.x, py=this.playerTile.y;
-    if(range<=0) return;
-    for(let dy=-range;dy<=range;dy++) for(let dx=-range;dx<=range;dx++){
-      if(Math.abs(dx)+Math.abs(dy)>range) continue;
-      const tx=px+dx, ty=py+dy;
-      if(tx<0||ty<0||tx>=COLS||ty>=ROWS) continue;
-      if(this.isWallTile(tx,ty)) continue;
+    const budget=this.playerMoves||0, px=this.playerTile.x, py=this.playerTile.y;
+    if(budget<=0) return;
+    const moveBlk=(x,y)=>this.isBlockedTile(x,y,{doorMode:false});
+    const reachable=_floodReachable(px,py,budget,moveBlk);
+    for(const [key] of reachable){
+      const [tx,ty]=key.split(',').map(Number);
       if(tx===px&&ty===py) continue;
       if(this.enemies.some(e=>e.alive&&e.tx===tx&&e.ty===ty)) continue;
-      const moveBlk=(x,y)=>this.isBlockedTile(x,y,{doorMode:false});
-      const path=bfs(px,py,tx,ty,moveBlk);
-      if(path.length&&path.length<=range){
-        const o=this.add.image(tx*S+S/2,ty*S+S/2,'t_move').setDisplaySize(S,S).setDepth(3);
-        this.rangeTiles.push({x:tx,y:ty,img:o});
-      }
+      const o=this.add.image(tx*S+S/2,ty*S+S/2,'t_move').setDisplaySize(S,S).setDepth(3);
+      this.rangeTiles.push({x:tx,y:ty,img:o});
     }
   },
   clearMoveRange(){ this.rangeTiles.forEach(r=>r.img.destroy()); this.rangeTiles=[]; },
@@ -35,27 +62,8 @@ Object.assign(GameScene.prototype, {
     const moves=this.playerMoves||0;
     const moveBlk=(x,y)=>this.isBlockedTile(x,y,{doorMode:false});
 
-    // BFS to find all reachable tiles within movement range
-    const reachable=new Map(); // key "x,y" → cost
-    reachable.set(`${px},${py}`, 0);
-    if(moves>0){
-      const queue=[{x:px,y:py,cost:0}];
-      const dirs=[{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
-      while(queue.length){
-        const cur=queue.shift();
-        for(const d of dirs){
-          const nx=cur.x+d.x, ny=cur.y+d.y, nc=cur.cost+1;
-          if(nx<0||ny<0||nx>=COLS||ny>=ROWS) continue;
-          if(nc>moves) continue;
-          if(moveBlk(nx,ny)) continue;
-          const key=`${nx},${ny}`;
-          if(!reachable.has(key)||reachable.get(key)>nc){
-            reachable.set(key, nc);
-            queue.push({x:nx,y:ny,cost:nc});
-          }
-        }
-      }
-    }
+    // Dijkstra flood-fill for movement reachable tiles
+    const reachable=_floodReachable(px,py,moves,moveBlk);
 
     // Show blue movement tiles (lighter than normal move range)
     for(const [key] of reachable){
@@ -65,12 +73,13 @@ Object.assign(GameScene.prototype, {
       this.atkRangeTiles.push(o);
     }
 
-    // For each reachable tile, check if any enemy is within atkRange
-    // Collect attackable tiles (adjacent to reachable tiles)
+    // Collect attackable tiles: Euclidean distance from any reachable tile ≤ atkRange
     const attackableTiles=new Set();
     for(const [key] of reachable){
       const [rx,ry]=key.split(',').map(Number);
-      for(let dy=-atkRange;dy<=atkRange;dy++) for(let dx=-atkRange;dx<=atkRange;dx++){
+      const rng=Math.ceil(atkRange)+1;
+      for(let dy=-rng;dy<=rng;dy++) for(let dx=-rng;dx<=rng;dx++){
+        if(tileDist(0,0,dx,dy)>atkRange+0.01) continue;
         const ax=rx+dx, ay=ry+dy;
         if(ax<0||ay<0||ax>=COLS||ay>=ROWS) continue;
         attackableTiles.add(`${ax},${ay}`);
@@ -103,10 +112,9 @@ Object.assign(GameScene.prototype, {
     const checkLOS=COMBAT_RULES.fleeRequiresNoLOS!==false;
     for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){
       if(this.isWallTile(x,y)) continue;
-      // Check distance from all enemies
-      const nearest=alive.reduce((m,e)=>Math.min(m,Math.abs(e.tx-x)+Math.abs(e.ty-y)),Infinity);
+      // Euclidean distance from nearest enemy
+      const nearest=alive.reduce((m,e)=>Math.min(m,tileDist(e.tx,e.ty,x,y)),Infinity);
       if(nearest<minDist) continue;
-      // Check LOS from all enemies
       if(checkLOS){
         const seen=alive.some(e=>this.canEnemySeeTile(e,x,y,{checkFOV:false,useEffectiveSight:false}));
         if(seen) continue;

@@ -421,10 +421,11 @@ Object.assign(GameScene.prototype, {
     // Clicking a floor tile in attack mode is ignored (must cancel to move freely)
     if(this.pendingAction==='attack'){
       if(enemy&&this.combatGroup.includes(enemy)){
-        const dx=Math.abs(this.playerTile.x-enemy.tx), dy=Math.abs(this.playerTile.y-enemy.ty);
-        if(dx<=1&&dy<=1){
+        const d=tileDist(this.playerTile.x,this.playerTile.y,enemy.tx,enemy.ty);
+        const atkR=this.pStats.atkRange||1;
+        if(d<=atkR+0.01){
           this.playerAttackEnemy(enemy);
-        } else if(this.playerMoves>0){
+        } else if(this.playerMoves>0.5){
           this.tryMoveAndAttack(enemy);
         } else {
           this.showStatus('No movement left to reach this enemy.');
@@ -439,10 +440,11 @@ Object.assign(GameScene.prototype, {
     // Long-press on the enemy sprite shows inspect popup (handled in game.js pointer events)
     if(enemy&&this.combatGroup.includes(enemy)){
       if(this.playerAP<=0){ this.showStatus('Action already used this turn.'); return; }
-      const dx=Math.abs(this.playerTile.x-enemy.tx), dy=Math.abs(this.playerTile.y-enemy.ty);
-      if(dx<=1&&dy<=1){
+      const d=tileDist(this.playerTile.x,this.playerTile.y,enemy.tx,enemy.ty);
+      const atkR=this.pStats.atkRange||1;
+      if(d<=atkR+0.01){
         this.playerAttackEnemy(enemy);
-      } else if(this.playerMoves>0){
+      } else if(this.playerMoves>0.5){
         this.tryMoveAndAttack(enemy);
       } else {
         this.showStatus('No movement left to reach this enemy.');
@@ -457,23 +459,23 @@ Object.assign(GameScene.prototype, {
 
     if(!this.isWallTile(tx,ty)){
       if(this.ui) this.ui.dismissEnemyPopup();
-      if(this.playerMoves<=0){ this.showStatus('No movement left.'); return; }
+      if(this.playerMoves<0.5){ this.showStatus('No movement left.'); return; }
       if(this.enemies.some(e=>e.alive&&e.tx===tx&&e.ty===ty)){ this.showStatus('Cannot move onto an enemy tile.'); return; }
       const path=bfs(this.playerTile.x,this.playerTile.y,tx,ty,wallBlk);
       if(!path.length){ this.showStatus('Cannot reach that tile.'); return; }
-      if(path.length>this.playerMoves){
+      const moveCost=pathTileCost(path,this.playerTile);
+      if(moveCost>this.playerMoves+0.001){
         this.showMoveRange();
-        this.showStatus(`Too far (${path.length} tiles), you have ${this.playerMoves}.`);
+        this.showStatus(`Too far (${moveCost.toFixed(1)}), you have ${this.playerMoves.toFixed(1)} movement.`);
         return;
       }
-      const moveCost=path.length;
       this.clearMoveRange();
       this.setDestination(tx,ty,()=>{
         this.playerMovesUsed+=moveCost;
         this.playerMoves=Math.max(0,this.playerMoves-moveCost);
         this.updateResBar();
-        if(this.playerMoves>0) this.showMoveRange();
-        if(this.playerMoves<=0&&this.playerAP<=0) this.endPlayerTurn();
+        if(this.playerMoves>0.5) this.showMoveRange();
+        if(this.playerMoves<0.5&&this.playerAP<=0) this.endPlayerTurn();
       });
     }
   },
@@ -652,7 +654,7 @@ Object.assign(GameScene.prototype, {
       this.setActionButtonsUsed(true);
       withHotbar(hotbar => hotbar.markAllUsed(true));
       this.updateResBar(); this.clearMoveRange(); this.showMoveRange();
-      this.showStatus(`Dashed! ${this.playerMoves} tiles of movement remaining.`);
+      this.showStatus(`Dashed! ${Math.floor(this.playerMoves)} movement remaining.`);
     } else if(action==='hide'){
       this.tryHideAction();
     } else if(action==='flee'){
@@ -800,27 +802,27 @@ Object.assign(GameScene.prototype, {
     if(!enemy||!enemy.alive||!this.combatGroup.includes(enemy)) return;
     if(!this.isPlayerTurn()) return;
     if(this.playerAP<=0){ this.showStatus('Action already used.'); return; }
-    if(this.playerMoves<=0){ this.showStatus('No movement left.'); return; }
+    if(this.playerMoves<0.5){ this.showStatus('No movement left.'); return; }
 
     const dirs=[{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
     const moveBlk=(x,y)=>this.isBlockedTile(x,y,{doorMode:false});
-    let bestReachPath=null, bestReachAdj=null;
-    let bestAnyPath=null;
+    let bestReachPath=null, bestReachAdj=null, bestReachCost=Infinity;
+    let bestAnyPath=null, bestAnyCost=Infinity;
     for(const d of dirs){
       const ax=enemy.tx+d.x, ay=enemy.ty+d.y;
       if(ax<0||ay<0||ax>=COLS||ay>=ROWS||this.isWallTile(ax,ay)) continue;
       if(this.enemies.some(e=>e.alive&&e.tx===ax&&e.ty===ay)) continue;
       const p=bfs(this.playerTile.x,this.playerTile.y,ax,ay,moveBlk);
       if(!p.length) continue;
-      if(!bestAnyPath||p.length<bestAnyPath.length) bestAnyPath=p;
-      if(p.length<=this.playerMoves&&(!bestReachPath||p.length<bestReachPath.length)){
-        bestReachPath=p;
-        bestReachAdj={x:ax,y:ay};
+      const pc=pathTileCost(p,this.playerTile);
+      if(pc<bestAnyCost){ bestAnyPath=p; bestAnyCost=pc; }
+      if(pc<=this.playerMoves+0.001&&pc<bestReachCost){
+        bestReachPath=p; bestReachAdj={x:ax,y:ay}; bestReachCost=pc;
       }
     }
 
     if(bestReachPath){
-      const cost=bestReachPath.length;
+      const cost=bestReachCost;
       const targetEnemy=enemy;
       this.clearMoveRange();
       this._movingToAttack=true;
@@ -832,7 +834,7 @@ Object.assign(GameScene.prototype, {
         if(this.playerAP>0&&targetEnemy.alive){
           this.time.delayedCall(100,()=>this.playerAttackEnemy(targetEnemy));
         } else {
-          if(this.playerMoves>0) this.showMoveRange();
+          if(this.playerMoves>0.5) this.showMoveRange();
         }
       });
       return;
@@ -843,14 +845,24 @@ Object.assign(GameScene.prototype, {
       return;
     }
 
-    const partial=bestAnyPath.slice(0,this.playerMoves);
+    // Move as far as budget allows along the best path
+    let budget=this.playerMoves;
+    const partial=[];
+    let prev=this.playerTile;
+    for(const step of bestAnyPath){
+      const sc=tileDist(prev.x,prev.y,step.x,step.y);
+      if(budget<sc-0.001) break;
+      budget-=sc;
+      partial.push(step);
+      prev=step;
+    }
     if(!partial.length){
       this.showStatus('Not enough movement to reach.');
       return;
     }
 
     const stop=partial[partial.length-1];
-    const cost=partial.length;
+    const cost=pathTileCost(partial,this.playerTile);
     const targetEnemy=enemy;
     this.clearMoveRange();
     this._movingToAttack=true;
@@ -859,12 +871,10 @@ Object.assign(GameScene.prototype, {
       this.playerMovesUsed+=cost;
       this.playerMoves=Math.max(0,this.playerMoves-cost);
       this.updateResBar();
-      const dx=Math.abs(this.playerTile.x-targetEnemy.tx), dy=Math.abs(this.playerTile.y-targetEnemy.ty);
-      const inRange=dx<=targetEnemy.atkRange&&dy<=targetEnemy.atkRange;
+      const inRange=tileDist(this.playerTile.x,this.playerTile.y,targetEnemy.tx,targetEnemy.ty)<=(this.pStats.atkRange||1)+0.01;
       if(inRange&&this.playerAP>0&&targetEnemy.alive){
         this.time.delayedCall(100,()=>this.playerAttackEnemy(targetEnemy));
-      } else if(!inRange&&this.playerMoves<=0){
-        // Ran out of movement before reaching attack range — ask player what to do
+      } else if(!inRange&&this.playerMoves<0.5){
         this.showStatus(`Can't reach ${targetEnemy.displayName} — out of movement.`);
         this.showContextMenu(window.innerWidth/2, window.innerHeight*0.65, [
           { label: '⚔ End Turn', action: ()=>this.endPlayerTurn() },
@@ -882,7 +892,7 @@ Object.assign(GameScene.prototype, {
     if(!alive.length) return { ok:true, reason:'' };
 
     const minDist=Math.max(1,Number(COMBAT_RULES.fleeMinDistance||6));
-    const nearest=alive.reduce((m,e)=>Math.min(m,Math.abs(e.tx-this.playerTile.x)+Math.abs(e.ty-this.playerTile.y)),Infinity);
+    const nearest=alive.reduce((m,e)=>Math.min(m,tileDist(e.tx,e.ty,this.playerTile.x,this.playerTile.y)),Infinity);
     if(nearest<minDist){
       return { ok:false, reason:`Too close to enemies (need ${minDist}+ tiles).` };
     }
