@@ -50,7 +50,9 @@ const GameSceneInputSystem = {
     const ctx=document.getElementById('context-menu');
     if(ctx?.style.display==='block'){ ctx.style.display='none'; return; }
     const esp=document.getElementById('enemy-stat-popup');
-    if(esp?.style.display==='block'){ esp.style.display='none'; this._statPopupEnemy=null; }
+    if(esp?.style.display==='block'){ esp.style.display='none'; this._statPopupEnemy=null;
+      const _ap=document.getElementById('atk-predict-popup'); if(_ap) _ap.style.display='none';
+    }
 
     if(this.diceWaiting){ this._handleDiceDismiss(); return; }
     // In combat: allow redirecting/attacking while moving (cancel current move, proceed)

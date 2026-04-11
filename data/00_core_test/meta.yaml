@@ -14,6 +14,7 @@ includes:
 
 stages:
   - ts_combat_entry
+  - ts_combat_join_reasons
   - ts_combat_reset
   - ts_enemy_attack
   - ts_fog

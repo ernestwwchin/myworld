@@ -138,6 +138,11 @@ const Hotbar = {
         const s = this._scene;
         if (s && s.mode === MODE.COMBAT && typeof s.endPlayerTurn === 'function') s.endPlayerTurn();
       }
+      // L = toggle enemy sight/debug overlay in both explore and combat
+      if (e.key === 'l' || e.key === 'L') {
+        const s = this._scene;
+        if (s && typeof s.toggleEnemySight === 'function') s.toggleEnemySight();
+      }
       // H = quick-use first healing consumable from inventory
       if (e.key === 'h' || e.key === 'H') {
         const s = this._scene;
@@ -231,22 +236,25 @@ const Hotbar = {
       baGroup.innerHTML = html;
     }
 
-    // Movement pips — BG3 style: show full budget until action commits movement
-    // Before action: all pips stay full (movement is free/uncommitted)
-    // After action: turnStartMoves updates, so pips reflect committed state
+    // Movement pips reflect the player's actual current remaining movement.
+    // The denominator is the current reset anchor budget, so pressing Reset
+    // returns to that displayed baseline after each action snapshot.
     const mvGroup = document.getElementById('rp-move');
     if (mvGroup) {
-      const budget = Math.max(0, Number(s.turnStartMoves ?? s.playerMoves ?? 0));
+      const budget = Math.max(0, Number(s.moveResetAnchorMoves ?? s.turnStartMoves ?? s.playerMoves ?? 0));
       const remaining = Math.max(0, Number(s.playerMoves || 0));
-      const committed = Math.max(0, budget - remaining);
-      // Only show committed movement as spent (movement before action is free)
-      const actionTaken = s.playerAP <= 0;
+      const displayRemaining = remaining;
       const dTotal = Math.ceil(budget);
-      const dSpent = actionTaken ? Math.ceil(committed) : 0;
-      const dRemaining = dTotal - dSpent;
+      const pipRemaining = Math.max(0, Math.min(dTotal, Math.floor(displayRemaining + 0.001)));
+      const countText = Math.abs(displayRemaining - Math.round(displayRemaining)) < 0.001
+        ? String(Math.round(displayRemaining))
+        : displayRemaining.toFixed(1);
+      const totalText = Math.abs(budget - Math.round(budget)) < 0.001
+        ? String(Math.round(budget))
+        : budget.toFixed(1);
       let html = '<span class="rp-label">MOV</span>';
-      for (let i = 0; i < dTotal; i++) html += `<div class="rp-pip mv${i >= dRemaining ? ' spent' : ''}"></div>`;
-      html += `<span class="rp-count">${Math.floor(remaining)}/${dTotal}</span>`;
+      for (let i = 0; i < dTotal; i++) html += `<div class="rp-pip mv${i >= pipRemaining ? ' spent' : ''}"></div>`;
+      html += `<span class="rp-count">${countText}/${totalText}</span>`;
       mvGroup.innerHTML = html;
     }
 
@@ -332,6 +340,9 @@ const Hotbar = {
 
   setSelected(abilityId) {
     this._selectedSlot = null;
+    // Sync default attack slot highlight
+    const daEl = document.getElementById('default-atk-slot');
+    if (daEl) daEl.classList.toggle('selected', abilityId === this.getEffectiveDefaultAttack());
     for (const cat of this._categories) {
       for (let r = 0; r < this.ROWS; r++) {
         for (let c = 0; c < this.COLS; c++) {
@@ -349,7 +360,12 @@ const Hotbar = {
     this.render();
   },
 
-  clearSelection() { this._selectedSlot = null; this.render(); },
+  clearSelection() {
+    this._selectedSlot = null;
+    const daEl = document.getElementById('default-atk-slot');
+    if (daEl) daEl.classList.remove('selected');
+    this.render();
+  },
 
   // ── Description Panel ──
   _showDescription(cat, row, col) {
@@ -625,20 +641,17 @@ const Hotbar = {
     el.classList.toggle('unavail', !avail);
   },
 
-  /** Show/hide the default attack slot based on combat mode */
+  /** Sync the default attack slot — always visible, updates content on combat entry */
   syncDefaultAttackSlot() {
     const el = document.getElementById('default-atk-slot');
     if (!el) return;
-    const s = this._scene;
-    const inCombat = s && s.mode === MODE.COMBAT;
-    el.classList.toggle('show', inCombat);
-    if (inCombat) this.renderDefaultAttackSlot();
+    this.renderDefaultAttackSlot();
   },
 
-  /** Click the default attack slot → activate as pendingAction */
+  /** Click the default attack slot → activate as pendingAction (same as clicking the skill in hotbar) */
   _useDefaultAttack() {
     const s = this._scene;
-    if (!s || s.mode !== MODE.COMBAT) return;
+    if (!s) return;
     const id = this.getEffectiveDefaultAttack();
     if (typeof s.selectAction === 'function') s.selectAction(id);
   },

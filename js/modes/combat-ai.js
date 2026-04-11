@@ -12,6 +12,7 @@ Object.assign(GameScene.prototype, {
       const allGivenUp = this.combatGroup.every(e => !e.alive || e.searchTurnsRemaining <= 0);
       if(allGivenUp){
         this.showStatus('All enemies have abandoned the search. You escaped!');
+        CombatLog.log('All enemies lost track of you. You escaped.', 'system', 'combat');
         this.time.delayedCall(400, ()=>this.exitCombat('escape'));
         return;
       }
@@ -26,10 +27,18 @@ Object.assign(GameScene.prototype, {
     if(!enemy.alive){ this.advanceEnemyTurn(); return; }
     this.tweens.add({targets:enemy.img,alpha:0.55,duration:150,yoyo:true});
 
+    // Check if enemy can see the player at start of turn (even if previously hidden)
+    if (this.playerHidden && this.canEnemySeePlayer(enemy)) {
+      this._breakStealth(null);
+      CombatLog.log(`${enemy.displayName} spotted you and resumes chase.`, 'enemy', 'combat');
+    }
+
     if(this.playerHidden && enemy.searchTurnsRemaining > 0) {
       enemy.searchTurnsRemaining--;
       if(enemy.searchTurnsRemaining === 0) {
         this.showStatus(`${enemy.displayName} gives up searching.`);
+        CombatLog.log(`${enemy.displayName} lost track of you and stops searching.`, 'enemy', 'combat');
+        enemy._searchAbandonedAnnounced = true;
         const anySearching = this.combatGroup.some(e => e.alive && e.searchTurnsRemaining > 0);
         if(!anySearching && this._shadowPlayer) {
           this._shadowPlayer.destroy();
@@ -43,9 +52,17 @@ Object.assign(GameScene.prototype, {
     if (this.playerHidden && enemy.searchTurnsRemaining > 0) {
       targetTile = enemy.lastSeenPlayerTile;
     } else if (this.playerHidden && enemy.searchTurnsRemaining <= 0) {
+      if (!enemy._searchAbandonedAnnounced) {
+        CombatLog.log(`${enemy.displayName} is no longer chasing you.`, 'enemy', 'combat');
+        enemy._searchAbandonedAnnounced = true;
+      }
       this.endEnemyTurn(enemy);
       return;
     } else if (!this.playerHidden) {
+      if (enemy.searchTurnsRemaining > 0) {
+        CombatLog.log(`${enemy.displayName} reacquired you and continues the chase.`, 'enemy', 'combat');
+      }
+      enemy._searchAbandonedAnnounced = false;
       enemy.lastSeenPlayerTile = { x: this.playerTile.x, y: this.playerTile.y };
       enemy.searchTurnsRemaining = 0;
     }
@@ -53,6 +70,14 @@ Object.assign(GameScene.prototype, {
     const isAdj=()=>tileDist(enemy.tx,enemy.ty,targetTile.x,targetTile.y)<=1.01;
 
     const afterMove=()=>{
+      // Check if this enemy movement reveals new enemies to the group
+      this._checkForNewEnemiesAfterMove();
+      
+      // Check if enemy can now see the player (even if previously hidden)
+      if (this.playerHidden && this.canEnemySeePlayer(enemy)) {
+        this._breakStealth(null);
+      }
+      
       if(this.playerHidden){ this.endEnemyTurn(enemy); return; }
       if(isAdj()) this.time.delayedCall(150,()=>this.doEnemyAttack(enemy));
       else this.endEnemyTurn(enemy);
