@@ -2,17 +2,23 @@
 // movement-system.js — Movement & wandering mixin for GameScene
 // Extracted from game.js — pathfinding, path animation,
 // enemy wandering, move cancellation
+// Phase 2: constant-speed movement (distance-based tween duration)
 // ═══════════════════════════════════════════════════════
+
+/** Movement speed constants (px/sec) */
+const MOVE_SPEED     = 440;  // normal explore/combat
+const MOVE_SPEED_SNK = 280;  // while sneaking (playerHidden)
 
 Object.assign(GameScene.prototype, {
 
   cancelCurrentMove(){
     if(!this.isMoving) return false;
     this.tweens.killTweensOf(this.player);
-    const snap=snapToTile(this.player.x,this.player.y);
-    this.playerTile={x:snap.x,y:snap.y};
-    this.lastCompletedTile={x:snap.x,y:snap.y};
-    this.player.setPosition(snap.x*S+S/2,snap.y*S+S/2);
+    // Stop at current world position, derive tile from it
+    const cur = worldToTile(this.player.x, this.player.y);
+    this.playerTile = { x: cur.x, y: cur.y };
+    this.lastCompletedTile = { x: cur.x, y: cur.y };
+    // Don't snap sprite — stay at current world position
     this.movePath=[];
     this.isMoving=false;
     this._movingToAttack=false;
@@ -79,10 +85,14 @@ Object.assign(GameScene.prototype, {
     this.playerTile={x:next.x,y:next.y};
     this.updateFogOfWar();
     this.playActorMove(this.player,'player',this.movePath.length>=2);
-    // Slower move when sneaking (BG3-style)
-    const moveDur = this.playerHidden ? 170 : 110;
+    // Distance-based tween duration (constant px/sec)
+    const wx = next.x * S + S / 2, wy = next.y * S + S / 2;
+    const dx = wx - this.player.x, dy = wy - this.player.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const speed = this.playerHidden ? MOVE_SPEED_SNK : MOVE_SPEED;
+    const moveDur = Math.max(40, (dist / speed) * 1000);
     this.tweens.add({
-      targets:this.player, x:next.x*S+S/2, y:next.y*S+S/2, duration:moveDur, ease:'Linear',
+      targets:this.player, x:wx, y:wy, duration:moveDur, ease:'Linear',
       onComplete:()=>{
         if(this.isDoorTile(prev.x,prev.y)){
           const d=this.getDoorState(prev.x,prev.y);
@@ -112,7 +122,7 @@ Object.assign(GameScene.prototype, {
         if(wasExplore&&!this._suppressExploreSightChecks) this.checkSight();
         // Stop path only if combat was just entered from explore (stealth broken / enemy spotted)
         if(wasExplore&&this.mode===MODE.COMBAT){ this.isMoving=false; this.movePath=[]; this.clearPathDots(); this._movingToAttack=false; return; }
-        if(!this.movePath.length) this.playActorIdle(this.player,'player');
+        if(!this.movePath.length && !this._holdMoveActive) this.playActorIdle(this.player,'player');
         this.advancePath();
       }
     });
@@ -166,14 +176,17 @@ Object.assign(GameScene.prototype, {
         e.tx=nx; e.ty=ny;
         e.facing=Math.atan2(d.y,d.x)*180/Math.PI;
         const wx=nx*S+S/2, wy=ny*S+S/2;
+        const edx=wx-e.img.x, edy=wy-e.img.y;
+        const eDist=Math.sqrt(edx*edx+edy*edy);
+        const eDur=Math.max(80,(eDist/MOVE_SPEED)*1000);
         this.playActorMove(e.img,e.type,false);
-        this.tweens.add({targets:e.img,x:wx,y:wy,duration:350});
-        this.tweens.add({targets:e.hpBg,x:wx,y:ny*S-4,duration:350});
-        this.tweens.add({targets:e.hpFg,x:wx,y:ny*S-4,duration:350});
-        this.tweens.add({targets:e.lbl,x:wx,y:wy+18,duration:350});
-        this.tweens.add({targets:e.sightRing,x:wx,y:wy,duration:350});
+        this.tweens.add({targets:e.img,x:wx,y:wy,duration:eDur});
+        this.tweens.add({targets:e.hpBg,x:wx,y:ny*S-4,duration:eDur});
+        this.tweens.add({targets:e.hpFg,x:wx,y:ny*S-4,duration:eDur});
+        this.tweens.add({targets:e.lbl,x:wx,y:wy+18,duration:eDur});
+        this.tweens.add({targets:e.sightRing,x:wx,y:wy,duration:eDur});
         if(e.fa){ e.fa.setPosition(wx,wy); e.fa.setRotation(e.facing*Math.PI/180); }
-        this.time.delayedCall(370,()=>{ if(e.alive) this.playActorIdle(e.img,e.type); });
+        this.time.delayedCall(eDur+20,()=>{ if(e.alive) this.playActorIdle(e.img,e.type); });
         break;
       }
     }
