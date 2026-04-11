@@ -48,10 +48,34 @@ function testBugRegressions() {
   assert.ok(!fleeAddImage[0].includes('setAlpha('));
 }
 
+function testWorldPositionContracts() {
+  // world-position-system.js must exist and export key helpers
+  const wpSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'world-position-system.js'), 'utf8');
+  assert.ok(wpSrc.includes('function tileToWorld('), 'world-position must define tileToWorld');
+  assert.ok(wpSrc.includes('function worldToTile('), 'world-position must define worldToTile');
+  assert.ok(wpSrc.includes('worldLightLevel('), 'world-position must define worldLightLevel');
+  assert.ok(wpSrc.includes('playerWorldPos('), 'world-position must define playerWorldPos');
+  assert.ok(wpSrc.includes('enemyWorldPos('), 'world-position must define enemyWorldPos');
+
+  // spawnFloat callers in combat should use enemyWorldPos, not enemy.tx*S
+  const combatSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'mode-combat.js'), 'utf8');
+  const enemyFloats = combatSrc.match(/spawnFloat\([^)]*enemy\.tx\s*\*\s*S/g);
+  assert.ok(!enemyFloats, 'mode-combat spawnFloat must not use enemy.tx*S (use enemyWorldPos)');
+
+  // damage-system should use enemyWorldPos for actor floats
+  const dmgSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'damage-system.js'), 'utf8');
+  assert.ok(dmgSrc.includes('enemyWorldPos(actor)'), 'damage-system must use enemyWorldPos for actor floats');
+
+  // core-ui popup must use enemyWorldPos
+  const uiSrc2 = fs.readFileSync(path.join(root, 'js', 'ui', 'core-ui.js'), 'utf8');
+  assert.ok(uiSrc2.includes('enemyWorldPos(enemy)'), 'core-ui popup must use enemyWorldPos');
+}
+
 function runUiSystemContracts() {
   testSystemArchitectureContracts();
   testUiAndTargetingContracts();
   testBugRegressions();
+  testWorldPositionContracts();
 }
 
 module.exports = {

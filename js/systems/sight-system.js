@@ -115,7 +115,8 @@ const GameSceneSightSystem = {
 
   showDetectedEnemyMarker(enemy) {
     if (!enemy || !enemy.alive) return;
-    const x = enemy.tx * S + S / 2, y = enemy.ty * S + S / 2;
+    const _ew = this.enemyWorldPos(enemy);
+    const x = _ew.x, y = _ew.y;
 
     // Expanding ring ping
     const ring = this.add.circle(x, y, S * 0.3, 0xf1c40f, 0.15).setDepth(18).setStrokeStyle(3, 0xf1c40f, 1);

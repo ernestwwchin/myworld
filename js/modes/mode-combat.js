@@ -209,7 +209,8 @@ Object.assign(GameScene.prototype, {
       this.tweens.add({ targets: enemy.img, alpha: 0.15, duration: 80, yoyo: true, repeat: 3 });
       const wpn=WEAPON_DEFS[this.pStats.weaponId];
       const fColor=this.dmgColor(wpn&&wpn.damageType);
-      this.spawnFloat(enemy.tx * S + S / 2, enemy.ty * S, isCrit ? `💥${dmg}` : `-${dmg}`, isCrit?'#f39c12':fColor);
+      const _ew=this.enemyWorldPos(enemy);
+      this.spawnFloat(_ew.x, _ew.y - S/2, isCrit ? `💥${dmg}` : `-${dmg}`, isCrit?'#f39c12':fColor);
 
       const opRollLine=this.formatRollLine(atkRoll,strMod+this.pStats.profBonus,atkTotal,enemy.ac);
       const opDmgText=this.formatDamageBreakdown(dr);
@@ -237,7 +238,7 @@ Object.assign(GameScene.prototype, {
           },
         });
         if (enemy.fa) this.tweens.add({ targets: enemy.fa, alpha: 0, duration: 300 });
-        this.spawnFloat(enemy.tx * S + S / 2, enemy.ty * S - 10, 'DEFEATED!', '#f0c060', 700);
+        { const _ew2=this.enemyWorldPos(enemy); this.spawnFloat(_ew2.x, _ew2.y - S/2 - 10, 'DEFEATED!', '#f0c060', 700); }
         if(typeof this.handleEnemyDefeatLoot==='function') this.handleEnemyDefeatLoot(enemy);
         this.pStats.xp += enemy.xp || 50;
         this.checkLevelUp();
@@ -720,7 +721,7 @@ Object.assign(GameScene.prototype, {
 
     if(!hits){
       this.tweens.add({targets:enemy.img,x:enemy.img.x+6,duration:60,yoyo:true,repeat:1});
-      this.spawnFloat(enemy.tx*S+S/2,enemy.ty*S,isMiss?'NAT 1!':'MISS','#7fc8f8');
+      { const _ew=this.enemyWorldPos(enemy); this.spawnFloat(_ew.x,_ew.y-S/2,isMiss?'NAT 1!':'MISS','#7fc8f8'); }
       const totalMod=strMod+this.pStats.profBonus;
       const rollDisplay = wasHidden
         ? `d20(${atkRoll2}|${atkRoll}↑) ${totalMod>=0?'+ '+totalMod:'- '+Math.abs(totalMod)} = ${atkTotal} | AC ${enemy.ac}`
@@ -752,7 +753,7 @@ Object.assign(GameScene.prototype, {
     const floatColor=this.dmgColor(wpn&&wpn.damageType);
 
     this.tweens.add({targets:enemy.img,alpha:0.15,duration:80,yoyo:true,repeat:3});
-    this.spawnFloat(enemy.tx*S+S/2,enemy.ty*S,isCrit?`💥${dmg}`:`-${dmg}`,isCrit?'#f39c12':floatColor);
+    { const _ew=this.enemyWorldPos(enemy); this.spawnFloat(_ew.x,_ew.y-S/2,isCrit?`💥${dmg}`:`-${dmg}`,isCrit?'#f39c12':floatColor); }
     const ratio=Math.max(0,enemy.hp/enemy.maxHp);
     enemy.hpFg.setDisplaySize((S-8)*ratio,5);
     if(ratio<0.4) enemy.hpFg.setFillStyle(0xe67e22);
@@ -773,7 +774,7 @@ Object.assign(GameScene.prototype, {
         enemy.alive=false; enemy.inCombat=false;
         this.tweens.add({targets:[enemy.img,enemy.hpBg,enemy.hpFg,enemy.lbl,enemy.sightRing],alpha:0,duration:500,onComplete:()=>{[enemy.img,enemy.hpBg,enemy.hpFg,enemy.lbl,enemy.sightRing,enemy.fa].forEach(o=>{if(o&&o.destroy)o.destroy();});}});
         if(enemy.fa) this.tweens.add({targets:enemy.fa,alpha:0,duration:300});
-        this.spawnFloat(enemy.tx*S+S/2,enemy.ty*S-10,'DEFEATED!','#f0c060',700);
+        { const _ew2=this.enemyWorldPos(enemy); this.spawnFloat(_ew2.x,_ew2.y-S/2-10,'DEFEATED!','#f0c060',700); }
         if(typeof this.handleEnemyDefeatLoot==='function') this.handleEnemyDefeatLoot(enemy);
         CombatLog.log(`${enemy.displayName} defeated! +${enemy.xp||50} XP`,'player','combat');
         this.pStats.xp+=enemy.xp||50; this.checkLevelUp();
