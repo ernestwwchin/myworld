@@ -224,8 +224,9 @@ class GameUIController {
     // Position near enemy
     const cam = s.cameras.main;
     const canvas = s.game.canvas;
-    const screenX = (enemy.tx * S + S / 2 - cam.scrollX) * cam.zoom;
-    const screenY = (enemy.ty * S - cam.scrollY) * cam.zoom;
+    const _ew = s.enemyWorldPos(enemy);
+    const screenX = (_ew.x - cam.scrollX) * cam.zoom;
+    const screenY = (_ew.y - S/2 - cam.scrollY) * cam.zoom;
     const popW = 260, popH = 180;
     let px = Math.min(Math.max(8, screenX - popW / 2), canvas.width - popW - 8);
     let py = screenY - popH - 12;

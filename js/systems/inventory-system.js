@@ -90,7 +90,7 @@ Object.assign(GameScene.prototype, {
     if(resolved.gold>0){
       this.pStats.gold=(this.pStats.gold||0)+resolved.gold;
       drops.push(`+${resolved.gold} gold`);
-      this.spawnFloat(enemy.tx*S+S/2,enemy.ty*S-20,`+${resolved.gold}g`,'#f0c060');
+      { const _ew=this.enemyWorldPos(enemy); this.spawnFloat(_ew.x,_ew.y-S/2-20,`+${resolved.gold}g`,'#f0c060'); }
     }
 
     for(const item of (resolved.items||[])){
