@@ -230,10 +230,12 @@ const Hotbar = {
     // Bonus action pips
     const baGroup = document.getElementById('rp-bonus');
     if (baGroup) {
-      const total = 1;
-      // TODO: track bonus action usage
+      const total = Math.max(1, Number(s.playerBonusAPMax || 1));
+      const remaining = Math.max(0, Math.min(total, Number(s.playerBonusAP ?? total)));
+      const used = Math.max(0, total - remaining);
       let html = '<span class="rp-label">BA</span>';
-      for (let i = 0; i < total; i++) html += `<div class="rp-pip bonus"></div>`;
+      for (let i = 0; i < total; i++) html += `<div class="rp-pip bonus${i < used ? ' spent' : ''}"></div>`;
+      html += `<span class="rp-count">${remaining}/${total}</span>`;
       baGroup.innerHTML = html;
     }
 

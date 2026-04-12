@@ -125,7 +125,7 @@ class GameScene extends Phaser.Scene {
     this.fogVisited=[]; this.fogVisible=[];
     this.detectMarkers=[];
     this.combatGroup=[]; this.turnOrder=[]; this.turnIndex=0;
-    this.playerAP=1; this.playerMoves=Number(COMBAT_RULES.playerMovePerTurn||5); this.playerMovesUsed=0;
+    this.playerAP=1; this.playerBonusAPMax=1; this.playerBonusAP=1; this.playerMoves=Number(COMBAT_RULES.playerMovePerTurn||5); this.playerMovesUsed=0;
     this.pendingAction=null; this.wanderTimer=0;
     this.diceWaiting=false; this._afterPlayerDice=null;
     this.turnStartTile={...PLAYER_STATS.startTile};

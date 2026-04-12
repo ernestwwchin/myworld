@@ -350,6 +350,8 @@ Object.assign(GameScene.prototype, {
     this.turnOrder = this.rollInitiativeOrder(this.combatGroup, surprisedEnemies);
     this.turnIndex = 0;
     this.playerAP = 1;
+    this.playerBonusAPMax = 1;
+    this.playerBonusAP = this.playerBonusAPMax;
     this.playerMoves = Number(COMBAT_RULES.playerMovePerTurn || 5);
     this.playerMovesUsed = 0;
 
@@ -524,7 +526,7 @@ Object.assign(GameScene.prototype, {
         this.time.delayedCall(250,()=>this.endPlayerTurn(true));
         return;
       }
-      this.playerAP=1; this.playerMoves=Number(COMBAT_RULES.playerMovePerTurn||5); this.playerMovesUsed=0;
+      this.playerAP=1; this.playerBonusAPMax=1; this.playerBonusAP=this.playerBonusAPMax; this.playerMoves=Number(COMBAT_RULES.playerMovePerTurn||5); this.playerMovesUsed=0;
       this.turnStartMoves=Number(COMBAT_RULES.playerMovePerTurn||5);
       this.turnStartTile={...this.playerTile};
       this.snapshotMoveResetAnchor();
@@ -566,7 +568,7 @@ Object.assign(GameScene.prototype, {
     if(this.ui) this.ui.dismissEnemyPopup();
     if(!fromStatusSkip) this.processStatusEffectsForActor('player','turn_end');
     if(typeof this.tickStatMods==='function') this.tickStatMods();
-    this.playerMoves=0; this.playerAP=0;
+    this.playerMoves=0; this.playerAP=0; this.playerBonusAP=0;
     this.diceWaiting=false; this._afterPlayerDice=null; this._movingToAttack=false;
     this.clearPendingAction(); this.clearMoveRange(); this.clearAtkRange();
     this.turnHL.setAlpha(0); this.tweens.killTweensOf(this.turnHL);
@@ -808,6 +810,16 @@ Object.assign(GameScene.prototype, {
       this.showStatus(`Dashed! ${this.playerMoves} tiles of movement remaining.`);
     } else if(action==='hide'){
       this.tryHideAction();
+    } else if(action==='disengage'){
+      if(this.playerBonusAP<=0){ this.showStatus('Bonus action already used.'); return; }
+      this.playerBonusAP=Math.max(0,this.playerBonusAP-1);
+      this.processStatusEffectsForActor('player','on_action',{actionId:'disengage'});
+      this.snapshotMoveResetAnchor();
+      this.pendingAction=null;
+      this.clearPendingAction();
+      this.updateResBar();
+      withHotbar(hotbar => hotbar.markUsed('disengage', true));
+      this.showStatus('Disengaged. Bonus action used.');
     } else if(action==='flee'){
       // Toggle: clicking flee again deselects it
       if(this.pendingAction==='flee'){
