@@ -24,9 +24,13 @@
     parent: 'gc',
     scene: GameScene,
     scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.NO_CENTER },
-    input: { activePointers: 2 },
+    input: { activePointers: 2, mouse: { preventDefaultDown: true, preventDefaultUp: true, preventDefaultMove: false } },
     render: { pixelArt: true, antialias: false },
   });
+
+  // Prevent browser context menu on game canvas
+  const gcEl = document.getElementById('gc');
+  if (gcEl) gcEl.addEventListener('contextmenu', e => e.preventDefault());
 
   // Keep UI overlay sized to match the scaled canvas
   function syncUIOverlay() {

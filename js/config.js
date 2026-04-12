@@ -9,12 +9,15 @@ const TILE = { FLOOR:0, WALL:1, DOOR:3, CHEST:4, STAIRS:5, WATER:6, GRASS:7 };
 
 // ── Grid & Display ───────────────────────────────────
 const S    = 48;  // tile size in pixels (default; overridden by rules.yaml display.tileSize)
-const MODE = { EXPLORE:'explore', EXPLORE_TB:'explore_tb', COMBAT:'combat' };
+const MODE = { EXPLORE:'explore', COMBAT:'combat' };
 
 // ── Combat behavior tuning ──────────────────────────
 const COMBAT_RULES = {
   // Cap same-room alert propagation in very large rooms.
   roomAlertMaxDistance: 8,
+  // In large/open rooms, switch from whole-room joins to nearby-area joins.
+  largeRoomTileThreshold: 90,
+  largeRoomJoinDistance: 6,
   // BG3-like flee gate: must create distance and break enemy sight.
   fleeMinDistance: 6,
   fleeRequiresNoLOS: true,
@@ -46,6 +49,10 @@ const LIGHT_RULES = {
   darkSightPenalty: 1,
   dimSightPenalty: 0,
   hiddenSightPenalty: 2,
+  torchBrightStrength: 0.85,
+  torchDimStrength: 0.55,
+  torchRadiusScale: 1.2,
+  noTorchVisibleLightFloor: 0.12,
   hideDcBright: 16,
   hideDcDim: 12,
   hideDcDark: 8,
@@ -353,6 +360,13 @@ const dnd = {
     const diceStr = dmg.dice.map(([c,s]) => `${c}d${s}`).join('+');
     const bonusStr = dmg.bonus ? `${dmg.bonus>=0?'+':''}${dmg.bonus}` : '';
     return `${diceStr}${bonusStr}`;
+  },
+  /** Average of a damage spec (e.g. 1d8+3 → 7.5) */
+  damageSpecAvg: (spec) => {
+    const dmg = dnd.normalizeDamageSpec(spec);
+    let avg = dmg.bonus || 0;
+    for(const [c,s] of dmg.dice) avg += c * (s + 1) / 2;
+    return avg;
   },
   // Skill modifier: ability mod + proficiency (if proficient)
   skillMod: (skillKey, stats) => {

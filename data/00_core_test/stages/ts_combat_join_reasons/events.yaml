@@ -1,0 +1,4 @@
+# Test: Combat Join Reasons — autoplay placeholder.
+
+autoplay:
+  - { do: log, text: "=== ts_combat_join_reasons ===" }

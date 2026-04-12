@@ -17,7 +17,7 @@ class GameScene extends Phaser.Scene {
   }
 
   isExploreMode(){
-    return this.mode===MODE.EXPLORE||this.mode===MODE.EXPLORE_TB;
+    return this.mode===MODE.EXPLORE;
   }
 
   /** Assign unique displayName to each enemy; appends A/B/C when multiples of same type exist */
@@ -101,13 +101,34 @@ class GameScene extends Phaser.Scene {
     return this.hasEntityType(x, y, 'chest');
   }
 
+  /** Check if a tile blocks movement.
+   * @param {'passable'|'closed'|false} [opts.doorMode='passable']
+   *   'passable' — blocks when !isDoorPassable (locked+closed; player pathing)
+   *   'closed'   — blocks when isDoorClosed (any closed door; enemy/keyboard)
+   *   false      — skip door checks
+   * @param {Object} [opts.excludeEnemy] enemy to exclude from check
+   * @param {boolean} [opts.skipEnemies] skip enemy blocking entirely */
+  isBlockedTile(x, y, { doorMode = 'passable', excludeEnemy = null, skipEnemies = false } = {}) {
+    if (this.isWallTile(x, y)) return true;
+    if (doorMode === 'passable' && this.isDoorTile(x, y) && !this.isDoorPassable(x, y)) return true;
+    if (doorMode === 'closed' && this.isDoorTile(x, y) && this.isDoorClosed(x, y)) return true;
+    if (!skipEnemies && this.enemies.some(e => e.alive && e.tx === x && e.ty === y && e !== excludeEnemy)) return true;
+    return false;
+  }
+
+  /** Check if diagonal movement from (ox,oy) to (nx,ny) is valid (no corner-cutting). */
+  canMoveDiagonal(ox, oy, nx, ny) {
+    const hBlk = this.isWallTile(nx, oy) || (this.isDoorTile(nx, oy) && this.isDoorClosed(nx, oy));
+    const vBlk = this.isWallTile(ox, ny) || (this.isDoorTile(ox, ny) && this.isDoorClosed(ox, ny));
+    return !(hBlk && vBlk);
+  }
+
   // cancelCurrentMove — implemented in movement-system.js
 
   preload(){ generateSprites(this); }
 
   create(){
     generateAnims(this);
-    window._scene=this;
     this.cameras.main.setBackgroundColor('#0a0a0f');
     // state
     this.mode=MODE.EXPLORE;
@@ -115,21 +136,19 @@ class GameScene extends Phaser.Scene {
     this.pStats.features=[...PLAYER_STATS.features];
     this.pStats.savingThrows=new Set(PLAYER_STATS.savingThrows);
     this.pStats.inventory=[...PLAYER_STATS.inventory];
-    this.pStats.stash=Array.isArray(PLAYER_STATS.stash)?PLAYER_STATS.stash.map(i=>({ ...i })) : [];
     this.pStats.equippedWeapon=PLAYER_STATS.equippedWeapon?{...PLAYER_STATS.equippedWeapon}:null;
     this.pStats.equippedArmor=PLAYER_STATS.equippedArmor?{...PLAYER_STATS.equippedArmor}:null;
     this.pStats.baseAC=PLAYER_STATS.baseAC||this.pStats.ac;
     this.pStats._statMods=[];
-    this.playerMaxHP=this.pStats.maxHP;
-    this.playerHP=Math.max(0,Math.min(this.playerMaxHP,Number(PLAYER_STATS.currentHP??this.pStats.maxHP)));
+    this.playerHP=this.pStats.maxHP; this.playerMaxHP=this.pStats.maxHP;
     this.playerTile={x:PLAYER_STATS.startTile.x, y:PLAYER_STATS.startTile.y};
     this.isMoving=false; this.movePath=[]; this.onArrival=null; this.pathDots=[]; this._movingToAttack=false; this.lastCompletedTile={...PLAYER_STATS.startTile};
     this.rangeTiles=[]; this.atkRangeTiles=[]; this.sightTiles=[];
     this.fogVisited=[]; this.fogVisible=[];
     this.detectMarkers=[];
     this.combatGroup=[]; this.turnOrder=[]; this.turnIndex=0;
-    this.playerAP=1; this.playerBonusAPMax=1; this.playerBonusAP=1; this.playerMoves=Number(COMBAT_RULES.playerMovePerTurn||5); this.playerMovesUsed=0;
-    this.pendingAction=null; this.wanderTimer=0;
+    this.playerAP=1; this.playerMoves=Number(COMBAT_RULES.playerMovePerTurn||5); this.playerMovesUsed=0;
+    this.pendingAction=null;
     this.diceWaiting=false; this._afterPlayerDice=null;
     this.turnStartTile={...PLAYER_STATS.startTile};
     this.enemySightEnabled=true;
@@ -138,19 +157,12 @@ class GameScene extends Phaser.Scene {
     this._pendingEnemyTurnActor=null;
     this._queuedEngageEnemy=null;
     this._engageInProgress=false;
-    this._defeatHandled=false;
     this._suppressExploreSightChecks=false;
-    this._manualExploreTurnBased=false;
-    this._returnToExploreTB=false;
-    this._exploreTBMovesRemaining=0;
-    this._exploreTBEnemyPhase=false;
-    this._exploreTBInputLatch=false;
     this.mapLights=[];
     this.globalLight='dark';
     this.doorStates={};
     this.tileSprites=[];
     this.stageSprites=[];
-    this._ensureInventoryModel();
 
     // map tiles
     // Debug: find stairs in MAP
@@ -187,33 +199,76 @@ class GameScene extends Phaser.Scene {
       _usedTiles.add(`${pick.x},${pick.y}`);
       return pick;
     };
+    const s = this; // closure ref for enemy sprite event handlers
     this.enemies=ENEMY_DEFS.map(def=>{
       // tx=-1 means "place randomly" (used by procedural maps)
       if(def.tx<0){ const t=_randomFloorTile(); def={...def,tx:t.x,ty:t.y}; }
       const [eatlas,eframe]=getCharFrame(def.type,'idle',0);
       const img=this.add.sprite(def.tx*S+S/2,def.ty*S+S/2,eatlas,eframe).setScale(S/16).setOrigin(0.5,0.8).setDepth(9).setInteractive();
-      const hpBg=this.add.rectangle(def.tx*S+S/2,def.ty*S-4,S-8,5,0x1a1a2e).setDepth(11);
-      const hpFg=this.add.rectangle(def.tx*S+S/2,def.ty*S-4,S-8,5,0xe74c3c).setDepth(12);
+      const hpBg=this.add.rectangle(def.tx*S+S/2,def.ty*S-4,S-8,5,0x1a1a2e).setOrigin(0.5,0.5).setDepth(11);
+      const hpFg=this.add.rectangle(def.tx*S+S/2-(S-8)/2,def.ty*S-4,S-8,5,0xe74c3c).setOrigin(0,0.5).setDepth(12);
       const lbl=this.add.text(def.tx*S+S/2,def.ty*S+S/2+S*0.52,'',{fontSize:'7px',fill:'#aaaacc',letterSpacing:1}).setOrigin(0.5).setDepth(12).setAlpha(0.7);
       const sightRing=this.add.circle(def.tx*S+S/2,def.ty*S+S/2,def.sight*S,0xe74c3c,0).setDepth(2).setStrokeStyle(1,0xe74c3c,0.08).setAlpha(0);
-      const fa=this.add.triangle(def.tx*S+S/2,def.ty*S+S/2,0,-8,12,0,0,8,0xf0c060,0.7).setDepth(13);
-      fa.setRotation(def.facing*Math.PI/180);
+      // Facing indicator: ground circle with directional arrow on edge
+      // Drawn at origin; positioned via faGfx.x/y so tweens & setPosition work
+      const faGfx = this.add.graphics().setDepth(8);
+      faGfx.x = def.tx * S + S / 2;
+      faGfx.y = def.ty * S + S / 2;
+      const _drawFacing = (facing) => {
+        faGfx.clear();
+        const r = S * 0.45;
+        faGfx.lineStyle(1.5, 0xe74c3c, 0.5);
+        faGfx.strokeCircle(0, 0, r);
+        const ang = (facing || 0) * Math.PI / 180;
+        const ax = Math.cos(ang) * r, ay = Math.sin(ang) * r;
+        const sz = 5;
+        const a1 = ang + Math.PI * 0.8, a2 = ang - Math.PI * 0.8;
+        faGfx.fillStyle(0xe74c3c, 0.9);
+        faGfx.fillTriangle(
+          ax + Math.cos(ang) * sz, ay + Math.sin(ang) * sz,
+          ax + Math.cos(a1) * sz, ay + Math.sin(a1) * sz,
+          ax + Math.cos(a2) * sz, ay + Math.sin(a2) * sz
+        );
+      };
+      _drawFacing(def.facing);
+      const fa = faGfx;
+      fa.draw = _drawFacing;
       const enemy={...def,img,hpBg,hpFg,lbl,sightRing,fa,alive:true,inCombat:false,lastSeenPlayerTile:{x:def.tx,y:def.ty},searchTurnsRemaining:0};
       enemy.effects=this.normalizeEffects(def.effects||def.statuses||[]);
+      // Hit% floating label (hidden until combat)
+      const hitLbl=this.add.text(def.tx*S+S/2,def.ty*S-14,'',{fontSize:'10px',fontFamily:'"Courier New",monospace',fontStyle:'bold',fill:'#ffffff',stroke:'#000000',strokeThickness:3}).setOrigin(0.5).setDepth(13).setAlpha(0);
+      enemy.hitLbl=hitLbl;
       this.playActorIdle(img, def.type);
       img.on('pointerdown',(ptr)=>{
-        if(ptr.rightButtonDown()){ this.showCombatEnemyPopup(enemy); return; }
-        // Long-press → inspect (start timer)
-        enemy._pressTimer=this.time.delayedCall(400,()=>{ enemy._longPressed=true; this.showCombatEnemyPopup(enemy); });
+        if(ptr.rightButtonDown()){
+          // Right-click → examine popup (both explore & combat)
+          enemy._rightClicked=true;
+          if(s.mode===MODE.COMBAT) s.showCombatEnemyPopup(enemy);
+          else s.showEnemyStatPopup(enemy);
+          return;
+        }
+        // Long-press → examine (touch support)
+        enemy._pressTimer=s.time.delayedCall(400,()=>{
+          enemy._longPressed=true;
+          if(s.mode===MODE.COMBAT) s.showCombatEnemyPopup(enemy);
+          else s.showEnemyStatPopup(enemy);
+        });
       });
       img.on('pointerup',()=>{
         if(enemy._pressTimer){ enemy._pressTimer.remove(); enemy._pressTimer=null; }
-        if(enemy._longPressed){ enemy._longPressed=false; return; } // already handled
-        this.onTapEnemy(enemy);
+        if(enemy._longPressed){ enemy._longPressed=false; return; }
+        if(enemy._rightClicked){ enemy._rightClicked=false; return; }
+        s.onTapEnemy(enemy);
+      });
+      img.on('pointerover',()=>{
+        if(enemy.alive){
+          enemy.img.setTint(0xffddaa); // highlight on hover
+        }
       });
       img.on('pointerout',()=>{
         if(enemy._pressTimer){ enemy._pressTimer.remove(); enemy._pressTimer=null; }
         enemy._longPressed=false;
+        enemy.img.clearTint();
       });
       return enemy;
     });
@@ -225,7 +280,7 @@ class GameScene extends Phaser.Scene {
     this.player=this.add.sprite(this.playerTile.x*S+S/2,this.playerTile.y*S+S/2,patlas,pframe).setScale(S/16).setOrigin(0.5,0.8).setDepth(10);
     this.playActorIdle(this.player,'player');
     this.turnHL=this.add.image(-100,-100,'t_turn').setDisplaySize(S,S).setDepth(9).setAlpha(0);
-    this.tapInd=this.add.image(-100,-100,'t_tap').setDisplaySize(S,S).setDepth(8).setAlpha(0);
+    this.tapInd=this.add.image(-100,-100,'t_tap').setDisplaySize(24,24).setDepth(8).setAlpha(0);
     if(this.textures.exists('_fog_rt')) this.textures.remove('_fog_rt');
     this._fogCanvasTex=this.textures.createCanvas('_fog_rt',COLS*S,ROWS*S);
     this._fogCtx=this._fogCanvasTex.getContext();
@@ -243,9 +298,14 @@ class GameScene extends Phaser.Scene {
     this.cameras.main.setFollowOffset(0,0);
     this.cameras.main.setZoom(1.2);
 
+    // Camera pan/zoom controls (middle-drag, scroll wheel, pinch)
+    this.initCameraControls();
+
     // input
     const hz=this.add.zone(0,0,COLS*S,ROWS*S).setOrigin(0,0).setDepth(0).setInteractive();
-    hz.on('pointerdown',ptr=>this.onTap(ptr));
+    hz.on('pointerdown',ptr=>this._onHzPointerDown(ptr));
+    this.input.on('pointermove',ptr=>this._onHzPointerMove(ptr));
+    this.input.on('pointerup',()=>this._onHzPointerUp());
     this.initInputHandlers();
 
     this.cursors=this.input.keyboard.createCursorKeys();
@@ -258,11 +318,9 @@ class GameScene extends Phaser.Scene {
     // Explore hotbar (touch/tablet — BG3-style persistent bottom bar)
     const eHide = document.getElementById('btn-explore-hide');
     const eSight = document.getElementById('btn-explore-sight');
-    const eTB = document.getElementById('btn-explore-tb');
     const eStats = document.getElementById('btn-explore-stats');
     if (eHide) eHide.onclick = () => { if(this.isExploreMode()) this.tryHideInExplore(); this.syncExploreBar(); };
     if (eSight) eSight.onclick = () => { this.toggleEnemySight(); this.syncExploreBar(); };
-    if (eTB) eTB.onclick = () => { this.toggleExploreTurnBased(); this.syncExploreBar(); };
     if (eStats) eStats.onclick = () => { toggleStats(); };
     this.syncExploreBar();
 
@@ -305,22 +363,6 @@ class GameScene extends Phaser.Scene {
     }
     if (typeof DialogRunner !== 'undefined') {
       DialogRunner.init(this, ModLoader._modData?._stageDialogs || {});
-    }
-
-    if (typeof ModLoader !== 'undefined' && typeof ModLoader.installAutosaveHooks === 'function') {
-      ModLoader.installAutosaveHooks(this);
-    }
-
-    if (this._isTownStage() && typeof ModLoader !== 'undefined' && typeof ModLoader.consumeLastRunSummary === 'function') {
-      const rs = ModLoader.consumeLastRunSummary();
-      if (rs && rs.summary) {
-        const detail = rs.outcome === 'death'
-          ? `Depth ${rs.depth} | Lost ${rs.lostItems} item(s), ${rs.lostGold} gold.`
-          : rs.outcome === 'victory'
-            ? `Depth ${rs.depth} | Banked ${rs.bankedItems} item(s), Reward ${rs.rewardGold || 0} gold.`
-            : `Depth ${rs.depth} | Banked ${rs.bankedItems} item(s).`;
-        this.time.delayedCall(220, () => this.showStatus(`${rs.summary} ${detail}`));
-      }
     }
 
     console.log(`[GameScene] create() complete — mode:${this.mode} map:${COLS}x${ROWS} enemies:${this.enemies.length} player:(${this.playerTile.x},${this.playerTile.y}) floor:${window._MAP_META?.floor} nextStage:${window._MAP_META?.nextStage}`);
@@ -371,6 +413,10 @@ class GameScene extends Phaser.Scene {
       const alpha=Math.max(0,Math.min(1,Number(s.alpha??1)));
       const scale=Math.max(0.3,Number(s.scale||1));
       const img=this.add.image(tx*S+S/2,ty*S+S/2,...texArgs).setDepth(depth).setAlpha(alpha).setScale(scale);
+      img._stageType = type;
+      img._stageLit = !(s?.state && s.state.lit === false);
+      img._stageLightLevel = String(s.lightLevel || (type === 'torch' ? 'bright' : 'dim')).toLowerCase();
+      img._stageLightRadius = Math.max(0, Number(s.lightRadius || (type === 'torch' ? 3 : 0)));
       if(s.pulse){
         const amp=Math.max(0.02,Number(s.pulseAmount||0.07));
         this.tweens.add({targets:img,alpha:{from:Math.max(0,alpha-amp),to:Math.min(1,alpha+amp)},duration:700,yoyo:true,repeat:-1});
@@ -514,9 +560,6 @@ class GameScene extends Phaser.Scene {
 
   // toggleEnemySight — implemented in sight-system.js
 
-  // toggleExploreTurnBased, beginExploreTurnBasedPlayerTurn, endExploreTurnBasedPlayerTurn,
-  // runExploreTurnBasedEnemyPhase — implemented in explore-tb-system.js
-
   // clearDetectMarkers, showDetectedEnemyMarker, drawSightOverlays, clearSightOverlays,
   // checkSight, toggleEnemySight — implemented in sight-system.js
   // computeVisibleTiles, updateFogOfWar, updateEnemyVisibilityByFog, syncEnemySightRings,
@@ -540,8 +583,6 @@ class GameScene extends Phaser.Scene {
       if (hideBtn) hideBtn.classList.toggle('active', !!this.playerHidden);
       const sightBtn = document.getElementById('btn-explore-sight');
       if (sightBtn) sightBtn.classList.toggle('off', !this.enemySightEnabled);
-      const tbBtn = document.getElementById('btn-explore-tb');
-      if (tbBtn) tbBtn.classList.toggle('off', this.mode !== MODE.EXPLORE_TB);
     }
     // Sync hotbar expand/collapse with mode
     withHotbar(hotbar => {
@@ -553,27 +594,44 @@ class GameScene extends Phaser.Scene {
 
   // tryHideAction — implemented in ability-system.js
   // tryHideInExplore — implemented in ability-system.js
-  // hideContextMenu, showContextMenu, onTap, toggleExploreDoor, toggleExploreTBDoor — implemented in input-system.js
+  // hideContextMenu, showContextMenu, onTap, toggleExploreDoor — implemented in input-system.js
 
   onTapEnemy(enemy){
     if(!enemy.alive) return;
-    // Attack targeting mode: initiate combat / attack this enemy
-    if(this.pendingAction==='attack'){
-      this.clearPendingAction();
-      if(this.mode===MODE.COMBAT){
-        const dx=Math.abs(this.playerTile.x-enemy.tx), dy=Math.abs(this.playerTile.y-enemy.ty);
-        if(dx<=1&&dy<=1) this.playerAttackEnemy(enemy);
-        else if(this.playerMoves>0) this.tryMoveAndAttack(enemy);
-        else this.showStatus('No movement left to reach this enemy.');
-      } else if(this.isExploreMode()){
-        if(typeof this.tryEngageEnemyFromExplore==='function'){
-          this.tryEngageEnemyFromExplore(enemy);
-        } else {
-          this.enterCombat([enemy]);
+
+    // ── Combat: click/tap = attack with pending ability or default attack ──
+    if(this.mode===MODE.COMBAT){
+      if(!this.isPlayerTurn()) return;
+      if(this.playerAP<=0){ this.showStatus('Action already used this turn.'); return; }
+      if(!this.combatGroup.includes(enemy)){ this.showStatus('That enemy is not in this fight.'); return; }
+
+      // Use pending ability if one is selected, otherwise default attack
+      let abilityId;
+      if(this.pendingAction==='attack'){
+        abilityId = this._pendingAtkAbilityId || 'attack';
+        this.clearPendingAction();
+      } else {
+        abilityId = 'attack';
+        if(typeof Hotbar!=='undefined'){
+          abilityId = Hotbar.getEffectiveDefaultAttack();
+          if(abilityId !== Hotbar.getDefaultAttackId()){
+            const defName = Hotbar._getAbilityDef(Hotbar.getDefaultAttackId())?.name || Hotbar.getDefaultAttackId();
+            this.showStatus(`${defName} unavailable — using basic attack.`);
+          }
         }
+      }
+      const d=tileDist(this.playerTile.x,this.playerTile.y,enemy.tx,enemy.ty);
+      const atkR=this.pStats.atkRange||1;
+      if(d<=atkR+0.5){
+        this.playerAttackEnemy(enemy, abilityId);
+      } else {
+        this._defaultAtkIdForMove = abilityId;
+        this.tryMoveAndAttack(enemy);
       }
       return;
     }
+
+    // ── Explore: click/tap = engage (walk to + enter combat) ──
     if(this.isExploreMode()){
       if(typeof this.tryEngageEnemyFromExplore==='function'){
         this.tryEngageEnemyFromExplore(enemy);
@@ -582,7 +640,6 @@ class GameScene extends Phaser.Scene {
       }
       return;
     }
-    this.onTapCombat(enemy.tx,enemy.ty,enemy);
   }
 
   showCombatEnemyPopup(enemy){
@@ -599,346 +656,8 @@ class GameScene extends Phaser.Scene {
   // _handleDiceDismiss, showMoveRange, clearMoveRange, inMoveRange, showAtkRange,
   // clearAtkRange — implemented in combat-system.js
 
-  // ─────────────────────────────────────────
-  // INVENTORY ACTIONS
-  // ─────────────────────────────────────────
-  _ensureInventoryModel(){
-    if(!this.pStats) return;
-    if(!Array.isArray(this.pStats.inventory)) this.pStats.inventory=[];
-    if(!Array.isArray(this.pStats.stash)) this.pStats.stash=[];
-  }
-
-  _isTownStage(){
-    return String(window._MAP_META?.floor||'').toUpperCase()==='TOWN';
-  }
-
-  showTownStashSummary(){
-    this._ensureInventoryModel();
-    const carried=this.pStats.inventory.length;
-    const stash=this.pStats.stash.length;
-    this.showStatus(`Town Stash — carried: ${carried} item(s), stash: ${stash} item(s).`);
-    if(typeof SidePanel!=='undefined'){ SidePanel.switchTab('inventory'); SidePanel.refresh(); }
-  }
-
-  depositAllToStash(){
-    if(!this._isTownStage()){ this.showStatus('You can only use the stash in town.'); return; }
-    this._ensureInventoryModel();
-    if(!this.pStats.inventory.length){ this.showStatus('You are not carrying any items.'); return; }
-    const moved=this.pStats.inventory.length;
-    this.pStats.stash.push(...this.pStats.inventory.map(i=>({ ...i })));
-    this.pStats.inventory=[];
-    this.showStatus(`Stored ${moved} item(s) in town stash.`);
-    if(typeof SidePanel!=='undefined') SidePanel.refresh();
-    if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
-  }
-
-  withdrawAllFromStash(){
-    if(!this._isTownStage()){ this.showStatus('You can only use the stash in town.'); return; }
-    this._ensureInventoryModel();
-    if(!this.pStats.stash.length){ this.showStatus('Town stash is empty.'); return; }
-    const moved=this.pStats.stash.length;
-    this.pStats.inventory.push(...this.pStats.stash.map(i=>({ ...i })));
-    this.pStats.stash=[];
-    this.showStatus(`Withdrew ${moved} item(s) from town stash.`);
-    if(typeof SidePanel!=='undefined') SidePanel.refresh();
-    if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
-  }
-
-  extractRunToTown(){
-    if(typeof ModLoader!=='undefined'&&typeof ModLoader.resolveRunOutcome==='function'){
-      ModLoader.resolveRunOutcome(this,'extract');
-      return;
-    }
-    this.showStatus('Extraction is unavailable right now.');
-  }
-
-  handlePlayerDefeat(){
-    if(this._defeatHandled) return;
-    this._defeatHandled=true;
-
-    if(this.mode===MODE.COMBAT&&typeof this.exitCombat==='function'){
-      this.exitCombat('flee');
-    }
-
-    if(typeof ModLoader!=='undefined'&&typeof ModLoader.resolveRunOutcome==='function'){
-      this.time.delayedCall(120,()=>ModLoader.resolveRunOutcome(this,'death'));
-      return;
-    }
-    this.showStatus('You have been defeated...');
-  }
-
-  _getItemMaxStack(item){
-    if(!item) return 1;
-    const def=(typeof ITEM_DEFS!=='undefined'&&item.id)?ITEM_DEFS[item.id]:null;
-    const explicit=Number(item.maxStack??def?.maxStack);
-    if(Number.isFinite(explicit)&&explicit>0) return Math.floor(explicit);
-
-    // Type defaults keep inventory practical without forcing every item to declare maxStack.
-    if(item.type==='weapon'||item.type==='armor') return 1;
-    if(item.type==='consumable') return 20;
-    if(item.type==='gem') return 50;
-    if(item.type==='misc') return 99;
-    return 1;
-  }
-
-  _isStackableItem(item){
-    if(!item) return false;
-    if(typeof item.stackable==='boolean') return item.stackable;
-    return this._getItemMaxStack(item)>1;
-  }
-
-  addItemToInventory(item,qty=1){
-    if(!item) return null;
-    if(!Array.isArray(this.pStats.inventory)) this.pStats.inventory=[];
-    const inv=this.pStats.inventory;
-    const addQty=Math.max(1,Math.floor(Number(qty||item.qty||1)));
-    const isStackable=this._isStackableItem(item);
-    const maxStack=this._getItemMaxStack(item);
-    let firstResult=null;
-
-    if(!isStackable||maxStack<=1){
-      for(let i=0;i<addQty;i++){
-        const entry={...item};
-        delete entry.qty;
-        inv.push(entry);
-        if(!firstResult) firstResult=entry;
-      }
-      return firstResult;
-    }
-
-    let remaining=addQty;
-
-    // Fill existing partial stacks first.
-    for(const existing of inv){
-      if(!existing||existing.id!==item.id||!this._isStackableItem(existing)) continue;
-      const current=Math.max(1,Math.floor(Number(existing.qty||1)));
-      const room=maxStack-current;
-      if(room<=0) continue;
-      const move=Math.min(room,remaining);
-      existing.qty=current+move;
-      remaining-=move;
-      if(!firstResult) firstResult=existing;
-      if(remaining<=0) return firstResult;
-    }
-
-    // Create new stacks for overflow.
-    while(remaining>0){
-      const stackQty=Math.min(maxStack,remaining);
-      const entry={...item,qty:stackQty,maxStack};
-      inv.push(entry);
-      remaining-=stackQty;
-      if(!firstResult) firstResult=entry;
-    }
-
-    return firstResult;
-  }
-
-  handleEnemyDefeatLoot(enemy){
-    if(!enemy||enemy._lootDropped) return {gold:0,items:[]};
-    enemy._lootDropped=true;
-
-    const tables=(window._MAP_META&&window._MAP_META.lootTables)||{};
-    const table=enemy.lootTable?tables[enemy.lootTable]:null;
-    const fixedGold=Number(enemy.gold||0);
-    const fixedItems=Array.isArray(enemy.loot)?enemy.loot:[];
-
-    const resolved=(typeof ChestEntity!=='undefined'&&typeof ChestEntity.resolveTableLoot==='function')
-      ? ChestEntity.resolveTableLoot(fixedGold,fixedItems,table)
-      : { gold: fixedGold, items: fixedItems.map(i=>({ ...i })) };
-
-    if(!resolved.gold&&(!resolved.items||!resolved.items.length)) return resolved;
-
-    const drops=[];
-    if(resolved.gold>0){
-      this.pStats.gold=(this.pStats.gold||0)+resolved.gold;
-      drops.push(`+${resolved.gold} gold`);
-      this.spawnFloat(enemy.tx*S+S/2,enemy.ty*S-20,`+${resolved.gold}g`,'#f0c060');
-    }
-
-    for(const item of (resolved.items||[])){
-      this.addItemToInventory(item,Number(item.qty||1));
-      drops.push(`${item.icon?item.icon+' ':''}${item.name||item.id||'item'}`);
-    }
-
-    if(drops.length){
-      const msg=`Looted ${enemy.displayName||enemy.type}: ${drops.join(', ')}`;
-      if(typeof CombatLog!=='undefined') CombatLog.log(msg,'loot','system');
-      this.showStatus(msg);
-      if(typeof SidePanel!=='undefined'&&SidePanel._activeTab==='inventory') SidePanel.refresh();
-      if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
-      this.updateHUD();
-    }
-    return resolved;
-  }
-
-  useItem(item){
-    if(!item) return;
-    const inv=this.pStats.inventory;
-    if(!Array.isArray(inv)) return;
-    const idx=inv.indexOf(item);
-    if(idx<0) return;
-
-    // Look up the canonical item definition; fall back to inline item data
-    const def=ITEM_DEFS[item.id]||item;
-    const onUse=def.onUse;
-
-    // useAbility: hand off to the ability system for targeted effects
-    if(onUse?.useAbility){
-      if(typeof this.selectAction==='function') this.selectAction(onUse.useAbility);
-      if(Number(item.qty||1)>1) item.qty=Math.max(1,Number(item.qty||1)-1);
-      else inv.splice(idx,1);
-      if(typeof SidePanel!=='undefined') SidePanel.refresh();
-      if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
-      return;
-    }
-
-    const effects=onUse?.effects||[];
-
-    // Legacy fallback: inline heal field (no ITEM_DEF)
-    if(!effects.length&&item.heal){
-      effects.push({type:'heal',amount:item.heal});
-    }
-
-    if(!effects.length){
-      this.showStatus(`${item.name||item.id} can't be used right now.`);
-      return;
-    }
-
-    let consumed=onUse?.consumeOnUse!==false;
-    let didSomething=false;
-
-    for(const fx of effects){
-      switch(fx.type){
-        case 'heal':{
-          const healed=dnd.rollDamageSpec(fx.amount||'1d4',false).total;
-          this.playerHP=Math.min(this.playerMaxHP,this.playerHP+healed);
-          this.showStatus(`${item.icon||''} ${item.name||item.id}: restored ${healed} HP!`);
-          if(typeof CombatLog!=='undefined') CombatLog.log(`${item.icon||''}${item.name||item.id}: +${healed} HP`,'player');
-          didSomething=true;
-          break;
-        }
-        case 'removeStatus':{
-          const efx=this.playerEffects;
-          const i=efx.findIndex(e=>(e.id||e.type)===fx.statusId);
-          if(i>=0){
-            efx.splice(i,1);
-            this.showStatus(`${item.name||item.id}: ${fx.statusId} cured!`);
-          } else {
-            this.showStatus(`${item.name||item.id}: you aren't ${fx.statusId}.`);
-          }
-          didSomething=true;
-          break;
-        }
-        case 'applyStatus':{
-          const base=STATUS_DEFS[fx.statusId]||{};
-          this.playerEffects.push({
-            id: fx.statusId,
-            type: fx.statusId,
-            duration: fx.duration??base.duration??3,
-            trigger: fx.trigger||base.trigger||'turn_end',
-            ...(base.onTrigger?{onTrigger:base.onTrigger}:{}),
-          });
-          this.showStatus(`${item.name||item.id}: ${fx.statusId} applied!`);
-          didSomething=true;
-          break;
-        }
-        case 'modifyStat':{
-          const stat=fx.stat;
-          if(!stat) break;
-          const prev=this.pStats[stat]??0;
-          this.pStats[stat]=prev+fx.bonus;
-          // Track for later removal
-          if(!this.pStats._statMods) this.pStats._statMods=[];
-          const turns=fx.duration??10;
-          this.pStats._statMods.push({stat,bonus:fx.bonus,turnsLeft:turns});
-          this.showStatus(`${item.name||item.id}: ${stat.toUpperCase()} ${fx.bonus>=0?'+':''}${fx.bonus} for ${turns} turns.`);
-          didSomething=true;
-          break;
-        }
-        case 'log':{
-          if(typeof CombatLog!=='undefined') CombatLog.log(fx.message||'','system');
-          break;
-        }
-      }
-    }
-
-    if(consumed&&didSomething){
-      if(Number(item.qty||1)>1) item.qty=Math.max(1,Number(item.qty||1)-1);
-      else inv.splice(idx,1);
-    }
-
-    this.updateHUD();
-    if(typeof SidePanel!=='undefined') SidePanel.refresh();
-    if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
-  }
-
-  /** Tick down modifyStat durations — call at turn start/end */
-  tickStatMods(){
-    const mods=this.pStats._statMods;
-    if(!Array.isArray(mods)||!mods.length) return;
-    for(let i=mods.length-1;i>=0;i--){
-      const m=mods[i];
-      m.turnsLeft--;
-      if(m.turnsLeft<=0){
-        this.pStats[m.stat]=(this.pStats[m.stat]||0)-m.bonus;
-        this.showStatus(`${m.stat.toUpperCase()} bonus expired.`);
-        mods.splice(i,1);
-      }
-    }
-  }
-
-  equipItem(item){
-    if(!item) return;
-    const inv=this.pStats.inventory;
-    if(!Array.isArray(inv)||!inv.includes(item)) return;
-
-    if(item.type==='weapon'&&item.weaponId){
-      // Return previously equipped weapon to inventory
-      const old=this.pStats.equippedWeapon;
-      if(old) inv.push(old);
-      // Remove new item from inventory and put it in the weapon slot
-      inv.splice(inv.indexOf(item),1);
-      this.pStats.equippedWeapon=item;
-      this.pStats.weaponId=item.weaponId;
-      const weapon=WEAPON_DEFS[item.weaponId];
-      if(weapon){
-        this.pStats.damageFormula=dnd.damageSpecToString(weapon.damageDice);
-        this.pStats.atkRange=weapon.range||1;
-      }
-      this.showStatus(`Equipped ${item.name||item.id}.`);
-    } else if(item.type==='armor'&&item.acBonus){
-      // Return old armor to inventory
-      const old=this.pStats.equippedArmor;
-      if(old) inv.push(old);
-      // Remove new armor from inventory and put it in the armor slot
-      inv.splice(inv.indexOf(item),1);
-      this.pStats.equippedArmor=item;
-      this.pStats.ac=(this.pStats.baseAC||10)+item.acBonus;
-      this.showStatus(`Equipped ${item.name||item.id} (+${item.acBonus} AC).`);
-    } else {
-      this.showStatus(`Can't equip ${item.name||item.id}.`);
-    }
-
-    if(typeof SidePanel!=='undefined') SidePanel.refresh();
-    if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
-  }
-
-  dropItem(item){
-    if(!item) return;
-    const inv=this.pStats.inventory;
-    if(!Array.isArray(inv)) return;
-    const idx=inv.indexOf(item);
-    if(idx<0) return;
-    if(Number(item.qty||1)>1){
-      item.qty=Math.max(1,Number(item.qty||1)-1);
-      this.showStatus(`Dropped 1x ${item.name||item.id}.`);
-    } else {
-      inv.splice(idx,1);
-      this.showStatus(`Dropped ${item.name||item.id}.`);
-    }
-    if(typeof SidePanel!=='undefined') SidePanel.refresh();
-    if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
-  }
+  // _getItemMaxStack, _isStackableItem, addItemToInventory, handleEnemyDefeatLoot,
+  // useItem, tickStatMods, equipItem, dropItem — implemented in inventory-system.js
 
   showDicePopup(rollLine,detailLine,type,diceValues){
     if(this.ui) return this.ui.showDicePopup(rollLine,detailLine,type,diceValues);
@@ -948,48 +667,14 @@ class GameScene extends Phaser.Scene {
 
   // setDestination, clearPathDots, advancePath, wanderEnemies — implemented in movement-system.js
 
-  // ─────────────────────────────────────────
-  // LEVEL UP
-  // ─────────────────────────────────────────
-  checkLevelUp(){
-    const p=this.pStats;
-    let leveled=false;
-    while(p.level<20&&p.xp>=DND_XP[p.level]){
-      p.level++; leveled=true;
-      p.profBonus=dnd.profBonus(p.level);
-      const hr=Math.floor(Math.random()*p.hitDie)+1;
-      const hg=Math.max(1,hr+dnd.mod(p.con));
-      p.maxHP+=hg; this.playerMaxHP=p.maxHP; this.playerHP=this.playerMaxHP;
-      if(FIGHTER_FEATURES[p.level]) for(const f of FIGHTER_FEATURES[p.level]) p.features.push(f);
-      if(ASI_LEVELS.has(p.level)){ p.asiPending++; this.showASIPanel(); }
-      if(p.level===5||p.level===11) this.spawnFloat(this.player.x,this.player.y-50,'EXTRA ATTACK!','#f39c12');
-      this.spawnFloat(this.player.x,this.player.y-30,`LEVEL ${p.level}!`,'#9b59b6');
-      this.showStatus(`Level Up! Now level ${p.level}! HP+${hg}`);
-    }
-    if(leveled) this.updateHUD();
-    this.updateStatsPanel();
-  }
-
-  showASIPanel(){
-    if(this.ui) return this.ui.showASIPanel();
-  }
-
-  applyASI(s1,s2){
-    const p=this.pStats; if(p.asiPending<=0) return;
-    p[s1]=Math.min(20,p[s1]+1); p[s2]=Math.min(20,p[s2]+1); p.asiPending--;
-    const norm=dnd.normalizeDamageSpec(p.damageFormula||'1d4');
-    norm.bonus=dnd.mod(p.str);
-    p.damageFormula=dnd.damageSpecToString(norm);
-    const panel=document.getElementById('asi-panel'); if(panel) panel.style.display='none';
-    this.spawnFloat(this.player.x,this.player.y-40,`${s1.toUpperCase()}+1 ${s2.toUpperCase()}+1`,'#2ecc71');
-    this.updateStatsPanel();
-  }
+  // checkLevelUp, showASIPanel, applyASI — implemented in leveling-system.js
 
   // ─────────────────────────────────────────
   // HUD / UI
   // ─────────────────────────────────────────
   updateResBar(){
-    if(this.ui) return this.ui.updateResBar();
+    if(this.ui) this.ui.updateResBar();
+    if(this.updateHitLabels) this.updateHitLabels();
   }
 
   buildInitBar(){
@@ -1024,8 +709,11 @@ class GameScene extends Phaser.Scene {
   // ─────────────────────────────────────────
   update(time,delta){
     if(this.diceWaiting){ this.keyDelay=0; return; }
-    if(!this.isExploreMode()||this.isMoving) return;
-    if(this.mode===MODE.EXPLORE_TB) this.updateExploreTB(delta);
-    else this.updateExplore(delta);
+    if(!this.isExploreMode()) return;
+    // Hold-to-move: step toward cursor each time player finishes a tile
+    if(this._holdMoveActive&&!this.isMoving){ this._holdMoveStep(); return; }
+    // Allow WASD even during tween-based movement (WASD cancels it)
+    this.updateExplore(delta);
+    this._checkWasdIdle();
   }
 }
