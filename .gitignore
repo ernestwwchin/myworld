@@ -2,5 +2,7 @@ test-results/
 playwright-report/
 node_modules/
 assets/*.zip
+assets/_downloads/
+assets/_staging/
 **/_MACOSX/
 **/.DS_Store

@@ -16,6 +16,7 @@ This document provides a comprehensive index of all documentation in the project
 ### For Game Designers
 - **[5e Reference Documents](#reference-documents)** - D&D 5e rules and content
 - **[Game Mechanics](#game-mechanics)** - Implementation of game systems
+- **[Tileset and Sprite Sourcing](tileset-sourcing.md)** - Asset shortlist, licensing checks, and integration plan for richer map content
 
 ### For Developers
 - **[Architecture](#architecture)** - Code structure and patterns

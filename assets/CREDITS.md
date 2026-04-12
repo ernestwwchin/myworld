@@ -1,5 +1,14 @@
 # Asset Credits
 
+## Template for New Packs
+- Source:
+- Pack URL:
+- License summary:
+- Attribution required:
+- Notes on redistribution/resale restrictions:
+- Imported files/folders:
+- Date added:
+
 ## Dungeon Crawl Stone Soup Tiles
 - **Source**: [OpenGameArt - Dungeon Crawl 32x32 tiles](https://opengameart.org/content/dungeon-crawl-32x32-tiles)
 - **License**: CC0 (Public Domain)
