@@ -303,20 +303,29 @@ Object.assign(GameScene.prototype, {
         enemy.alive = false;
         enemy.inCombat = true;
         this.tweens.add({
-          targets: [enemy.img, enemy.hpBg, enemy.hpFg, enemy.lbl, enemy.sightRing],
+          targets: [enemy.img, enemy.hpBg, enemy.hpFg, enemy.lbl, enemy.sightRing].filter(o=>o&&o.active),
           alpha: 0,
           duration: 500,
           onComplete: () => {
-            [enemy.img, enemy.hpBg, enemy.hpFg, enemy.lbl, enemy.sightRing, enemy.fa].forEach((o) => {
-              if (o && o.destroy) o.destroy();
+            ['img','hpBg','hpFg','lbl','sightRing','fa','dot','sprite','healthBar'].forEach(k => {
+              const o = enemy[k]; if (!o || !o.destroy) return;
+              try { o.destroy(); } catch (_) {}
+              enemy[k] = null;
             });
           },
         });
-        if (enemy.fa) this.tweens.add({ targets: enemy.fa, alpha: 0, duration: 300 });
         { const _ew2=this.enemyWorldPos(enemy); this.spawnFloat(_ew2.x, _ew2.y - S/2 - 10, 'DEFEATED!', '#f0c060', 700); }
-        if(typeof this.handleEnemyDefeatLoot==='function') this.handleEnemyDefeatLoot(enemy);
+        try {
+          if (typeof this.handleEnemyDefeatLoot === 'function') this.handleEnemyDefeatLoot(enemy);
+        } catch (err) {
+          console.warn('[Combat] Loot resolution failed on opener kill:', err);
+        }
         this.pStats.xp += enemy.xp || 50;
-        this.checkLevelUp();
+        try {
+          this.checkLevelUp();
+        } catch (err) {
+          console.warn('[Combat] Level-up check failed on opener kill:', err);
+        }
 
         // BG3: one-shot kill — check if anyone noticed.
         // Silent kill only if player was hidden, or no enemy has LOS to player.
@@ -361,6 +370,7 @@ Object.assign(GameScene.prototype, {
     if (this.mode === MODE.COMBAT) return;
     this.mode = MODE.COMBAT;
     this.syncExploreBar();
+    this.clearSightOverlays();
 
     this.tweens.killTweensOf(this.player);
     this.movePath = []; this.isMoving = false; this.clearPathDots(); this.onArrival = null;
@@ -462,51 +472,63 @@ Object.assign(GameScene.prototype, {
   },
 
   exitCombat(reason='victory'){
-    this.mode=MODE.EXPLORE;
-    this._clearPendingSpotWarnings();
-    if (this.playerHidden) this._breakStealth(null);
-    this.syncExploreBar();
-    // Clear combat state on every enemy so explore sight/detection resumes normally.
-    for (const e of this.enemies) {
-      if (!e) continue;
-      e.inCombat = false;
-      if (!e.alive) continue;
-      if (!e.lastSeenPlayerTile) e.lastSeenPlayerTile = { x: e.tx, y: e.ty };
-      e.searchTurnsRemaining = 0;
+    try {
+      this.mode=MODE.EXPLORE;
+      this._clearPendingSpotWarnings();
+      if (this.playerHidden) this._breakStealth(null);
+      this.syncExploreBar();
+      
+      // Clear sight overlays early (before tweens cleanup)
+      if(typeof this.clearSightOverlays === 'function') {
+        try { this.clearSightOverlays(); } catch (e) { console.warn('[Combat] clearSightOverlays error:', e); }
+      }
+      
+      // Clear combat state on every enemy so explore sight/detection resumes normally.
+      for (const e of this.enemies) {
+        if (!e) continue;
+        e.inCombat = false;
+        if (!e.alive) continue;
+        if (!e.lastSeenPlayerTile) e.lastSeenPlayerTile = { x: e.tx, y: e.ty };
+        e.searchTurnsRemaining = 0;
+      }
+      this.combatGroup=[]; this.turnOrder=[]; this.turnIndex=0; this.pendingAction=null;
+      this.diceWaiting=false; this._afterPlayerDice=null; this._movingToAttack=false;
+      this._combatInitiatedByPlayer = false;
+      this._combatFloorStart = undefined;
+      const ov=document.getElementById('dice-ov'); if(ov) ov.classList.remove('show');
+      this.clearMoveRange(); this.clearAtkRange(); this.clearFleeZone();
+      this.clearDetectMarkers(); this.hideHitLabels();
+      this.turnHL.setAlpha(0);
+      document.getElementById('vignette').classList.remove('combat');
+      document.getElementById('mode-badge').className='realtime';
+      document.getElementById('mode-badge').textContent='EXPLORE';
+      document.getElementById('init-bar').classList.remove('show');
+      document.getElementById('action-bar').classList.remove('show');
+      document.getElementById('res-pips').classList.remove('show');
+      if(reason==='flee'){
+        this.flashBanner('FLED COMBAT','explore');
+        this.showStatus('Escaped combat. Stay hidden to avoid re-engage.');
+        CombatLog.log('Fled combat!', 'system', 'combat');
+      }else if(reason==='escape'){
+        CombatLog.log('Escaped — enemies lost you.', 'system', 'combat');
+      }else if(reason==='floor_change'){
+        this.flashBanner('LEFT COMBAT','explore');
+        this.showStatus('Combat ended — you moved to a different area.');
+        CombatLog.log('Left combat area.', 'system', 'combat');
+      }else{
+        this.flashBanner('COMBAT OVER','explore');
+        this.showStatus('Victory! Continue exploring.');
+        CombatLog.log('Victory!', 'player', 'combat');
+      }
+      CombatLog.logSep();
+      this.resetActionButtons();
+      withHotbar(hotbar => hotbar.resetUsed());
+      this.time.delayedCall(300,()=>{ this.drawSightOverlays(); this.updateFogOfWar(); });
+    } catch (err) {
+      console.warn('[Combat] exitCombat error:', err);
+      this.mode = MODE.EXPLORE;
+      this.showStatus('Combat ended.');
     }
-    this.combatGroup=[]; this.turnOrder=[]; this.turnIndex=0; this.pendingAction=null;
-    this.diceWaiting=false; this._afterPlayerDice=null; this._movingToAttack=false;
-    this._combatInitiatedByPlayer = false;
-    this._combatFloorStart = undefined;
-    const ov=document.getElementById('dice-ov'); if(ov) ov.classList.remove('show');
-    this.clearMoveRange(); this.clearAtkRange(); this.clearFleeZone();
-    this.clearDetectMarkers(); this.hideHitLabels();
-    this.turnHL.setAlpha(0); this.tweens.killTweensOf(this.turnHL);
-    document.getElementById('vignette').classList.remove('combat');
-    document.getElementById('mode-badge').className='realtime';
-    document.getElementById('mode-badge').textContent='EXPLORE';
-    document.getElementById('init-bar').classList.remove('show');
-    document.getElementById('action-bar').classList.remove('show');
-    document.getElementById('res-pips').classList.remove('show');
-    if(reason==='flee'){
-      this.flashBanner('FLED COMBAT','explore');
-      this.showStatus('Escaped combat. Stay hidden to avoid re-engage.');
-      CombatLog.log('Fled combat!', 'system', 'combat');
-    }else if(reason==='escape'){
-      CombatLog.log('Escaped — enemies lost you.', 'system', 'combat');
-    }else if(reason==='floor_change'){
-      this.flashBanner('LEFT COMBAT','explore');
-      this.showStatus('Combat ended — you moved to a different area.');
-      CombatLog.log('Left combat area.', 'system', 'combat');
-    }else{
-      this.flashBanner('COMBAT OVER','explore');
-      this.showStatus('Victory! Continue exploring.');
-      CombatLog.log('Victory!', 'player', 'combat');
-    }
-    CombatLog.logSep();
-    this.resetActionButtons();
-    withHotbar(hotbar => hotbar.resetUsed());
-    this.time.delayedCall(300,()=>{ this.drawSightOverlays(); this.updateFogOfWar(); });
   },
 
   // ─────────────────────────────────────────
@@ -1121,17 +1143,39 @@ Object.assign(GameScene.prototype, {
     CombatLog.logRoll({actor:'You',target:enemy.displayName,result:isCrit?'crit':'hit',damage:dmg,rollDetail:rollDisplay,dmgDetail:`${dmgText}${pDmgType?' '+pDmgType:''}`,extra:wasHidden?'sneak attack':''});
 
     this._afterPlayerDice=()=>{
-      if(enemy.hp<=0){
-        enemy.alive=false; enemy.inCombat=false;
-        this.tweens.add({targets:[enemy.img,enemy.hpBg,enemy.hpFg,enemy.lbl,enemy.sightRing],alpha:0,duration:500,onComplete:()=>{[enemy.img,enemy.hpBg,enemy.hpFg,enemy.lbl,enemy.sightRing,enemy.fa].forEach(o=>{if(o&&o.destroy)o.destroy();});}});
-        if(enemy.fa) this.tweens.add({targets:enemy.fa,alpha:0,duration:300});
-        { const _ew2=this.enemyWorldPos(enemy); this.spawnFloat(_ew2.x,_ew2.y-S/2-10,'DEFEATED!','#f0c060',700); }
-        if(typeof this.handleEnemyDefeatLoot==='function') this.handleEnemyDefeatLoot(enemy);
-        CombatLog.log(`${enemy.displayName} defeated! +${enemy.xp||50} XP`,'player','combat');
-        this.pStats.xp+=enemy.xp||50; this.checkLevelUp();
-        if(this.combatGroup.every(e=>!e.alive)){ this.time.delayedCall(600,()=>this.exitCombat()); return; }
+      try {
+        if(enemy.hp<=0){
+          enemy.alive=false; enemy.inCombat=false;
+          this.tweens.add({targets:[enemy.img,enemy.hpBg,enemy.hpFg,enemy.lbl,enemy.sightRing].filter(o=>o&&o.active),alpha:0,duration:500,onComplete:()=>{
+            ['img','hpBg','hpFg','lbl','sightRing','fa','dot','sprite','healthBar'].forEach(k=>{
+              const o=enemy[k]; if(!o||!o.destroy) return;
+              try { o.destroy(); } catch (_) {}
+              enemy[k]=null;
+            });
+          }});
+          { const _ew2=this.enemyWorldPos(enemy); this.spawnFloat(_ew2.x,_ew2.y-S/2-10,'DEFEATED!','#f0c060',700); }
+          try {
+            if (typeof this.handleEnemyDefeatLoot === 'function') this.handleEnemyDefeatLoot(enemy);
+          } catch (err) {
+            console.warn('[Combat] Loot resolution failed on kill:', err);
+          }
+          CombatLog.log(`${enemy.displayName} defeated! +${enemy.xp||50} XP`,'player','combat');
+          this.pStats.xp+=enemy.xp||50;
+          try {
+            this.checkLevelUp();
+          } catch (err) {
+            console.warn('[Combat] Level-up check failed on kill:', err);
+          }
+          if(this.combatGroup.every(e=>!e.alive)){ this.time.delayedCall(600,()=>this.exitCombat()); return; }
+        }
+        this.showMoveRange();
+      } catch (err) {
+        console.warn('[Combat] Post-hit resolution failed; forcing safe turn recovery:', err);
+        this.showStatus('Recovered from combat error. Ending turn.');
+        this.time.delayedCall(50, ()=>{
+          if(this.mode===MODE.COMBAT) this.endPlayerTurn(true);
+        });
       }
-      this.showMoveRange();
     };
 
     // Crit → dramatic dice overlay; normal hit → just float + log

@@ -165,20 +165,16 @@ class GameScene extends Phaser.Scene {
     this.stageSprites=[];
 
     // map tiles
-    // Debug: find stairs in MAP
-    let _stairsFound = false;
     for(let r=0;r<ROWS;r++){
       this.tileSprites[r]=[];
       for(let c=0;c<COLS;c++){
       const t=MAP[r][c];
-      if(t===TILE.STAIRS){ console.log(`[STAIRS] Found stairs tile at (${c},${r}) val=${t}`); _stairsFound=true; }
       let k='t_floor';
       if(this.isWallTile(c,r))k='t_wall'; else if(t===TILE.STAIRS)k='t_stairs';
       else if(t===TILE.WATER)k='t_water'; else if(t===TILE.GRASS)k='t_grass';
       this.tileSprites[r][c]=this.add.image(c*S+S/2,r*S+S/2,...getTileTex(k)).setDisplaySize(S,S);
       }
     }
-    if(!_stairsFound) console.warn('[STAIRS] No stairs tile found in MAP!');
     this.startTileAnimations();
     this.spawnStageSprites();
 
@@ -687,7 +683,9 @@ class GameScene extends Phaser.Scene {
 
   spawnFloat(x,y,text,color,delay=0){
     const spawn=()=>{
-      const t=this.add.text(x,y,text,{fontSize:'20px',fill:color,stroke:'#000',strokeThickness:4,fontStyle:'bold'}).setOrigin(0.5).setDepth(30);
+      const t=this.add.text(x,y,text,{fontSize:'20px',fill:color,stroke:'#000',strokeThickness:5,fontStyle:'bold'})
+        .setOrigin(0.5)
+        .setDepth(31);
       this.tweens.add({targets:t,y:y-50,duration:1600,ease:'Power2'});
       this.tweens.add({targets:t,alpha:0,duration:600,delay:1000,ease:'Linear',onComplete:()=>t.destroy()});
     };

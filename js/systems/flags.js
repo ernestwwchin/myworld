@@ -65,25 +65,21 @@ const Flags = {
   set(key, value) {
     const resolved = this._resolve(key);
     this._data[resolved] = value;
-    console.log(`[Flags] ${resolved} = ${JSON.stringify(value)}`);
   },
 
   increment(key, amount) {
     const resolved = this._resolve(key);
     this._data[resolved] = (this._data[resolved] || 0) + (amount || 1);
-    console.log(`[Flags] ${resolved} = ${this._data[resolved]}`);
   },
 
   decrement(key, amount) {
     const resolved = this._resolve(key);
     this._data[resolved] = (this._data[resolved] || 0) - (amount || 1);
-    console.log(`[Flags] ${resolved} = ${this._data[resolved]}`);
   },
 
   toggle(key) {
     const resolved = this._resolve(key);
     this._data[resolved] = !this._data[resolved];
-    console.log(`[Flags] ${resolved} = ${this._data[resolved]}`);
   },
 
   // ── Reset ──

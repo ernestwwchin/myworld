@@ -14,6 +14,9 @@ const ModLoader = {
 
   /** Minimal runtime run-state scaffold for staged progression */
   _runState: null,
+
+  /** Per-stage seed cache for procedural maps so refresh keeps identical layout */
+  _generatedMapSeeds: {},
   
   /** Tile symbol → number mapping (built during applyRules) */
   _tileSymbolMap: {},
@@ -138,9 +141,12 @@ const ModLoader = {
     this.persistGameState(scene);
     this.applyMap(modData, stageId);
     this.applyCreatures(modData, stageId);
-    // Update player start tile for the new stage
+    // Update player start tile for the new stage and immediately persist it.
+    // Do NOT call persistGameState(scene) again — scene.playerTile is still the old map's
+    // tile, which would overwrite the correct new-stage spawn we just set here.
     if (window._MAP_META?.playerStart) {
       PLAYER_STATS.startTile = window._MAP_META.playerStart;
+      this._persistStartTileImmediately(window._MAP_META.playerStart);
     }
 
     // Fade out → restart scene → fade in
@@ -164,6 +170,9 @@ const ModLoader = {
     PLAYER_STATS.ac = Number(p.ac || PLAYER_STATS.ac || 10);
     PLAYER_STATS.baseAC = Number(p.baseAC || PLAYER_STATS.baseAC || PLAYER_STATS.ac || 10);
     PLAYER_STATS.currentHP = Math.max(0, Number(scene.playerHP || p.maxHP || PLAYER_STATS.maxHP || 1));
+    if (scene.playerTile && Number.isFinite(scene.playerTile.x) && Number.isFinite(scene.playerTile.y)) {
+      PLAYER_STATS.startTile = { x: Number(scene.playerTile.x), y: Number(scene.playerTile.y) };
+    }
   },
 
   _clonePlain(value) {
@@ -202,6 +211,81 @@ const ModLoader = {
       }
     }
     return null;
+  },
+
+  _isWalkableSpawnTile(grid, x, y) {
+    if (!grid || !grid.length) return false;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+    const rows = grid.length;
+    const cols = grid[0]?.length || 0;
+    if (x < 0 || y < 0 || x >= cols || y >= rows) return false;
+    const v = grid[y]?.[x];
+    return v === TILE.FLOOR || v === TILE.GRASS || v === TILE.WATER || v === TILE.STAIRS;
+  },
+
+  _findNearestWalkableTile(grid, fromTile) {
+    if (!grid || !grid.length) return null;
+    const rows = grid.length;
+    const cols = grid[0]?.length || 0;
+    const sx = Number(fromTile?.x || 0);
+    const sy = Number(fromTile?.y || 0);
+    const key = (x, y) => `${x},${y}`;
+    const q = [{ x: sx, y: sy }];
+    const seen = new Set([key(sx, sy)]);
+    const dirs = [
+      { x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 },
+      { x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 },
+    ];
+
+    while (q.length) {
+      const cur = q.shift();
+      if (this._isWalkableSpawnTile(grid, cur.x, cur.y)) return cur;
+      for (const d of dirs) {
+        const nx = cur.x + d.x;
+        const ny = cur.y + d.y;
+        if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+        const k = key(nx, ny);
+        if (seen.has(k)) continue;
+        seen.add(k);
+        q.push({ x: nx, y: ny });
+      }
+    }
+    return null;
+  },
+
+  _normalizePlayerStartTile(activeMap) {
+    if (typeof PLAYER_STATS === 'undefined') return;
+    if (!Array.isArray(MAP) || !MAP.length) return;
+
+    const preferred = PLAYER_STATS.startTile || window._MAP_META?.playerStart || { x: 1, y: 1 };
+    let resolved = null;
+
+    if (this._isWalkableSpawnTile(MAP, preferred.x, preferred.y)) {
+      resolved = { x: Number(preferred.x), y: Number(preferred.y) };
+    } else {
+      resolved = this._findNearestWalkableTile(MAP, preferred);
+    }
+
+    if (!resolved) {
+      for (let y = 0; y < MAP.length; y++) {
+        for (let x = 0; x < MAP[y].length; x++) {
+          if (this._isWalkableSpawnTile(MAP, x, y)) {
+            resolved = { x, y };
+            break;
+          }
+        }
+        if (resolved) break;
+      }
+    }
+
+    if (!resolved) return;
+
+    PLAYER_STATS.startTile = { ...resolved };
+    if (window._MAP_META) window._MAP_META.playerStart = { ...resolved };
+
+    if (preferred.x !== resolved.x || preferred.y !== resolved.y) {
+      console.warn(`[ModLoader] Adjusted invalid spawn tile on ${activeMap || this._activeMap}: (${preferred.x},${preferred.y}) -> (${resolved.x},${resolved.y})`);
+    }
   },
 
   _buildRuntimeExtractionInteractable(floorName, playerStart, grid, interactables) {
@@ -325,6 +409,43 @@ const ModLoader = {
     if (snapshot.runState && typeof snapshot.runState === 'object') {
       this._runState = this._clonePlain(snapshot.runState);
     }
+    if (snapshot.generatedMapSeeds && typeof snapshot.generatedMapSeeds === 'object') {
+      this._generatedMapSeeds = this._clonePlain(snapshot.generatedMapSeeds);
+    }
+  },
+
+  // Immediately patch just the seed for one stage into localStorage without needing a scene.
+  // Called right after map generation so a refresh never loses the seed.
+  _persistSeedImmediately(stageId, seed) {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      const raw = localStorage.getItem(this._saveKey);
+      const snapshot = (raw ? JSON.parse(raw) : null) || { version: 1, savedAt: Date.now() };
+      if (!snapshot.generatedMapSeeds || typeof snapshot.generatedMapSeeds !== 'object') {
+        snapshot.generatedMapSeeds = {};
+      }
+      snapshot.generatedMapSeeds[stageId] = Number(seed);
+      localStorage.setItem(this._saveKey, JSON.stringify(snapshot));
+    } catch (_err) {
+      // no-op — localStorage unavailable in tests/SSR
+    }
+  },
+
+  // Immediately patch the player startTile in localStorage without needing a scene.
+  // Called after applyMap sets PLAYER_STATS.startTile so the correct cave spawn is saved
+  // before scene.restart() reads PLAYER_STATS.startTile from the global.
+  _persistStartTileImmediately(tile) {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      if (!tile || !Number.isFinite(tile.x) || !Number.isFinite(tile.y)) return;
+      const raw = localStorage.getItem(this._saveKey);
+      const snapshot = (raw ? JSON.parse(raw) : null) || { version: 1, savedAt: Date.now() };
+      if (!snapshot.player || typeof snapshot.player !== 'object') snapshot.player = {};
+      snapshot.player.startTile = { x: Number(tile.x), y: Number(tile.y) };
+      localStorage.setItem(this._saveKey, JSON.stringify(snapshot));
+    } catch (_err) {
+      // no-op — localStorage unavailable in tests/SSR
+    }
   },
 
   persistGameState(scene) {
@@ -338,6 +459,7 @@ const ModLoader = {
         player: this._serializePlayerStats(),
         flags: (typeof Flags !== 'undefined' && typeof Flags.serialize === 'function') ? Flags.serialize() : {},
         runState: this._runState ? this._clonePlain(this._runState) : null,
+        generatedMapSeeds: this._generatedMapSeeds ? this._clonePlain(this._generatedMapSeeds) : {},
       };
       localStorage.setItem(this._saveKey, JSON.stringify(snapshot));
       return true;
@@ -376,6 +498,7 @@ const ModLoader = {
       // no-op
     }
     this._runState = null;
+    this._generatedMapSeeds = {};
     if (typeof Flags !== 'undefined' && typeof Flags.reset === 'function') Flags.reset();
     if (reload && typeof window !== 'undefined' && window.location) window.location.reload();
   },
@@ -663,6 +786,9 @@ const ModLoader = {
    */
   async init() {
     const persisted = this._readPersistedState();
+    if (persisted?.generatedMapSeeds && typeof persisted.generatedMapSeeds === 'object') {
+      this._generatedMapSeeds = this._clonePlain(persisted.generatedMapSeeds);
+    }
 
     // 1. Load mod settings
     const settings = await this.loadYaml('data/modsettings.yaml');
@@ -724,10 +850,20 @@ const ModLoader = {
       console.log(`[ModLoader] Mod loaded: ${modId}${meta.startMap ? ` (startMap: ${meta.startMap})` : ''}`);
     }
 
-    // URL param override: ?map=ts_fog  (loads any registered stage)
+    // Map resolution order:
+    // 1) persisted save (default for normal refresh)
+    // 2) URL map override only when explicitly forced via ignoreSave=1
+    //    or when test/autoplay params are present.
     try {
-      const urlMap = new URLSearchParams(window.location.search).get('map');
-      if (urlMap) {
+      const params = new URLSearchParams(window.location.search);
+      const urlMap = params.get('map');
+      const hasTestMode = params.has('test') || params.has('running') || params.has('queue') || params.has('autoplay');
+      const ignoreSave = params.get('ignoreSave') === '1';
+      const shouldForceUrlMap = !!urlMap && (ignoreSave || hasTestMode || !persisted?.activeMap);
+
+      if (persisted?.activeMap && !shouldForceUrlMap) {
+        activeMap = persisted.activeMap;
+      } else if (urlMap) {
         // Auto-register test stages if the requested map starts with ts_
         if (urlMap.startsWith('ts_') && !this._stageRegistry[urlMap]) {
           this._stageRegistry[urlMap] = `data/00_core_test/stages/${urlMap}/stage.yaml`;
@@ -735,13 +871,9 @@ const ModLoader = {
         activeMap = urlMap;
         console.log(`[ModLoader] URL override: map=${urlMap}`);
       }
-    } catch (_e) { /* no URLSearchParams — node env, tests, etc. */ }
-
-    // Save resume applies when no explicit map override is provided.
-    try {
-      const forcedMap = new URLSearchParams(window.location.search).get('map');
-      if (!forcedMap && persisted?.activeMap) activeMap = persisted.activeMap;
-    } catch (_e) { /* ignore in non-browser contexts */ }
+    } catch (_e) {
+      if (persisted?.activeMap) activeMap = persisted.activeMap;
+    }
 
     // 4. Load player
     const playerFile = await this.loadYaml('data/player.yaml');
@@ -802,6 +934,7 @@ const ModLoader = {
 
     if (persisted) this._applyPersistedState(persisted);
     if (!this._runState) this._initRunState(activeMap);
+    this._normalizePlayerStartTile(activeMap);
 
     console.log('[ModLoader] Active map:', activeMap);
   },
@@ -1010,12 +1143,20 @@ const ModLoader = {
     let generatedLights = [], generatedSprites = [];
     if (mapDef.generator) {
       // Procedural generation — ignore grid: field
-      const result = MapGen.generate(mapDef.generator, TILE);
+      const generatorCfg = { ...mapDef.generator };
+      const persistedSeed = Number(this._generatedMapSeeds?.[activeMap]);
+      if (Number.isFinite(persistedSeed) && persistedSeed > 0) {
+        generatorCfg.seed = persistedSeed;
+      }
+      const result = MapGen.generate(generatorCfg, TILE);
       convertedGrid    = result.grid;
       playerStart      = mapDef.playerStart || result.playerStart;
       stairsPos        = result.stairsPos;
       generatedLights  = result.lights || [];
       generatedSprites = result.stageSprites || [];
+      if (!this._generatedMapSeeds || typeof this._generatedMapSeeds !== 'object') this._generatedMapSeeds = {};
+      this._generatedMapSeeds[activeMap] = Number(result.seed);
+      this._persistSeedImmediately(activeMap, result.seed);
       console.log(`[ModLoader] Generated map (${mapDef.generator.type||'cave'}) seed=${result.seed} size=${convertedGrid[0].length}x${convertedGrid.length} stairs=(${stairsPos?.x},${stairsPos?.y}) torches=${generatedLights.length}`);
     } else {
       // Static grid from YAML

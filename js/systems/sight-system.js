@@ -11,15 +11,17 @@ const GameSceneSightSystem = {
 
   _updateEnemySightDebugLabels(enabled) {
     for (const e of this.enemies) {
-      if (!e || !e.lbl) continue;
+      if (!e || !e.lbl || !e.lbl.active) continue;
       const baseName = (e.displayName || e.type || '').toUpperCase();
-      if (enabled) {
-        const base = Number(e.sight || 0);
-        const eff = this.effectiveEnemySight(e);
-        e.lbl.setText(`${baseName} S:${base} E:${eff}`);
-      } else {
-        e.lbl.setText(baseName);
-      }
+      try {
+        if (enabled) {
+          const base = Number(e.sight || 0);
+          const eff = this.effectiveEnemySight(e);
+          e.lbl.setText(`${baseName} S:${base} E:${eff}`);
+        } else {
+          e.lbl.setText(baseName);
+        }
+      } catch (_) { /* destroyed mid-frame */ }
     }
   },
 
@@ -104,7 +106,9 @@ const GameSceneSightSystem = {
   },
 
   clearSightOverlays() {
-    this.sightTiles.forEach(t => t.destroy());
+    for (const t of this.sightTiles) {
+      try { if (t && t.active) t.destroy(); } catch (_) { /* already gone */ }
+    }
     this.sightTiles = [];
     this.syncEnemySightRings(false);
     this._updateEnemySightDebugLabels(false);
@@ -148,13 +152,16 @@ const GameSceneSightSystem = {
 
   syncEnemySightRings(show, includeCombat = false) {
     for (const e of this.enemies) {
-      if (!e.sightRing || !e.alive || (!includeCombat && e.inCombat)) {
-        if (e.sightRing) e.sightRing.setAlpha(0);
+      if (!e.sightRing || !e.sightRing.active) continue;
+      if (!e.alive || (!includeCombat && e.inCombat)) {
+        try { e.sightRing.setAlpha(0); } catch (_) {}
         continue;
       }
-      const r = this.effectiveEnemySight(e);
-      if (typeof e.sightRing.setRadius === 'function') e.sightRing.setRadius(r * S);
-      e.sightRing.setAlpha(show ? 0.3 : 0);
+      try {
+        const r = this.effectiveEnemySight(e);
+        if (typeof e.sightRing.setRadius === 'function') e.sightRing.setRadius(r * S);
+        e.sightRing.setAlpha(show ? 0.3 : 0);
+      } catch (_) { /* destroyed */ }
     }
   },
 

@@ -30,6 +30,12 @@ test('ModLoader supports nextStage token resolution for auto/boss/town', () => {
   assert.ok(src.includes('consumeLastRunSummary('), 'ModLoader should expose run summary consume API for town resolution UI');
   assert.ok(src.includes('shouldResolveBossVictory('), 'ModLoader should expose boss-stage victory detection');
   assert.ok(src.includes("mode === 'victory'"), 'ModLoader run resolution should support victory outcomes');
+  assert.ok(src.includes("params.get('ignoreSave') === '1'"), 'Map boot flow should support forcing URL map via ignoreSave=1');
+  assert.ok(src.includes('persisted?.activeMap && !shouldForceUrlMap'), 'Boot flow should prefer persisted active map on normal refresh');
+  assert.ok(src.includes('_generatedMapSeeds'), 'ModLoader should track generated map seeds for deterministic refreshes');
+  assert.ok(src.includes('generatedMapSeeds:'), 'Persisted save snapshot should include generated map seeds');
+  assert.ok(src.includes('_normalizePlayerStartTile('), 'ModLoader should normalize invalid saved spawn tiles');
+  assert.ok(src.includes('scene.playerTile'), 'ModLoader should persist current player tile when saving scene state');
 });
 
 test('stairs transition resolves nextStage token before transitionToStage', () => {
