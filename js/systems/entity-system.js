@@ -180,6 +180,30 @@ Object.assign(GameScene.prototype, {
   // ─────────────────────────────────────────
   // GENERIC TILE INTERACTION (entity protocol)
   // ─────────────────────────────────────────
+  _findInteractionApproachTile(tx, ty) {
+    const dirs = [
+      { x: -1, y: -1 }, { x: 0, y: -1 }, { x: 1, y: -1 },
+      { x: -1, y: 0 },                    { x: 1, y: 0 },
+      { x: -1, y: 1 },  { x: 0, y: 1 },  { x: 1, y: 1 },
+    ];
+
+    const blk = (x, y) => this.isBlockedTile(x, y, { doorMode: 'passable' });
+    let best = null;
+
+    for (const d of dirs) {
+      const ax = tx + d.x;
+      const ay = ty + d.y;
+      if (ax < 0 || ay < 0 || ax >= COLS || ay >= ROWS) continue;
+      if (blk(ax, ay)) continue;
+
+      const path = bfs(this.playerTile.x, this.playerTile.y, ax, ay, blk);
+      if (!path.length) continue;
+      if (!best || path.length < best.path.length) best = { x: ax, y: ay, path };
+    }
+
+    return best;
+  },
+
   interactAtTile(tx, ty, opts = {}) {
     const ents = this.getEntitiesAt(tx, ty);
     if (!ents.length) return null;
@@ -187,6 +211,21 @@ Object.assign(GameScene.prototype, {
     const dist = tileDist(this.playerTile.x, this.playerTile.y, tx, ty);
     const needsAdj = ents.some(e => e.needsAdjacency());
     if (needsAdj && dist > 1.5) {
+      if (opts.autoMove) {
+        const canStandOnTarget = !ents.some(e => e.blocksMovement(this))
+          && !this.isBlockedTile(tx, ty, { doorMode: 'passable' });
+
+        const approach = canStandOnTarget
+          ? { x: tx, y: ty }
+          : this._findInteractionApproachTile(tx, ty);
+        if (approach) {
+          this.setDestination(approach.x, approach.y, () => {
+            this.interactAtTile(tx, ty, { ...opts, autoMove: false });
+            if (typeof opts.onAutoMoveComplete === 'function') opts.onAutoMoveComplete();
+          });
+          return 'moving';
+        }
+      }
       this.showStatus(`Move closer to interact with ${ents[0].getLabel()}.`);
       return 'blocked';
     }
