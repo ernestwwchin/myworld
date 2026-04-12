@@ -4,8 +4,8 @@
 spriteManifest:
   atlases:
     - key: 0x72
-      image: assets/0x72_dungeon/0x72_DungeonTilesetII_v1.7/0x72_DungeonTilesetII_v1.7.png
-      json: assets/0x72_dungeon/0x72_dungeon.json
+      image: assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_v1.7/0x72_DungeonTilesetII_v1.7.png
+      json: assets/vendor/0x72_dungeon/0x72_dungeon.json
 
   tiles:
     t_floor:      { atlas: 0x72, frame: floor_1 }
