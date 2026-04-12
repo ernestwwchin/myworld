@@ -92,6 +92,10 @@ test.describe('Attack scenarios', () => {
     await attackWithForcedD20(page, 19);
     await page.waitForTimeout(750);
 
+    // Loot drops as floor item — pick it up by tapping the enemy's tile
+    await tapTile(page, 2, 2);
+    await page.waitForTimeout(400);
+
     const after = await page.evaluate(() => {
       const scene = window.game.scene.getScene('GameScene');
       const inv = Array.isArray(scene.pStats?.inventory) ? scene.pStats.inventory : [];

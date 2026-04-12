@@ -115,7 +115,7 @@ const DemoPlay = {
         return true;
       }
 
-      const blk = (x, y) => cur.isWallTile(x, y) || cur.enemies.some(e => e.alive && e.tx === x && e.ty === y);
+      const blk = (x, y) => cur.isBlockedTile(x, y, {doorMode:false});
       const path = bfs(px, py, stairs.x, stairs.y, blk);
       if (!path.length) {
         this.log('Cannot path to stairs — waiting...');
@@ -182,7 +182,7 @@ const DemoPlay = {
         }
       } else if (s.playerMoves > 0) {
         // No AP but has moves — move closer for next round via setDestination
-        const blk = (x, y) => s.isWallTile(x, y) || s.enemies.some(e => e.alive && e.tx === x && e.ty === y);
+        const blk = (x, y) => s.isBlockedTile(x, y, {doorMode:false});
         const path = bfs(s.playerTile.x, s.playerTile.y, nearest.tx, nearest.ty, blk);
         if (path.length > 1) {
           const stepIdx = Math.min(s.playerMoves - 1, path.length - 2);

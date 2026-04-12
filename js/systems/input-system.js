@@ -59,14 +59,26 @@ const GameSceneInputSystem = {
     const ctx=document.getElementById('context-menu');
     if(ctx?.style.display==='block'){ ctx.style.display='none'; return; }
     const esp=document.getElementById('enemy-stat-popup');
-    if(esp?.style.display==='block'){ esp.style.display='none'; this._statPopupEnemy=null; }
+    if(esp?.style.display==='block'){ esp.style.display='none'; this._statPopupEnemy=null;
+      const _ap=document.getElementById('atk-predict-popup'); if(_ap) _ap.style.display='none';
+    }
 
     if(this.diceWaiting){ this._handleDiceDismiss(); return; }
-    if(this.isMoving){ this.cancelCurrentMove(); return; }
+    // In combat: allow redirecting/attacking while moving (cancel current move, proceed)
+    // In explore: cancel current move on any tap
+    if(this.isMoving){
+      if(this.mode===MODE.COMBAT){
+        this.cancelCurrentMove();
+        // Fall through to process the tap as combat input
+      } else {
+        this.cancelCurrentMove();
+        return;
+      }
+    }
     this.hideContextMenu();
     const tx=Math.floor(ptr.worldX/S), ty=Math.floor(ptr.worldY/S);
     if(tx<0||ty<0||tx>=COLS||ty>=ROWS) return;
-    const enemy=this.enemies.find(e=>e.alive&&e.tx===tx&&e.ty===ty);
+    let enemy=this.enemies.find(e=>e.alive&&e.tx===tx&&e.ty===ty);
 
     // Reliable enemy inspect on right-click even when sprite-level events don't fire first.
     if (enemy && typeof ptr.rightButtonDown === 'function' && ptr.rightButtonDown()) {
@@ -75,9 +87,46 @@ const GameSceneInputSystem = {
     }
 
     // Delegate to active mode handler
-    if(this.mode===MODE.COMBAT){ this.onTapCombat(tx,ty,enemy); return; }
-    if(this.mode===MODE.EXPLORE_TB){ this.onTapExploreTB(tx,ty,enemy,ptr); return; }
+    if(this.mode===MODE.COMBAT){ this.onTapCombat(tx,ty,enemy,ptr); return; }
     this.onTapExplore(tx,ty,enemy,ptr);
+  },
+
+  // ── Hold-to-move (BG3-style) ──────────────────────────
+  // Pointer held >200ms on walkable ground → character walks toward cursor.
+  _holdMoveThreshold: 200,
+  _holdMoveActive: false,
+  _holdWorldX: 0,
+  _holdWorldY: 0,
+  _holdTimer: null,
+
+  _onHzPointerDown(ptr){
+    if(ptr.button!==0) return;
+    // Don't fire tap/hold during two-finger touch pan
+    if(this._touchPanning) return;
+    // Fire tap immediately (pathfind / interact / dismiss)
+    this.onTap(ptr);
+    // Start hold-to-move timer (explore-realtime only)
+    if(this._holdTimer){ this._holdTimer.remove(); this._holdTimer=null; }
+    this._holdWorldX=ptr.worldX;
+    this._holdWorldY=ptr.worldY;
+    this._holdTimer=this.time.delayedCall(this._holdMoveThreshold,()=>{
+      this._holdTimer=null;
+      if(!this.isExploreMode()||this.mode===MODE.COMBAT) return;
+      this._holdMoveActive=true;
+      // Truncate existing path so update loop takes over after current step
+      if(this.movePath.length>0){ this.movePath=[]; this.clearPathDots(); }
+    });
+  },
+
+  _onHzPointerMove(ptr){
+    if(!this._holdMoveActive) return;
+    this._holdWorldX=ptr.worldX;
+    this._holdWorldY=ptr.worldY;
+  },
+
+  _onHzPointerUp(){
+    if(this._holdTimer){ this._holdTimer.remove(); this._holdTimer=null; }
+    this._holdMoveActive=false;
   },
 };
 

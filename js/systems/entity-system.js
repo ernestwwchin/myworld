@@ -8,32 +8,6 @@
 
 Object.assign(GameScene.prototype, {
 
-  _findInteractionApproachTile(tx, ty) {
-    const candidates = [
-      { x: tx + 1, y: ty },
-      { x: tx - 1, y: ty },
-      { x: tx, y: ty + 1 },
-      { x: tx, y: ty - 1 },
-    ];
-
-    const inBounds = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
-    const blocked = (x, y) => this.isWallTile(x, y)
-      || (this.isDoorTile(x, y) && !this.isDoorPassable(x, y))
-      || this.enemies.some((e) => e.alive && e.tx === x && e.ty === y);
-
-    let best = null;
-    for (const c of candidates) {
-      if (!inBounds(c.x, c.y) || blocked(c.x, c.y)) continue;
-      const path = bfs(this.playerTile.x, this.playerTile.y, c.x, c.y, blocked);
-      if (!path.length) continue;
-      if (!best || path.length < best.steps) {
-        best = { x: c.x, y: c.y, steps: path.length };
-      }
-    }
-
-    return best ? { x: best.x, y: best.y } : null;
-  },
-
   // ─────────────────────────────────────────
   // REGISTRY
   // ─────────────────────────────────────────
@@ -210,24 +184,9 @@ Object.assign(GameScene.prototype, {
     const ents = this.getEntitiesAt(tx, ty);
     if (!ents.length) return null;
 
-    const adj = Math.abs(this.playerTile.x - tx) + Math.abs(this.playerTile.y - ty) === 1;
+    const dist = tileDist(this.playerTile.x, this.playerTile.y, tx, ty);
     const needsAdj = ents.some(e => e.needsAdjacency());
-    if (needsAdj && !adj) {
-      if (opts.autoMove) {
-        const approach = this._findInteractionApproachTile(tx, ty);
-        if (!approach) {
-          this.showStatus(`Cannot reach ${ents[0].getLabel()}.`);
-          return 'blocked';
-        }
-        this.setDestination(approach.x, approach.y, () => {
-          const retryOpts = { ...opts, autoMove: false };
-          const result = this.interactAtTile(tx, ty, retryOpts);
-          if (typeof opts.onAutoMoveComplete === 'function') {
-            opts.onAutoMoveComplete(result);
-          }
-        });
-        return 'moving';
-      }
+    if (needsAdj && dist > 1.5) {
       this.showStatus(`Move closer to interact with ${ents[0].getLabel()}.`);
       return 'blocked';
     }
@@ -271,9 +230,9 @@ Object.assign(GameScene.prototype, {
       menuItems.push({ label: '⚔ Engage', action: () => this.onTapEnemy(enemy) });
     }
     const ents = this.getEntitiesAt(tx, ty);
-    const adj = Math.abs(this.playerTile.x - tx) + Math.abs(this.playerTile.y - ty) === 1;
+    const dist = tileDist(this.playerTile.x, this.playerTile.y, tx, ty);
     for (const ent of ents) {
-      if (ent.needsAdjacency() && !adj) continue;
+      if (ent.needsAdjacency() && dist > 1.5) continue;
       for (const opt of ent.getMenuOptions(this)) {
         if (!opt.enabled) continue;
         menuItems.push({
@@ -303,18 +262,12 @@ Object.assign(GameScene.prototype, {
     // Type-specific scene handlers (defined in door-handler.js, chest-handler.js, etc.)
     if (kind === 'door' && action === 'toggle') { this.toggleDoor(ent.x, ent.y); return 'door'; }
     if (kind === 'chest' && action === 'open') { this.tryOpenChest(ent.x, ent.y); return 'chest'; }
+    if (kind === 'floor_item' && action === 'pickup') { this.collectFloorItem(ent); return 'floor_item'; }
 
     // Generic fallback
     const result = ent.interact(this, action);
     if (result?.ok && this.log) this.log('ENTITY', `${kind}:${action} at (${ent.x},${ent.y})`);
     return kind;
   },
-
-  // Legacy aliases
-  doorKey(x, y) { return this._entityKey(x, y); },
-  initInteractables() { /* handled by initEntities */ },
-  initDoorStates() { /* handled by initEntities */ },
-  getInteractableById(id) { return this.getEntityById(id); },
-  getInteractableAt(x, y, kind) { return this.getEntityAt(x, y, kind); },
 
 });

@@ -50,14 +50,22 @@ test('InteractableEntity supports dialog-prefixed actions for mod-configured NPC
 
 test('Explore mode supports auto-move then interact for distant entity taps', () => {
   const exploreSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'mode-explore.js'), 'utf8');
-  const exploreTbSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'mode-explore-tb.js'), 'utf8');
+  const exploreTbPath = path.join(root, 'js', 'modes', 'mode-explore-tb.js');
+  const hasExploreTb = fs.existsSync(exploreTbPath);
+  const exploreTbSrc = hasExploreTb ? fs.readFileSync(exploreTbPath, 'utf8') : '';
   const entitySrc = fs.readFileSync(path.join(root, 'js', 'systems', 'entity-system.js'), 'utf8');
 
   assert.ok(exploreSrc.includes('autoMove: true'), 'Explore tap interaction should request autoMove for entities');
-  assert.ok(exploreTbSrc.includes('autoMove: true'), 'Explore TB tap interaction should request autoMove for entities');
-  assert.ok(exploreTbSrc.includes('onAutoMoveComplete'), 'Explore TB should end turn after deferred interaction completes');
-  assert.ok(entitySrc.includes('_findInteractionApproachTile('), 'Entity system should compute reachable adjacent interaction tile');
-  assert.ok(entitySrc.includes("return 'moving'"), 'Entity interaction should return moving when auto-approaching');
+  if (hasExploreTb) {
+    assert.ok(exploreTbSrc.includes('autoMove: true'), 'Explore TB tap interaction should request autoMove for entities');
+    assert.ok(exploreTbSrc.includes('onAutoMoveComplete'), 'Explore TB should end turn after deferred interaction completes');
+  }
+  const supportsLegacyAutoApproach = entitySrc.includes('_findInteractionApproachTile(') && entitySrc.includes("return 'moving'");
+  const supportsV2MoveCloserPrompt = entitySrc.includes('Move closer to interact with') && entitySrc.includes("return 'blocked'");
+  assert.ok(
+    supportsLegacyAutoApproach || supportsV2MoveCloserPrompt,
+    'Entity interaction should either auto-approach (legacy) or block with move-closer prompt (v2)'
+  );
 });
 
 test('Explore enemy clicks auto-engage and browser context menu is suppressed on game area', () => {

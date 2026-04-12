@@ -296,34 +296,7 @@ const AutoPlay = {
       `player(${s.playerTile.x},${s.playerTile.y}) enemy(${enemy.tx},${enemy.ty})`);
   },
 
-  /** Test 8: Explore TB — one player step then enemy phase */
-  async test_explore_turn_based() {
-    const s = this.getScene();
-    if (s.mode === MODE.COMBAT) s.exitCombat('flee');
-    if (s.mode !== MODE.EXPLORE_TB) s.toggleExploreTurnBased();
-    await this.wait(100);
-
-    this.assert('explore_tb:enabled', s.mode === MODE.EXPLORE_TB, `mode=${s.mode}`);
-
-    const enemyStarts = s.enemies.map(e => ({ alive: e.alive, tx: e.tx, ty: e.ty }));
-    const from = { x: s.playerTile.x, y: s.playerTile.y };
-
-    // Try to move more than one tile; system should only move one step this turn.
-    await this.tapTile(from.x + 3, from.y);
-    await this.wait(900);
-
-    const dist = Math.abs(s.playerTile.x - from.x) + Math.abs(s.playerTile.y - from.y);
-    this.assert('explore_tb:single_step_limit', dist === 1,
-      `from(${from.x},${from.y}) to(${s.playerTile.x},${s.playerTile.y}) dist=${dist}`);
-
-    await this.wait(900);
-    const enemyMoved = s.enemies.some((e, i) => {
-      if (!e.alive || !enemyStarts[i]?.alive) return false;
-      return e.tx !== enemyStarts[i].tx || e.ty !== enemyStarts[i].ty;
-    });
-    this.assert('explore_tb:enemy_phase_ran', enemyMoved || s._exploreTBMovesRemaining === 1,
-      `enemyMoved=${enemyMoved} movesRemaining=${s._exploreTBMovesRemaining}`);
-  },
+  // Test 8 (explore_turn_based) removed — TB exploration mode deleted in v2.
 
   /** Test 9: Alert locality — single trigger should not pull whole map */
   async test_alert_locality() {

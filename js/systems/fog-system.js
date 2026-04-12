@@ -50,23 +50,38 @@ const GameSceneFogSystem = {
     const light = this._fogLightRows;
     for (let y = 0; y < ROWS; y++) light[y].fill(0);
 
-    // Player light: smoothstep falloff, LOS-visible tiles only
-    for (let y = 0; y < ROWS; y++) {
-      for (let x = 0; x < COLS; x++) {
-        if (!this.fogVisible[y][x]) continue;
-        const dx = (x * S + S / 2) - playerCx, dy = (y * S + S / 2) - playerCy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const t = Math.min(1, dist * invMaxR);
-        light[y][x] = 1 - t * t * (3 - 2 * t);
+    // Player light: only emit if player has a portable light source (torch/lantern).
+    if (typeof this.hasPlayerLightSource === 'function' && this.hasPlayerLightSource()) {
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          if (!this.fogVisible[y][x]) continue;
+          const dx = (x * S + S / 2) - playerCx, dy = (y * S + S / 2) - playerCy;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const t = Math.min(1, dist * invMaxR);
+          light[y][x] = 1 - t * t * (3 - 2 * t);
+        }
+      }
+    } else {
+      // Without a torch/lantern, keep visible tiles readable without adding a player glow.
+      const floor = Math.max(0, Math.min(1, Number(LIGHT_RULES.noTorchVisibleLightFloor ?? 0.2)));
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          if (!this.fogVisible[y][x]) continue;
+          if (light[y][x] < floor) light[y][x] = floor;
+        }
       }
     }
 
     // Precompute active map lights once; reused by brightness and tint passes.
     const activeLights = [];
+    const lightKeySet = new Set();
     for (const l of (this.mapLights || [])) {
       const lx = Number(l.x), ly = Number(l.y);
-      const r = Math.max(1, Number(l.radius || 3));
+      const radiusScale = Math.max(0.5, Number(LIGHT_RULES.torchRadiusScale ?? 1));
+      const r = Math.max(1, Number(l.radius || 3) * radiusScale);
       const isBright = String(l.level || 'dim').toLowerCase() === 'bright';
+      const brightStr = Math.max(0, Number(LIGHT_RULES.torchBrightStrength ?? 0.6));
+      const dimStr = Math.max(0, Number(LIGHT_RULES.torchDimStrength ?? 0.4));
       let anyVisited = false;
       for (let ddy = -r; ddy <= r && !anyVisited; ddy++)
         for (let ddx = -r; ddx <= r && !anyVisited; ddx++)
@@ -79,11 +94,52 @@ const GameSceneFogSystem = {
         r,
         ri: Math.ceil(r) + 1,
         isBright,
-        str: isBright ? 0.6 : 0.4,
+        str: isBright ? brightStr : dimStr,
         lcx: lx * S + S / 2,
         lcy: ly * S + S / 2,
         pr: r * S,
       });
+      lightKeySet.add(`${lx},${ly}`);
+    }
+
+    // Fallback stage torch lights (for stages that place torch sprites without mapLights entries)
+    if (Array.isArray(this.stageSprites)) {
+      const brightStr = Math.max(0, Number(LIGHT_RULES.torchBrightStrength ?? 0.6));
+      const dimStr = Math.max(0, Number(LIGHT_RULES.torchDimStrength ?? 0.4));
+      const radiusScale = Math.max(0.5, Number(LIGHT_RULES.torchRadiusScale ?? 1));
+      for (const sp of this.stageSprites) {
+        if (!sp || !sp.active || !sp._stageLit) continue;
+        if (sp._stageType !== 'torch') continue;
+        const lx = Math.round((sp.x - S / 2) / S);
+        const ly = Math.round((sp.y - S / 2) / S);
+        const key = `${lx},${ly}`;
+        if (lightKeySet.has(key)) continue;
+
+        const baseR = Math.max(1, Number(sp._stageLightRadius || 3));
+        const r = baseR * radiusScale;
+        const isBright = String(sp._stageLightLevel || 'bright').toLowerCase() === 'bright';
+
+        let anyVisited = false;
+        const ri = Math.ceil(r) + 1;
+        for (let ddy = -ri; ddy <= ri && !anyVisited; ddy++) {
+          for (let ddx = -ri; ddx <= ri && !anyVisited; ddx++) {
+            if (this.fogVisited[ly + ddy]?.[lx + ddx]) anyVisited = true;
+          }
+        }
+        if (!anyVisited) continue;
+
+        activeLights.push({
+          lx,
+          ly,
+          r,
+          ri,
+          isBright,
+          str: isBright ? brightStr : dimStr,
+          lcx: lx * S + S / 2,
+          lcy: ly * S + S / 2,
+          pr: r * S,
+        });
+      }
     }
 
     // Torch lights: add brightness to all visited tiles in range.
@@ -195,10 +251,12 @@ const GameSceneFogSystem = {
   },
 
   updateEnemyVisibilityByFog() {
-    if (!this.isExploreMode()) return;
     for (const e of this.enemies) {
       if (!e.alive) continue;
-      const visible = this.isTileVisibleToPlayer(e.tx, e.ty);
+      // In combat, engaged enemies should stay visible; non-engaged still use LOS/fog.
+      const visible = this.mode === MODE.COMBAT
+        ? (!!e.inCombat || this.isTileVisibleToPlayer(e.tx, e.ty))
+        : this.isTileVisibleToPlayer(e.tx, e.ty);
       const a = visible ? 1 : 0;
       if (e.img) e.img.setAlpha(a);
       if (e.hpBg) e.hpBg.setAlpha(a);
