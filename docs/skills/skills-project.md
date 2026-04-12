@@ -31,6 +31,24 @@ dnd                  // Dice rolling and D&D calculations
 hasLOS(sx,sy,tx,ty)  // Line of sight check
 ```
 
+## World-Run Scaffold (ModLoader)
+
+`ModLoader._runState` now includes foundational run-loop fields used by campaign progression:
+
+```javascript
+runId, seed, worldId, depth, acceptedQuests, carried, runGold,
+currentStage, history, plannedStages
+```
+
+Behavior notes:
+- `_initRunState()` initializes scaffold fields with safe defaults.
+- `startRun()` assigns `runId`, `seed`, accepted quests, and carried snapshot.
+- `_updateRunStateOnTransition()` keeps `depth`, `carried`, and `runGold` in sync.
+- `resolveRunOutcome()` resets run-specific fields when returning to town.
+
+Verification:
+- `tests/unit/sandbox/modloader-run-state.test.js`
+
 ## File Structure
 
 ```

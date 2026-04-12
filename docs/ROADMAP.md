@@ -52,7 +52,7 @@
 
 ### Sprint Tasks (Ordered)
 1. **Run planner skeleton**
-   - [ ] Create run state (`runId`, `seed`, `worldId`, `depth`, `acceptedQuests`, `carried`, `runGold`)
+   - [x] Create run state (`runId`, `seed`, `worldId`, `depth`, `acceptedQuests`, `carried`, `runGold`)
    - [ ] Resolve next stage descriptor from world/depth bands
 2. **Random map generator**
    - [ ] New file: `js/systems/map-generator.js`
@@ -188,6 +188,7 @@ town_idle → town_prep → run_start → run_active → run_extraction/run_deat
 - Contract test for transition keywords (`auto`, `boss`, `town`) ✅
 - [ ] Triage and fix 23 failing Playwright e2e tests (see `docs/BUGS.md` BUG-4)
 - [ ] Fix loot gold collection e2e (`combat-attacks.spec.js`, BUG-5)
+- [x] Unit tests for run-state scaffold initialization/start-run fields (`tests/unit/sandbox/modloader-run-state.test.js`)
 - Unit tests for run planner depth-band selection and generator resolution
 - Unit tests for extraction/death inventory transfer
 - E2E: town start → portal → generated stage → auto transition → return town

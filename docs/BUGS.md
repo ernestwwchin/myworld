@@ -12,6 +12,11 @@
 
 ## Active
 
+### Note: run-state scaffold update (2026-04-13)
+- Added `runId`, `seed`, `acceptedQuests`, `carried`, `runGold` fields in ModLoader run state.
+- Added sandbox coverage: `tests/unit/sandbox/modloader-run-state.test.js`.
+- No new runtime regression observed in unit/contracts at merge time.
+
 ### BUG-4: E2E test suite failures
 - 23 Playwright e2e tests failing (may be environment/server or test rot)
 - Unit tests (21/21) and contract tests all pass
