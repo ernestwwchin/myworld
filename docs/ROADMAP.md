@@ -186,6 +186,8 @@ town_idle → town_prep → run_start → run_active → run_extraction/run_deat
 
 ## Testing Priorities
 - Contract test for transition keywords (`auto`, `boss`, `town`) ✅
+- [ ] Triage and fix 23 failing Playwright e2e tests (see `docs/BUGS.md` BUG-4)
+- [ ] Fix loot gold collection e2e (`combat-attacks.spec.js`, BUG-5)
 - Unit tests for run planner depth-band selection and generator resolution
 - Unit tests for extraction/death inventory transfer
 - E2E: town start → portal → generated stage → auto transition → return town

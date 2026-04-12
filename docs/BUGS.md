@@ -1,20 +1,28 @@
-# Known Bugs & Immediate Fixes Needed
+# Known Bugs & Issues
 
-## Priority: Fix Next
+## Fixed (Archived)
+- ~~BUG-1: Stairs transition not working~~ — Fixed: wired in movement-system.js
+- ~~BUG-2: "undefined enemies" in combat message~~ — Fixed: enemy name fallback chain
+- ~~BUG-3: Flee zone overlay not visible~~ — Fixed: depth/alpha corrected
+- ~~Kill freeze after defeating enemy~~ — Fixed: null out Phaser refs after destroy, `.active` guards
+- ~~Permanent sight line after combat~~ — Fixed: clearSightOverlays on enter/exit combat
+- ~~Damage text unreadable in dark areas~~ — Fixed: depth 31 + stroke 5
+- ~~Refresh changes to random map~~ — Fixed: seed persistence + boot priority
+- ~~Player spawns in wall on floor transition~~ — Fixed: targeted tile persistence
 
-### BUG-1: Stairs transition (B1F → B2F) not working
-- Step on STAIRS tile → should transition to the next stage
-- Stage transition system exists (`changeStage` / `nextFloor`) but stairs interaction is not wired
-- Likely in: `js/systems/movement-system.js` or `js/systems/entity-system.js`
-- Related stage data: `data/01_goblin_invasion/stages/gw_b2f/stage.yaml` exists
+## Active
 
-### BUG-2: "undefined enemies" in combat message
-- When combat starts, the log reads "undefined enemies" instead of enemy names/count
-- Likely in: `js/modes/mode-combat.js` — the combat entry message formatter
-- Fix: guard `enemy.name` / `enemy.id` fallback before building the combat message
+### BUG-4: E2E test suite failures
+- 23 Playwright e2e tests failing (may be environment/server or test rot)
+- Unit tests (21/21) and contract tests all pass
+- Need to triage: which failures are real bugs vs stale test expectations
 
-### BUG-3: Flee zone overlay not visible
-- The flee zone highlight (teal/blue overlay) should appear when player selects flee
-- Overlay was previously confirmed rendered but depth or alpha may be wrong
-- Flee zone depth was set to 16; verify against `docs/depth-layers.md`
-- Likely in: `js/modes/mode-combat.js` flee zone drawing code
+### BUG-5: Loot gold collection in e2e
+- `combat-attacks.spec.js` expects `pStats.gold` to increase after enemy defeat
+- Floor loot bag spawns but gold routing to player stats may not work correctly
+- Related: `floor-item-handler.js`, `inventory-system.js`
+
+### BUG-6: Missing mod data files (404s)
+- `data/01_goblin_invasion/items.yaml` — 404 (file doesn't exist)
+- Some stage `events.yaml` and `dialogs.yaml` — 404 (referenced but not created)
+- Non-blocking (ModLoader handles gracefully) but should be resolved
