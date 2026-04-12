@@ -17,6 +17,20 @@ const ModLoader = {
 
   /** Per-stage seed cache for procedural maps so refresh keeps identical layout */
   _generatedMapSeeds: {},
+
+  _newRunId() {
+    const ts = Date.now().toString(36);
+    const rnd = Math.floor(Math.random() * 1e8).toString(36);
+    return `run_${ts}_${rnd}`;
+  },
+
+  _captureCarriedState() {
+    if (typeof PLAYER_STATS === 'undefined') return { items: [], gold: 0 };
+    return {
+      items: Array.isArray(PLAYER_STATS.inventory) ? PLAYER_STATS.inventory.map((i) => ({ ...i })) : [],
+      gold: Number(PLAYER_STATS.gold || 0),
+    };
+  },
   
   /** Tile symbol → number mapping (built during applyRules) */
   _tileSymbolMap: {},
@@ -569,8 +583,13 @@ const ModLoader = {
     if (this._runState) {
       const townStage = worlds.townStage || worlds.town?.stage || 'town_hub';
       this._runState = {
+        runId: null,
+        seed: null,
         worldId: null,
         depth: 0,
+        acceptedQuests: [],
+        carried: { items: [] },
+        runGold: Number(PLAYER_STATS.gold || 0),
         currentStage: townStage,
         history: [townStage],
         plannedStages: [],
@@ -636,7 +655,14 @@ const ModLoader = {
     }
 
     if (!this._runState) this._initRunState(this._activeMap);
+    const runSeed = Number(opts.seed);
+    const carried = this._captureCarriedState();
     this._runState.worldId = worldId;
+    this._runState.runId = this._newRunId();
+    this._runState.seed = Number.isFinite(runSeed) && runSeed > 0 ? runSeed : Date.now();
+    this._runState.acceptedQuests = Array.isArray(opts.acceptedQuests) ? [...opts.acceptedQuests] : [];
+    this._runState.carried = { items: carried.items };
+    this._runState.runGold = carried.gold;
     this._runState.history = [this._activeMap].filter(Boolean);
     this._runState.plannedStages = [...seq];
     this._runState.depth = this._getRunDepth();
@@ -759,9 +785,15 @@ const ModLoader = {
 
   _initRunState(activeMap) {
     const world = this._getActiveWorldConfig();
+    const carried = this._captureCarriedState();
     this._runState = {
+      runId: null,
+      seed: null,
       worldId: world?.id || null,
       depth: 0,
+      acceptedQuests: [],
+      carried: { items: carried.items },
+      runGold: carried.gold,
       currentStage: activeMap || null,
       history: activeMap ? [activeMap] : [],
       plannedStages: Array.isArray(world?.cfg?.stageSequence) ? [...world.cfg.stageSequence] : [],
@@ -777,6 +809,9 @@ const ModLoader = {
       if (!Array.isArray(state.history)) state.history = [];
       state.history.push(stageId);
       state.depth = this._getRunDepth();
+      const carried = this._captureCarriedState();
+      state.carried = { items: carried.items };
+      state.runGold = carried.gold;
     }
   },
 
