@@ -6,8 +6,14 @@
 // ═══════════════════════════════════════════════════════
 
 const ModLoader = {
+  _saveKey: 'myworld.save.v1',
+  _lastRunSummary: null,
+
   /** Stored mod data from last load (available for test reuse) */
   _modData: null,
+
+  /** Minimal runtime run-state scaffold for staged progression */
+  _runState: null,
   
   /** Tile symbol → number mapping (built during applyRules) */
   _tileSymbolMap: {},
@@ -90,6 +96,9 @@ const ModLoader = {
     if (!stageId) return;
     console.log(`[ModLoader] Transitioning to stage: ${stageId}`);
 
+    // Persist mutable player state before scene restart so runs keep inventory/HP progression.
+    this.syncPlayerStateFromScene(scene);
+
     const stageData = await this.tryLoadStage(stageId);
     if (!stageData) {
       console.warn(`[ModLoader] Stage not found: ${stageId}`);
@@ -125,6 +134,8 @@ const ModLoader = {
     }
 
     this._activeMap = stageId;
+    this._updateRunStateOnTransition(stageId);
+    this.persistGameState(scene);
     this.applyMap(modData, stageId);
     this.applyCreatures(modData, stageId);
     // Update player start tile for the new stage
@@ -141,11 +152,518 @@ const ModLoader = {
     });
   },
 
+  syncPlayerStateFromScene(scene) {
+    if (!scene || !scene.pStats || typeof PLAYER_STATS === 'undefined') return;
+
+    const p = scene.pStats;
+    PLAYER_STATS.inventory = Array.isArray(p.inventory) ? p.inventory.map((i) => ({ ...i })) : [];
+    PLAYER_STATS.stash = Array.isArray(p.stash) ? p.stash.map((i) => ({ ...i })) : [];
+    PLAYER_STATS.gold = Number(p.gold || 0);
+    PLAYER_STATS.equippedWeapon = p.equippedWeapon ? { ...p.equippedWeapon } : null;
+    PLAYER_STATS.equippedArmor = p.equippedArmor ? { ...p.equippedArmor } : null;
+    PLAYER_STATS.ac = Number(p.ac || PLAYER_STATS.ac || 10);
+    PLAYER_STATS.baseAC = Number(p.baseAC || PLAYER_STATS.baseAC || PLAYER_STATS.ac || 10);
+    PLAYER_STATS.currentHP = Math.max(0, Number(scene.playerHP || p.maxHP || PLAYER_STATS.maxHP || 1));
+  },
+
+  _clonePlain(value) {
+    return JSON.parse(JSON.stringify(value));
+  },
+
+  _findNearbyInteractionTile(grid, playerStart, occupied = new Set()) {
+    if (!grid || !playerStart) return null;
+    const rows = grid.length;
+    const cols = grid[0]?.length || 0;
+    const sx = Number(playerStart.x || 0);
+    const sy = Number(playerStart.y || 0);
+    const inBounds = (x, y) => x >= 0 && y >= 0 && x < cols && y < rows;
+    const isWalkable = (x, y) => {
+      const v = grid[y]?.[x];
+      return v === TILE.FLOOR || v === TILE.GRASS || v === TILE.WATER;
+    };
+
+    for (let d = 1; d <= 4; d++) {
+      const ring = [
+        { x: sx + d, y: sy },
+        { x: sx - d, y: sy },
+        { x: sx, y: sy + d },
+        { x: sx, y: sy - d },
+        { x: sx + d, y: sy + d },
+        { x: sx + d, y: sy - d },
+        { x: sx - d, y: sy + d },
+        { x: sx - d, y: sy - d },
+      ];
+      for (const c of ring) {
+        if (!inBounds(c.x, c.y)) continue;
+        const key = `${c.x},${c.y}`;
+        if (occupied.has(key)) continue;
+        if (!isWalkable(c.x, c.y)) continue;
+        return { x: c.x, y: c.y };
+      }
+    }
+    return null;
+  },
+
+  _buildRuntimeExtractionInteractable(floorName, playerStart, grid, interactables) {
+    if (String(floorName || '').toUpperCase() === 'TOWN') return null;
+
+    const existing = Array.isArray(interactables) ? interactables : [];
+    const hasExtraction = existing.some((it) => {
+      const st = it?.state || {};
+      const actions = Array.isArray(st.actions) ? st.actions : [];
+      return String(st.targetStage || '').toLowerCase() === 'town'
+        || actions.some((a) => String(a?.action || '').toLowerCase() === 'travel' && String(st.targetStage || '').toLowerCase() === 'town');
+    });
+    if (hasExtraction) return null;
+
+    const occupied = new Set(existing.map((it) => `${Number(it.x)},${Number(it.y)}`));
+    const tile = this._findNearbyInteractionTile(grid, playerStart, occupied);
+    if (!tile) return null;
+
+    return {
+      id: `runtime_extract_${floorName || 'stage'}`,
+      kind: 'interactable',
+      x: tile.x,
+      y: tile.y,
+      tags: ['run', 'extract', 'portal'],
+      state: {
+        label: 'Return Sigil',
+        icon: '⟲',
+        texture: 'deco_crystal',
+        description: 'A stabilizing sigil that returns you safely to town.',
+        needsAdjacency: true,
+        targetStage: 'town',
+        actions: [
+          { label: 'Extract to Town', icon: '⟲', action: 'travel' },
+          { label: 'Inspect Sigil', icon: '👁', action: 'inspect' },
+        ],
+      },
+    };
+  },
+
+  _serializePlayerStats() {
+    const p = PLAYER_STATS || {};
+    return {
+      name: p.name,
+      class: p.class,
+      level: Number(p.level || 1),
+      xp: Number(p.xp || 0),
+      str: Number(p.str || 10),
+      dex: Number(p.dex || 10),
+      con: Number(p.con || 10),
+      int: Number(p.int || 10),
+      wis: Number(p.wis || 10),
+      cha: Number(p.cha || 10),
+      ac: Number(p.ac || 10),
+      baseAC: Number(p.baseAC || p.ac || 10),
+      weaponId: p.weaponId || null,
+      weaponName: p.weaponName || null,
+      damageFormula: p.damageFormula || '1d4',
+      atkRange: Number(p.atkRange || 1),
+      profBonus: Number(p.profBonus || 2),
+      hitDie: Number(p.hitDie || 8),
+      maxHP: Number(p.maxHP || 1),
+      currentHP: Number(p.currentHP || p.maxHP || 1),
+      savingThrows: Array.from(p.savingThrows || []),
+      skillProficiencies: Array.from(p.skillProficiencies || []),
+      expertiseSkills: Array.from(p.expertiseSkills || []),
+      features: Array.isArray(p.features) ? [...p.features] : [],
+      sneakAttackDice: Number(p.sneakAttackDice || 0),
+      asiPending: Number(p.asiPending || 0),
+      gold: Number(p.gold || 0),
+      inventory: Array.isArray(p.inventory) ? p.inventory.map((i) => ({ ...i })) : [],
+      stash: Array.isArray(p.stash) ? p.stash.map((i) => ({ ...i })) : [],
+      equippedWeapon: p.equippedWeapon ? { ...p.equippedWeapon } : null,
+      equippedArmor: p.equippedArmor ? { ...p.equippedArmor } : null,
+      startTile: p.startTile ? { ...p.startTile } : null,
+    };
+  },
+
+  _applyPlayerSnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object' || typeof PLAYER_STATS === 'undefined') return;
+
+    const direct = [
+      'name', 'class', 'level', 'xp', 'str', 'dex', 'con', 'int', 'wis', 'cha',
+      'ac', 'baseAC', 'weaponId', 'weaponName', 'damageFormula', 'atkRange',
+      'profBonus', 'hitDie', 'maxHP', 'currentHP', 'sneakAttackDice', 'asiPending', 'gold',
+    ];
+    for (const k of direct) {
+      if (snapshot[k] !== undefined) PLAYER_STATS[k] = snapshot[k];
+    }
+
+    if (Array.isArray(snapshot.features)) PLAYER_STATS.features = [...snapshot.features];
+    if (Array.isArray(snapshot.inventory)) PLAYER_STATS.inventory = snapshot.inventory.map((i) => ({ ...i }));
+    if (Array.isArray(snapshot.stash)) PLAYER_STATS.stash = snapshot.stash.map((i) => ({ ...i }));
+    PLAYER_STATS.equippedWeapon = snapshot.equippedWeapon ? { ...snapshot.equippedWeapon } : null;
+    PLAYER_STATS.equippedArmor = snapshot.equippedArmor ? { ...snapshot.equippedArmor } : null;
+    if (snapshot.startTile && typeof snapshot.startTile === 'object') PLAYER_STATS.startTile = { ...snapshot.startTile };
+
+    PLAYER_STATS.savingThrows = new Set(Array.isArray(snapshot.savingThrows) ? snapshot.savingThrows : Array.from(PLAYER_STATS.savingThrows || []));
+    PLAYER_STATS.skillProficiencies = new Set(Array.isArray(snapshot.skillProficiencies) ? snapshot.skillProficiencies : Array.from(PLAYER_STATS.skillProficiencies || []));
+    PLAYER_STATS.expertiseSkills = new Set(Array.isArray(snapshot.expertiseSkills) ? snapshot.expertiseSkills : Array.from(PLAYER_STATS.expertiseSkills || []));
+  },
+
+  _readPersistedState() {
+    try {
+      if (typeof localStorage === 'undefined') return null;
+      const raw = localStorage.getItem(this._saveKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (_err) {
+      return null;
+    }
+  },
+
+  _applyPersistedState(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object') return;
+
+    if (snapshot.player) this._applyPlayerSnapshot(snapshot.player);
+    if (snapshot.flags && typeof Flags !== 'undefined' && typeof Flags.load === 'function') {
+      Flags.load(snapshot.flags);
+    }
+    if (snapshot.runState && typeof snapshot.runState === 'object') {
+      this._runState = this._clonePlain(snapshot.runState);
+    }
+  },
+
+  persistGameState(scene) {
+    try {
+      if (typeof localStorage === 'undefined') return false;
+      this.syncPlayerStateFromScene(scene);
+      const snapshot = {
+        version: 1,
+        savedAt: Date.now(),
+        activeMap: this._activeMap || null,
+        player: this._serializePlayerStats(),
+        flags: (typeof Flags !== 'undefined' && typeof Flags.serialize === 'function') ? Flags.serialize() : {},
+        runState: this._runState ? this._clonePlain(this._runState) : null,
+      };
+      localStorage.setItem(this._saveKey, JSON.stringify(snapshot));
+      return true;
+    } catch (err) {
+      console.warn('[ModLoader] Failed to persist save state:', err);
+      return false;
+    }
+  },
+
+  installAutosaveHooks(scene) {
+    if (!scene) return;
+    if (scene._autosaveTicker || !scene.time) return;
+
+    scene._autosaveTicker = scene.time.addEvent({
+      delay: 15000,
+      loop: true,
+      callback: () => this.persistGameState(scene),
+    });
+
+    if (!this._beforeUnloadHookInstalled && typeof window !== 'undefined') {
+      this._beforeUnloadHookInstalled = true;
+      window.addEventListener('beforeunload', () => {
+        try {
+          this.persistGameState(window._scene || null);
+        } catch (_err) {
+          // no-op
+        }
+      });
+    }
+  },
+
+  resetPersistentGame(reload = true) {
+    try {
+      if (typeof localStorage !== 'undefined') localStorage.removeItem(this._saveKey);
+    } catch (_err) {
+      // no-op
+    }
+    this._runState = null;
+    if (typeof Flags !== 'undefined' && typeof Flags.reset === 'function') Flags.reset();
+    if (reload && typeof window !== 'undefined' && window.location) window.location.reload();
+  },
+
+  resolveRunOutcome(scene, outcome = 'extract') {
+    const mode = String(outcome || 'extract').toLowerCase();
+    this.syncPlayerStateFromScene(scene);
+
+    const worlds = this._modData?.worlds || {};
+    const world = this._getActiveWorldConfig();
+    const cfg = world?.cfg || {};
+    const rules = cfg.resolution || {};
+    const extractRules = rules.extract || {};
+    const deathRules = rules.death || {};
+    const victoryRules = rules.victory || {};
+
+    const runDepth = Number(this._runState?.depth || 0);
+    const inv = Array.isArray(PLAYER_STATS.inventory) ? PLAYER_STATS.inventory : [];
+    const stash = Array.isArray(PLAYER_STATS.stash) ? PLAYER_STATS.stash : [];
+    let gold = Number(PLAYER_STATS.gold || 0);
+
+    let summary = 'Run resolved.';
+
+    let bankedItems = 0;
+    let lostItems = 0;
+    let lostGold = 0;
+
+    if (mode === 'death') {
+      lostItems = inv.length;
+      const lossPct = Math.max(0, Math.min(100, Number(deathRules.goldLossPct ?? 30)));
+      lostGold = Math.floor(gold * (lossPct / 100));
+      gold = Math.max(0, gold - lostGold);
+
+      PLAYER_STATS.inventory = [];
+      PLAYER_STATS.gold = gold;
+      summary = `Defeat: lost ${lostItems} carried item(s) and ${lostGold} gold.`;
+    } else {
+      const activeRules = mode === 'victory' ? victoryRules : extractRules;
+      const bankCarried = activeRules.bankCarriedToStash !== false;
+      if (bankCarried && inv.length) {
+        bankedItems = inv.length;
+        PLAYER_STATS.stash = stash.concat(inv.map((i) => ({ ...i })));
+        PLAYER_STATS.inventory = [];
+      }
+      if (mode === 'victory') {
+        const rewardGold = Math.max(0, Number(victoryRules.rewardGold ?? 0));
+        if (rewardGold > 0) {
+          gold += rewardGold;
+          PLAYER_STATS.gold = gold;
+        }
+        summary = rewardGold > 0
+          ? `Victory: cleared ${cfg.name || world?.id || 'the boss floor'} and earned ${rewardGold} gold.`
+          : `Victory: cleared ${cfg.name || world?.id || 'the boss floor'}.`;
+      } else {
+        summary = bankCarried
+          ? `Extraction complete: banked ${inv.length} carried item(s) to stash.`
+          : 'Extraction complete.';
+      }
+    }
+
+    const healOnExtract = extractRules.healToFullInTown !== false;
+    const healOnDeath = deathRules.healToFullInTown !== false;
+    const healOnVictory = victoryRules.healToFullInTown !== false;
+    if ((mode === 'death' && healOnDeath) || (mode === 'extract' && healOnExtract) || (mode === 'victory' && healOnVictory)) {
+      PLAYER_STATS.currentHP = Number(PLAYER_STATS.maxHP || PLAYER_STATS.currentHP || 1);
+    }
+
+    if (this._runState) {
+      const townStage = worlds.townStage || worlds.town?.stage || 'town_hub';
+      this._runState = {
+        worldId: null,
+        depth: 0,
+        currentStage: townStage,
+        history: [townStage],
+        plannedStages: [],
+        lastOutcome: mode,
+        lastSummary: summary,
+      };
+    }
+
+    this._lastRunSummary = {
+      outcome: mode,
+      summary,
+      depth: runDepth,
+      bankedItems,
+      lostItems,
+      lostGold,
+      rewardGold: Math.max(0, Number(mode === 'victory' ? (victoryRules.rewardGold ?? 0) : 0)),
+    };
+
+    this.persistGameState(scene);
+
+    if (scene?.showStatus) scene.showStatus(summary);
+    const town = this._resolveTownStage();
+    if (town && scene) this.transitionToStage(town, scene);
+  },
+
+  consumeLastRunSummary() {
+    const s = this._lastRunSummary;
+    this._lastRunSummary = null;
+    return s;
+  },
+
+  /**
+   * Start a world run from town/portal interaction.
+   * Picks target stage from explicit targetStage or world stage sequence.
+   */
+  startRun(worldId, scene, opts = {}) {
+    const worldRoot = this._modData?.worlds;
+    if (!worldRoot) {
+      console.warn('[ModLoader] startRun called but no worlds config is loaded.');
+      return;
+    }
+
+    const worldsMap = worldRoot.worlds && typeof worldRoot.worlds === 'object'
+      ? worldRoot.worlds
+      : worldRoot;
+    const cfg = worldsMap?.[worldId];
+    if (!cfg || typeof cfg !== 'object') {
+      console.warn(`[ModLoader] startRun unknown worldId: ${worldId}`);
+      return;
+    }
+
+    const townStage = worldRoot.townStage || worldRoot.town?.stage || null;
+    const seq = Array.isArray(cfg.stageSequence) ? cfg.stageSequence : [];
+
+    let target = opts.targetStage || cfg.entryStage || null;
+    if (!target) {
+      target = seq.find((s) => s && s !== townStage) || seq[0] || cfg.fallbackNextStage || null;
+    }
+
+    if (!target) {
+      console.warn(`[ModLoader] startRun for world ${worldId} has no target stage.`);
+      return;
+    }
+
+    if (!this._runState) this._initRunState(this._activeMap);
+    this._runState.worldId = worldId;
+    this._runState.history = [this._activeMap].filter(Boolean);
+    this._runState.plannedStages = [...seq];
+    this._runState.depth = this._getRunDepth();
+
+    this.transitionToStage(target, scene);
+  },
+
+  /**
+   * Resolve next-stage tokens used in stage.yaml nextStage:
+   * - fixed stage id: "gw_b3f"
+   * - "auto": run planner chooses next stage
+   * - "boss": resolve to active-world boss stage
+   * - "town": resolve to configured town hub stage
+   */
+  resolveNextStage(nextStageToken, scene) {
+    if (!nextStageToken) return null;
+    const raw = String(nextStageToken).trim();
+    if (!raw) return null;
+
+    const token = raw.toLowerCase();
+    if (token === 'auto') return this._resolveAutoNextStage(scene);
+    if (token === 'boss') return this._resolveBossStage();
+    if (token === 'town') return this._resolveTownStage();
+    return raw;
+  },
+
+  _resolveAutoNextStage(_scene) {
+    const world = this._getActiveWorldConfig();
+
+    const depth = this._getRunDepth();
+    const bands = Array.isArray(world?.cfg?.depthBands) ? world.cfg.depthBands : null;
+    if (bands && bands.length) {
+      const nextDepth = Math.max(1, depth + 1);
+      const band = bands.find((b) => {
+        const from = Number(b.from ?? b.depth ?? 1);
+        const to = Number(b.to ?? b.depth ?? from);
+        return nextDepth >= from && nextDepth <= to;
+      });
+      if (band) {
+        const stages = Array.isArray(band.stages) ? band.stages : [];
+        const candidates = stages.filter((s) => s && s !== this._activeMap);
+        if (candidates.length) {
+          const pick = candidates[Math.floor(Math.random() * candidates.length)];
+          return pick;
+        }
+      }
+    }
+
+    const seq = Array.isArray(world?.cfg?.stageSequence) ? world.cfg.stageSequence : null;
+    if (seq && seq.length) {
+      const idx = seq.indexOf(this._activeMap);
+      if (idx >= 0 && idx < seq.length - 1) return seq[idx + 1];
+      if (idx < 0 && seq[0]) return seq[0];
+    }
+
+    if (this._runState && Array.isArray(this._runState.plannedStages)) {
+      const p = this._runState.plannedStages;
+      const idx = p.indexOf(this._activeMap);
+      if (idx >= 0 && idx < p.length - 1) return p[idx + 1];
+    }
+
+    const fallback = world?.cfg?.fallbackNextStage || null;
+    if (fallback) return fallback;
+
+    console.warn('[ModLoader] nextStage:auto requested but no run/world progression rule resolved a target stage.');
+    return null;
+  },
+
+  _getRunDepth() {
+    const state = this._runState;
+    if (!state) return 0;
+    const worldRoot = this._modData?.worlds || {};
+    const townStage = worldRoot.townStage || worldRoot.town?.stage || null;
+    const history = Array.isArray(state.history) ? state.history : [];
+    const runStages = townStage ? history.filter((s) => s !== townStage) : history;
+    return runStages.length;
+  },
+
+  _resolveBossStage() {
+    const world = this._getActiveWorldConfig();
+    const bossStage = world?.cfg?.bossStage || world?.cfg?.boss?.stage || null;
+    if (bossStage) return bossStage;
+    console.warn('[ModLoader] nextStage:boss requested but no bossStage is configured for active world.');
+    return null;
+  },
+
+  shouldResolveBossVictory(scene, reason = 'victory') {
+    if (String(reason || '').toLowerCase() !== 'victory') return false;
+    if (!scene || !this._runState?.worldId) return false;
+    const bossStage = this._resolveBossStage();
+    if (!bossStage || this._activeMap !== bossStage) return false;
+    return Array.isArray(scene.enemies) ? !scene.enemies.some((e) => e.alive) : false;
+  },
+
+  _resolveTownStage() {
+    const worlds = this._modData?.worlds;
+    const townStage = worlds?.townStage || worlds?.town?.stage || null;
+    if (townStage) return townStage;
+    if (this._stageRegistry?.town_hub) return 'town_hub';
+    console.warn('[ModLoader] nextStage:town requested but no town stage is configured.');
+    return null;
+  },
+
+  _getActiveWorldConfig() {
+    const worldsRoot = this._modData?.worlds;
+    if (!worldsRoot || typeof worldsRoot !== 'object') return null;
+
+    // Preferred shape: { defaultWorld, worlds: { <id>: { ... } } }
+    if (worldsRoot.worlds && typeof worldsRoot.worlds === 'object') {
+      const worldId = this._runState?.worldId || worldsRoot.defaultWorld || Object.keys(worldsRoot.worlds)[0];
+      if (!worldId || !worldsRoot.worlds[worldId]) return null;
+      return { id: worldId, cfg: worldsRoot.worlds[worldId] };
+    }
+
+    // Fallback shape: { <id>: { ... }, defaultWorld }
+    const worldId = this._runState?.worldId || worldsRoot.defaultWorld || Object.keys(worldsRoot).find(k => k !== 'defaultWorld');
+    if (!worldId || !worldsRoot[worldId] || typeof worldsRoot[worldId] !== 'object') return null;
+    return { id: worldId, cfg: worldsRoot[worldId] };
+  },
+
+  _initRunState(activeMap) {
+    const world = this._getActiveWorldConfig();
+    this._runState = {
+      worldId: world?.id || null,
+      depth: 0,
+      currentStage: activeMap || null,
+      history: activeMap ? [activeMap] : [],
+      plannedStages: Array.isArray(world?.cfg?.stageSequence) ? [...world.cfg.stageSequence] : [],
+    };
+    this._runState.depth = this._getRunDepth();
+  },
+
+  _updateRunStateOnTransition(stageId) {
+    if (!this._runState) this._initRunState(stageId);
+    const state = this._runState;
+    if (state.currentStage !== stageId) {
+      state.currentStage = stageId;
+      if (!Array.isArray(state.history)) state.history = [];
+      state.history.push(stageId);
+      state.depth = this._getRunDepth();
+    }
+  },
+
   /**
    * Load all mods defined in modsettings.yaml, then player.yaml.
    * Populates the global game constants (MAP, ENEMY_DEFS, PLAYER_STATS, etc.)
    */
   async init() {
+    const persisted = this._readPersistedState();
+
     // 1. Load mod settings
     const settings = await this.loadYaml('data/modsettings.yaml');
 
@@ -219,6 +737,12 @@ const ModLoader = {
       }
     } catch (_e) { /* no URLSearchParams — node env, tests, etc. */ }
 
+    // Save resume applies when no explicit map override is provided.
+    try {
+      const forcedMap = new URLSearchParams(window.location.search).get('map');
+      if (!forcedMap && persisted?.activeMap) activeMap = persisted.activeMap;
+    } catch (_e) { /* ignore in non-browser contexts */ }
+
     // 4. Load player
     const playerFile = await this.loadYaml('data/player.yaml');
 
@@ -275,6 +799,9 @@ const ModLoader = {
     this.applyMap(modData, activeMap);
     this.applyCreatures(modData, activeMap);
     this.applyPlayer(playerFile.player, modData);
+
+    if (persisted) this._applyPersistedState(persisted);
+    if (!this._runState) this._initRunState(activeMap);
 
     console.log('[ModLoader] Active map:', activeMap);
   },
@@ -515,15 +1042,21 @@ const ModLoader = {
     window._ROWS = ROWS;
     window._COLS = COLS;
     // Store map metadata
+    const floorName = String(mapDef.floor || '').toUpperCase();
+    const fallbackGlobalLight = floorName === 'TOWN' ? 'bright' : 'dark';
+    const baseInteractables = Array.isArray(mapDef.interactables) ? [...mapDef.interactables] : [];
+    const runtimeExtract = this._buildRuntimeExtractionInteractable(mapDef.floor, playerStart, convertedGrid, baseInteractables);
+    const finalInteractables = runtimeExtract ? [...baseInteractables, runtimeExtract] : baseInteractables;
+
     window._MAP_META = {
       name: mapDef.name,
       floor: mapDef.floor,
       playerStart,
       stairsPos,
       lights: [...(mapDef.lights || []), ...generatedLights],
-      globalLight: mapDef.globalLight || 'dark',
+      globalLight: mapDef.globalLight || fallbackGlobalLight,
       doors: mapDef.doors || [],
-      interactables: mapDef.interactables || [],
+      interactables: finalInteractables,
       lootTables: { ...(data.lootTables || {}), ...(mapDef.lootTables || {}) },
       stageSprites: [...(mapDef.stageSprites || mapDef.sprites || []), ...generatedSprites],
       tileAnimations: mapDef.tileAnimations || {},
@@ -618,6 +1151,11 @@ const ModLoader = {
     // Starting inventory
     if (Array.isArray(p.startingInventory)) {
       PLAYER_STATS.inventory = p.startingInventory.map(item => ({ ...item }));
+    }
+    if (Array.isArray(p.startingStash)) {
+      PLAYER_STATS.stash = p.startingStash.map(item => ({ ...item }));
+    } else if (!Array.isArray(PLAYER_STATS.stash)) {
+      PLAYER_STATS.stash = [];
     }
     if (typeof p.startingGold === 'number') {
       PLAYER_STATS.gold = p.startingGold;

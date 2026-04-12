@@ -8,6 +8,32 @@
 
 Object.assign(GameScene.prototype, {
 
+  _findInteractionApproachTile(tx, ty) {
+    const candidates = [
+      { x: tx + 1, y: ty },
+      { x: tx - 1, y: ty },
+      { x: tx, y: ty + 1 },
+      { x: tx, y: ty - 1 },
+    ];
+
+    const inBounds = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
+    const blocked = (x, y) => this.isWallTile(x, y)
+      || (this.isDoorTile(x, y) && !this.isDoorPassable(x, y))
+      || this.enemies.some((e) => e.alive && e.tx === x && e.ty === y);
+
+    let best = null;
+    for (const c of candidates) {
+      if (!inBounds(c.x, c.y) || blocked(c.x, c.y)) continue;
+      const path = bfs(this.playerTile.x, this.playerTile.y, c.x, c.y, blocked);
+      if (!path.length) continue;
+      if (!best || path.length < best.steps) {
+        best = { x: c.x, y: c.y, steps: path.length };
+      }
+    }
+
+    return best ? { x: best.x, y: best.y } : null;
+  },
+
   // ─────────────────────────────────────────
   // REGISTRY
   // ─────────────────────────────────────────
@@ -187,6 +213,21 @@ Object.assign(GameScene.prototype, {
     const adj = Math.abs(this.playerTile.x - tx) + Math.abs(this.playerTile.y - ty) === 1;
     const needsAdj = ents.some(e => e.needsAdjacency());
     if (needsAdj && !adj) {
+      if (opts.autoMove) {
+        const approach = this._findInteractionApproachTile(tx, ty);
+        if (!approach) {
+          this.showStatus(`Cannot reach ${ents[0].getLabel()}.`);
+          return 'blocked';
+        }
+        this.setDestination(approach.x, approach.y, () => {
+          const retryOpts = { ...opts, autoMove: false };
+          const result = this.interactAtTile(tx, ty, retryOpts);
+          if (typeof opts.onAutoMoveComplete === 'function') {
+            opts.onAutoMoveComplete(result);
+          }
+        });
+        return 'moving';
+      }
       this.showStatus(`Move closer to interact with ${ents[0].getLabel()}.`);
       return 'blocked';
     }

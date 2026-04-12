@@ -94,14 +94,27 @@ Object.assign(GameScene.prototype, {
         const _tileVal = MAP[next.y]?.[next.x];
         if(_tileVal === TILE.STAIRS) console.log(`[STAIRS] Stepped on stairs at (${next.x},${next.y}) tileVal=${_tileVal} TILE.STAIRS=${TILE.STAIRS} nextStage=${window._MAP_META?.nextStage}`);
         if(_tileVal === TILE.STAIRS){
-          const nextStage=window._MAP_META?.nextStage;
+          const nextStageToken=window._MAP_META?.nextStage;
+          const nextStage=(typeof ModLoader!=='undefined'&&typeof ModLoader.resolveNextStage==='function')
+            ? ModLoader.resolveNextStage(nextStageToken,this)
+            : nextStageToken;
           if(nextStage){
             this.isMoving=false; this.movePath=[]; this.clearPathDots();
-            this.showStatus('Descending to the next floor...');
-            this.time.delayedCall(300,()=>ModLoader.transitionToStage(nextStage,this));
+            const townStage=(typeof ModLoader!=='undefined'&&typeof ModLoader.resolveNextStage==='function')
+              ? ModLoader.resolveNextStage('town',this)
+              : 'town_hub';
+            const extractToTown=String(nextStageToken||'').toLowerCase()==='town'&&nextStage===townStage;
+            this.showStatus(extractToTown?'Extracting to town...':'Descending to the next floor...');
+            this.time.delayedCall(300,()=>{
+              if(extractToTown&&typeof ModLoader.resolveRunOutcome==='function'){
+                ModLoader.resolveRunOutcome(this,'extract');
+                return;
+              }
+              ModLoader.transitionToStage(nextStage,this);
+            });
             return;
           } else {
-            this.showStatus('These stairs are not linked yet (nextStage is missing for this floor).');
+            this.showStatus('These stairs are not linked yet (nextStage resolution failed for this floor).');
           }
         }
         if(this.mode===MODE.COMBAT&&!this.onArrival){

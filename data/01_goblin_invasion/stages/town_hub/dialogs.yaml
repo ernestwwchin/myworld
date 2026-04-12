@@ -1,0 +1,26 @@
+dialogs:
+  town_guide:
+    speaker: Town Guide
+    text: "The central portal leads to the Goblin Warren. Prepare, then step through."
+    choices:
+      - label: "Understood"
+        next: town_guide_done
+
+  town_guide_done:
+    text: "Good luck down there."
+
+  town_quartermaster_shop:
+    speaker: Quartermaster
+    text: "Supplies are short. I can patch you up and issue one field ration for now."
+    choices:
+      - label: "Take field ration"
+        actions:
+          - do: say
+            text: "You receive a field ration."
+        next: town_quartermaster_done
+      - label: "Maybe later"
+        next: town_quartermaster_done
+
+  town_quartermaster_done:
+    speaker: Quartermaster
+    text: "Stay sharp down there."

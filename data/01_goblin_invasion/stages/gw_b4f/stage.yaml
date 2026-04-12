@@ -1,7 +1,7 @@
 name: "B4F — The Deep Pits"
 floor: B4F
 globalLight: dark
-nextStage: gw_b5f
+nextStage: boss
 
 generator:
   type: cellular_automata

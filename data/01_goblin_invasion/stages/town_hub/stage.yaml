@@ -1,0 +1,86 @@
+name: "Town Hub — Portal Square"
+floor: TOWN
+globalLight: bright
+
+grid:
+  - "############################"
+  - "#..........................#"
+  - "#..........................#"
+  - "#..........................#"
+  - "#..........................#"
+  - "#..........................#"
+  - "#..........................#"
+  - "############################"
+
+playerStart: { x: 4, y: 5 }
+
+encounters: []
+
+lights:
+  - { x: 14, y: 3, radius: 5, level: bright }
+  - { x: 6, y: 5, radius: 4, level: dim }
+  - { x: 22, y: 5, radius: 4, level: dim }
+
+interactables:
+  -
+    id: town_portal_w1
+    kind: interactable
+    x: 14
+    y: 3
+    tags: [town, portal]
+    state:
+      label: "Portal: Goblin Warren"
+      icon: "🌀"
+      texture: t_stairs
+      description: "A shimmering gate leading to the Goblin Warren."
+      needsAdjacency: true
+      targetWorld: goblin_warren
+      actions:
+        - { label: "Enter Goblin Warren", icon: "🌀", action: travel }
+
+  -
+    id: town_notice_board
+    kind: interactable
+    x: 6
+    y: 5
+    tags: [town, quests]
+    state:
+      label: "Quest Board"
+      icon: "📜"
+      texture: deco_banner
+      description: "Villagers post bounties and expeditions here."
+      actions:
+        - { label: "Check Contracts", icon: "📜", action: quests }
+        - { label: "Inspect Board", icon: "👁", action: inspect }
+
+  -
+    id: town_merchant
+    kind: interactable
+    x: 22
+    y: 5
+    tags: [town, merchant]
+    state:
+      label: "Quartermaster"
+      icon: "🧰"
+      texture: t_chest
+      description: "A rugged trader with basic expedition supplies."
+      actions:
+        - { label: "Trade Supplies", icon: "🧰", action: "dialog:town_quartermaster_shop" }
+        - { label: "Inspect Stall", icon: "👁", action: inspect }
+
+  -
+    id: town_stash
+    kind: interactable
+    x: 4
+    y: 2
+    tags: [town, stash]
+    state:
+      label: "Town Stash"
+      icon: "🗄"
+      texture: deco_crystal
+      description: "Store your valuables between runs."
+      actions:
+        - { label: "Open Stash", icon: "🗄", action: stash }
+        - { label: "Deposit All Carried Items", icon: "📥", action: stash_deposit_all }
+        - { label: "Withdraw All Stashed Items", icon: "📤", action: stash_withdraw_all }
+        - { label: "Inspect Stash", icon: "👁", action: inspect }
