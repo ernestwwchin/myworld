@@ -138,6 +138,11 @@ const Hotbar = {
         const s = this._scene;
         if (s && s.mode === MODE.COMBAT && typeof s.endPlayerTurn === 'function') s.endPlayerTurn();
       }
+      // L = toggle enemy sight/debug overlay in both explore and combat
+      if (e.key === 'l' || e.key === 'L') {
+        const s = this._scene;
+        if (s && typeof s.toggleEnemySight === 'function') s.toggleEnemySight();
+      }
       // H = quick-use first healing consumable from inventory
       if (e.key === 'h' || e.key === 'H') {
         const s = this._scene;
@@ -183,9 +188,21 @@ const Hotbar = {
     if (action === 'end_turn' && typeof s.endPlayerTurn === 'function') s.endPlayerTurn();
     else if (action === 'flee' && typeof s.tryFleeCombat === 'function') s.tryFleeCombat();
     else if (action === 'reset_move' && typeof s.resetMove === 'function') s.resetMove();
-    else if (action === 'toggle_tb' && typeof s.toggleExploreTurnBased === 'function') { s.toggleExploreTurnBased(); s.syncExploreBar(); }
     else if (action === 'quest_log') { /* Phase 2 */ }
-    else if (action === 'settings') { /* Phase 2 */ }
+    else if (action === 'settings') {
+      const ok = (typeof window !== 'undefined' && typeof window.confirm === 'function')
+        ? window.confirm('Reset all progress and restart the game?')
+        : false;
+      if (!ok) {
+        s.showStatus?.('Reset cancelled.');
+        return;
+      }
+      if (typeof ModLoader !== 'undefined' && typeof ModLoader.resetPersistentGame === 'function') {
+        ModLoader.resetPersistentGame(true);
+      } else {
+        s.showStatus?.('Reset is unavailable right now.');
+      }
+    }
   },
 
   /** Update command strip visibility based on mode */
@@ -198,12 +215,7 @@ const Hotbar = {
     if (endBtn) endBtn.classList.toggle('hidden', !inCombat);
     if (fleeBtn) fleeBtn.classList.toggle('hidden', !inCombat);
     if (resetBtn) resetBtn.classList.toggle('hidden', !inCombat);
-    // TB toggle: show in explore, highlight when active
-    const tbBtn = document.getElementById('cmd-tb');
-    if (tbBtn) {
-      tbBtn.classList.toggle('hidden', inCombat);
-      tbBtn.classList.toggle('active', s && s.mode === MODE.EXPLORE_TB);
-    }
+    this.syncDefaultAttackSlot();
   },
 
   // ── Resource Pips ──
@@ -239,16 +251,25 @@ const Hotbar = {
       baGroup.innerHTML = html;
     }
 
-    // Movement pips — BG3 style: filled = available, dim = spent, always show total
-    // playerMoves = remaining, playerMovesUsed = spent; total = both combined (handles Dash)
+    // Movement pips reflect the player's actual current remaining movement.
+    // The denominator is the current reset anchor budget, so pressing Reset
+    // returns to that displayed baseline after each action snapshot.
     const mvGroup = document.getElementById('rp-move');
     if (mvGroup) {
+      const budget = Math.max(0, Number(s.moveResetAnchorMoves ?? s.turnStartMoves ?? s.playerMoves ?? 0));
       const remaining = Math.max(0, Number(s.playerMoves || 0));
-      const used = Math.max(0, Number(s.playerMovesUsed || 0));
-      const total = remaining + used;
+      const displayRemaining = remaining;
+      const dTotal = Math.ceil(budget);
+      const pipRemaining = Math.max(0, Math.min(dTotal, Math.floor(displayRemaining + 0.001)));
+      const countText = Math.abs(displayRemaining - Math.round(displayRemaining)) < 0.001
+        ? String(Math.round(displayRemaining))
+        : displayRemaining.toFixed(1);
+      const totalText = Math.abs(budget - Math.round(budget)) < 0.001
+        ? String(Math.round(budget))
+        : budget.toFixed(1);
       let html = '<span class="rp-label">MOV</span>';
-      for (let i = 0; i < total; i++) html += `<div class="rp-pip mv${i >= remaining ? ' spent' : ''}"></div>`;
-      html += `<span class="rp-count">${remaining}/${total}</span>`;
+      for (let i = 0; i < dTotal; i++) html += `<div class="rp-pip mv${i >= pipRemaining ? ' spent' : ''}"></div>`;
+      html += `<span class="rp-count">${countText}/${totalText}</span>`;
       mvGroup.innerHTML = html;
     }
 
@@ -334,6 +355,9 @@ const Hotbar = {
 
   setSelected(abilityId) {
     this._selectedSlot = null;
+    // Sync default attack slot highlight
+    const daEl = document.getElementById('default-atk-slot');
+    if (daEl) daEl.classList.toggle('selected', abilityId === this.getEffectiveDefaultAttack());
     for (const cat of this._categories) {
       for (let r = 0; r < this.ROWS; r++) {
         for (let c = 0; c < this.COLS; c++) {
@@ -351,7 +375,12 @@ const Hotbar = {
     this.render();
   },
 
-  clearSelection() { this._selectedSlot = null; this.render(); },
+  clearSelection() {
+    this._selectedSlot = null;
+    const daEl = document.getElementById('default-atk-slot');
+    if (daEl) daEl.classList.remove('selected');
+    this.render();
+  },
 
   // ── Description Panel ──
   _showDescription(cat, row, col) {
@@ -374,6 +403,7 @@ const Hotbar = {
       <div class="hbd-meta">Range: ${def.range || '—'}</div>
       ${def.description ? `<div class="hbd-desc">${def.description}</div>` : ''}
       <div class="hbd-actions">
+        ${this._addDefaultAtkOption(cat, row, col)}
         <button class="hbd-btn" onclick="Hotbar._startMove('${cat}',${row},${col})">Move ↔</button>
         <button class="hbd-btn" onclick="Hotbar._startSwap('${cat}',${row},${col})">Swap 🔄</button>
         <button class="hbd-btn hbd-btn-danger" onclick="Hotbar._clearSlot('${cat}',${row},${col})">Clear ✕</button>
@@ -575,6 +605,141 @@ const Hotbar = {
     if (def.type === 'bonusAction') return 'Bonus Action';
     if (def.type === 'action') return 'Action';
     return def.type || 'Free';
+  },
+
+  // ── Default Attack Slot ──
+  _defaultAttackId: 'attack',
+
+  getDefaultAttackId() { return this._defaultAttackId || 'attack'; },
+
+  setDefaultAttack(abilityId) {
+    this._defaultAttackId = abilityId || 'attack';
+    this.renderDefaultAttackSlot();
+  },
+
+  /** Check if the assigned default skill can be used right now */
+  isDefaultAttackAvailable() {
+    const s = this._scene;
+    if (!s) return false;
+    const id = this.getDefaultAttackId();
+    if (id === 'attack') return true; // basic attack always available
+    // Check if player has the ability
+    const abilities = s.getAvailablePlayerAbilities ? s.getAvailablePlayerAbilities() : [];
+    if (!abilities.includes(id)) return false;
+    // Check class charges if needed
+    const def = this._getAbilityDef(id);
+    if (def?.resourceCost?.classCharge && s.pStats) {
+      const charges = s.pStats.classCharges || 0;
+      if (charges <= 0) return false;
+    }
+    return true;
+  },
+
+  /** Get the effective skill id (falls back to 'attack' if unavailable) */
+  getEffectiveDefaultAttack() {
+    const id = this.getDefaultAttackId();
+    if (id === 'attack') return 'attack';
+    if (this.isDefaultAttackAvailable()) return id;
+    return 'attack'; // fallback
+  },
+
+  renderDefaultAttackSlot() {
+    const el = document.getElementById('default-atk-slot');
+    if (!el) return;
+    const id = this.getDefaultAttackId();
+    const icon = this._getSlotIcon({ type: 'ability', id });
+    const def = this._getAbilityDef(id);
+    const name = def?.name || id;
+    const avail = this.isDefaultAttackAvailable();
+    el.querySelector('.da-icon').textContent = icon;
+    el.querySelector('.da-name').textContent = name;
+    el.classList.toggle('unavail', !avail);
+  },
+
+  /** Sync the default attack slot — always visible, updates content on combat entry */
+  syncDefaultAttackSlot() {
+    const el = document.getElementById('default-atk-slot');
+    if (!el) return;
+    this.renderDefaultAttackSlot();
+  },
+
+  /** Click the default attack slot → activate as pendingAction (same as clicking the skill in hotbar) */
+  _useDefaultAttack() {
+    const s = this._scene;
+    if (!s) return;
+    const id = this.getEffectiveDefaultAttack();
+    if (typeof s.selectAction === 'function') s.selectAction(id);
+  },
+
+  /** Right-click → show picker of assignable attack abilities */
+  _showDefaultAtkPicker() {
+    const s = this._scene;
+    if (!s) return;
+    const el = document.getElementById('default-atk-slot');
+    if (!el) return;
+
+    // Find abilities with attackRoll in their template
+    const allAbilities = s.getAvailablePlayerAbilities ? s.getAvailablePlayerAbilities() : [];
+    const assignable = ['attack']; // always include basic attack
+    for (const abId of allAbilities) {
+      if (abId === 'attack') continue;
+      const aDef = s.getAbilityDef ? s.getAbilityDef(abId) : null;
+      if (aDef?.template?.hit?.attackRoll) assignable.push(abId);
+    }
+
+    // Build a simple picker popup
+    let existing = document.getElementById('da-picker');
+    if (existing) existing.remove();
+
+    const picker = document.createElement('div');
+    picker.id = 'da-picker';
+    picker.style.cssText = 'position:absolute;bottom:100%;left:0;background:rgba(10,10,20,0.95);border:1px solid rgba(240,192,96,0.4);border-radius:6px;padding:4px;display:flex;flex-direction:column;gap:2px;z-index:50;min-width:120px;';
+
+    for (const abId of assignable) {
+      const def = this._getAbilityDef(abId);
+      const icon = this._getSlotIcon({ type: 'ability', id: abId });
+      const name = def?.name || abId;
+      const isCurrent = abId === this.getDefaultAttackId();
+
+      const opt = document.createElement('div');
+      opt.style.cssText = `padding:4px 8px;cursor:pointer;font-size:11px;color:#ddd;border-radius:3px;display:flex;align-items:center;gap:6px;${isCurrent ? 'background:rgba(240,192,96,0.15);' : ''}`;
+      opt.innerHTML = `<span>${icon}</span><span>${name}</span>${isCurrent ? '<span style="color:#f0c060;font-size:9px;margin-left:auto">✓</span>' : ''}`;
+      opt.addEventListener('click', () => {
+        this.setDefaultAttack(abId);
+        picker.remove();
+        const s2 = this._scene;
+        if (s2 && typeof s2.showStatus === 'function') {
+          s2.showStatus(`Default attack set to ${name}.`);
+        }
+      });
+      opt.addEventListener('mouseenter', () => { opt.style.background = 'rgba(255,255,255,0.1)'; });
+      opt.addEventListener('mouseleave', () => { opt.style.background = isCurrent ? 'rgba(240,192,96,0.15)' : ''; });
+      picker.appendChild(opt);
+    }
+
+    el.style.position = 'relative';
+    el.appendChild(picker);
+
+    // Close on outside click
+    const close = (e) => {
+      if (!picker.contains(e.target) && e.target !== el) {
+        picker.remove();
+        document.removeEventListener('pointerdown', close);
+      }
+    };
+    setTimeout(() => document.addEventListener('pointerdown', close), 0);
+  },
+
+  /** Add "Set as Left-Click" to hotbar description panel */
+  _addDefaultAtkOption(cat, row, col) {
+    const slot = this.getSlot(cat, row, col);
+    if (!slot?.id || slot.type !== 'ability') return '';
+    // Only for abilities with attackRoll
+    const s = this._scene;
+    const aDef = s?.getAbilityDef ? s.getAbilityDef(slot.id) : null;
+    if (!aDef?.template?.hit?.attackRoll && slot.id !== 'attack') return '';
+    const isCurrent = slot.id === this.getDefaultAttackId();
+    return `<button class="hbd-btn" onclick="Hotbar.setDefaultAttack('${slot.id}')" ${isCurrent ? 'disabled style="opacity:0.5"' : ''}>🖱 Set as LMB${isCurrent ? ' ✓' : ''}</button>`;
   },
 };
 

@@ -121,16 +121,6 @@ function toggleEnemySight() {
   btn.classList.toggle('off', !enabled);
 }
 
-function toggleExploreTurnBased() {
-  const scene = game && game.scene && game.scene.getScene('GameScene');
-  if (!scene || typeof scene.toggleExploreTurnBased !== 'function') return;
-  const mode = scene.toggleExploreTurnBased();
-  const btn = document.getElementById('tb-btn');
-  if (!btn) return;
-  const on = mode === MODE.EXPLORE_TB;
-  btn.textContent = on ? '⏱ TB ON' : '⏱ TB OFF';
-  btn.classList.toggle('off', !on);
-}
 document.addEventListener('click', e => {
   const p = document.getElementById('stats-panel'), b = document.getElementById('stats-btn');
   if (p.classList.contains('open') && !p.contains(e.target) && e.target !== b) p.classList.remove('open');
@@ -170,6 +160,8 @@ class GameUIController {
   dismissEnemyPopup() {
     const pop = document.getElementById('enemy-stat-popup');
     if (pop) pop.style.display = 'none';
+    const atkPop = document.getElementById('atk-predict-popup');
+    if (atkPop) atkPop.style.display = 'none';
     if (this.scene) this.scene._statPopupEnemy = null;
   }
 
@@ -190,6 +182,8 @@ class GameUIController {
     // Toggle off if same enemy
     if (s._statPopupEnemy === enemy && pop.style.display !== 'none') {
       pop.style.display = 'none';
+      const atkPop = document.getElementById('atk-predict-popup');
+      if (atkPop) atkPop.style.display = 'none';
       s._statPopupEnemy = null;
       return;
     }
@@ -208,6 +202,26 @@ class GameUIController {
       ? `<div style="margin-top:6px;font-size:11px;color:#ce93d8">Effects: ${fx.map(e => e.id).join(', ')}</div>`
       : '';
 
+    // Attack prediction: shown in separate box beside stat popup
+    let atkPredData = null;
+    if (s.calcHitChance && s._resolveAbilityDamageSpec) {
+      let abilityId = (inCombat && s._pendingAtkAbilityId) || 'attack';
+      if (!s._pendingAtkAbilityId && typeof Hotbar !== 'undefined') {
+        abilityId = Hotbar.getEffectiveDefaultAttack();
+      }
+      const pct = s.calcHitChance(enemy, abilityId);
+      const pctColor = pct >= 70 ? '#2ecc71' : pct >= 40 ? '#f0c060' : '#e74c3c';
+      const aDef = s.getAbilityDef(abilityId);
+      const aName = aDef?.name || 'Attack';
+      const dmgSpec = s._resolveAbilityDamageSpec('player', aDef);
+      const dmgStr = dnd.damageSpecToString(dmgSpec);
+      const dmgAvg = Math.round(dnd.damageSpecAvg(dmgSpec));
+      let tacticalHint = '';
+      if (enemy.hp <= dmgAvg) tacticalHint = '<div style="color:#e74c3c;font-size:12px;margin-top:6px">☠ Lethal</div>';
+      else if (enemy.hp <= dmgAvg * 2) tacticalHint = '<div style="color:#e67e22;font-size:12px;margin-top:6px">⚠ 2-hit kill</div>';
+      atkPredData = { pct, pctColor, aName, dmgStr, dmgAvg, tacticalHint };
+    }
+
     const statsHtml = `
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
         ${['str','dex','con','int','wis','cha'].map(k=>`<div style="text-align:center;min-width:32px"><div style="color:#c9a84c;font-size:10px;letter-spacing:1px">${k.toUpperCase()}</div><div style="font-size:14px">${enemy.stats[k]}</div><div style="color:#7fc8f8;font-size:10px">${this._mod(enemy.stats[k])}</div></div>`).join('')}
@@ -218,12 +232,12 @@ class GameUIController {
           <div style="flex:1;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden"><div style="width:${hpBarW}%;height:100%;background:${hpColor};border-radius:3px"></div></div>
         </div>
       </div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#aaa">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:#aaa">
         <span>🛡 AC ${enemy.ac}</span>
         <span>⚔ ${dnd.damageSpecToString(enemy.damageFormula)}</span>
         <span>CR ${enemy.cr}</span>
       </div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#888;margin-top:4px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-top:4px">
         <span>👁 sight ${enemy.sight||'?'}</span>
         <span>🏃 spd ${enemy.spd||'?'}</span>
         <span>📐 range ${enemy.atkRange||1}</span>
@@ -234,8 +248,9 @@ class GameUIController {
     // Position near enemy
     const cam = s.cameras.main;
     const canvas = s.game.canvas;
-    const screenX = (enemy.tx * S + S / 2 - cam.scrollX) * cam.zoom;
-    const screenY = (enemy.ty * S - cam.scrollY) * cam.zoom;
+    const _ew = s.enemyWorldPos(enemy);
+    const screenX = (_ew.x - cam.scrollX) * cam.zoom;
+    const screenY = (_ew.y - S/2 - cam.scrollY) * cam.zoom;
     const popW = 260, popH = 180;
     let px = Math.min(Math.max(8, screenX - popW / 2), canvas.width - popW - 8);
     let py = screenY - popH - 12;
@@ -245,6 +260,38 @@ class GameUIController {
     pop.style.transform = 'none';
     pop.style.display = 'block';
     s._statPopupEnemy = enemy;
+
+    // Position attack prediction box beside stat popup
+    const atkPop = document.getElementById('atk-predict-popup');
+    if (atkPop && atkPredData) {
+      const d = atkPredData;
+      atkPop.innerHTML = `
+        <div style="font-size:15px;font-weight:bold;color:#c9a84c;margin-bottom:10px">⚔ ${d.aName}</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:baseline">
+          <span style="font-size:18px;line-height:1">🎯</span>
+          <span style="font-size:22px;font-weight:bold;color:${d.pctColor};line-height:1">${d.pct}%<span style="font-size:11px;color:#888;font-weight:normal;margin-left:4px">to hit</span></span>
+          <span style="font-size:18px;line-height:1">🗡️</span>
+          <span style="font-size:22px;font-weight:bold;color:#ddd;line-height:1">${d.dmgStr}<span style="font-size:11px;color:#888;font-weight:normal;margin-left:4px">avg ${d.dmgAvg}</span></span>
+        </div>
+        ${d.tacticalHint}`;
+      // Place to the right of the stat popup, or left if no room
+      const popRect = pop.getBoundingClientRect();
+      const atkW = 180;
+      const canvasW = canvas.width;
+      let ax, ay;
+      if (popRect.right + atkW + 8 < canvasW) {
+        ax = px + pop.offsetWidth + 6;
+      } else {
+        ax = px - atkW - 6;
+      }
+      ay = py;
+      atkPop.style.left = Math.max(4, ax) + 'px';
+      atkPop.style.top = ay + 'px';
+      atkPop.style.transform = 'none';
+      atkPop.style.display = 'block';
+    } else if (atkPop) {
+      atkPop.style.display = 'none';
+    }
   }
 
   showDicePopup(rollLine, detailLine, type, diceValues) {
@@ -377,16 +424,35 @@ class GameUIController {
 
   updateHUD() {
     const s = this.scene;
+    const lightLv = (typeof s.tileLightLevel === 'function')
+      ? s.tileLightLevel(s.playerTile.x, s.playerTile.y)
+      : 2;
+    const lightText = lightLv <= 0 ? 'DARK' : (lightLv === 1 ? 'DIM' : 'BRIGHT');
+    const lightColor = lightLv <= 0 ? '#e74c3c' : (lightLv === 1 ? '#f0c060' : '#7fd1a0');
+    const veilAlpha = lightLv <= 0 ? 0.12 : (lightLv === 1 ? 0.07 : 0.03);
+
     if (window.U) {
       U.text('pos-text', `${s.playerTile.x},${s.playerTile.y}`);
+      U.text('light-text', lightText);
+      const lightEl = U.el('light-text');
+      if (lightEl) lightEl.style.color = lightColor;
       const hpBar = U.el('hp-bar');
       if (hpBar) hpBar.style.width = U.pct(s.playerHP, s.playerMaxHP) + '%';
       U.text('hp-text', `${s.playerHP}/${s.playerMaxHP}`);
+      const vig = U.el('vignette');
+      if (vig) vig.style.background = `rgba(0,0,0,${veilAlpha})`;
       return;
     }
     document.getElementById('pos-text').textContent = `${s.playerTile.x},${s.playerTile.y}`;
+    const lightEl = document.getElementById('light-text');
+    if (lightEl) {
+      lightEl.textContent = lightText;
+      lightEl.style.color = lightColor;
+    }
     document.getElementById('hp-bar').style.width = (s.playerHP / s.playerMaxHP * 100) + '%';
     document.getElementById('hp-text').textContent = `${s.playerHP}/${s.playerMaxHP}`;
+    const vig = document.getElementById('vignette');
+    if (vig) vig.style.background = `rgba(0,0,0,${veilAlpha})`;
   }
 
   updateResBar() {

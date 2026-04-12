@@ -13,12 +13,15 @@ Object.assign(GameScene.prototype, {
       this.spawnFloat(this.player.x,this.player.y-12,`-${n}`,color);
       if(this.player) playHitAnim(this,this.player,'player');
       this.updateHUD();
-      if(this.playerHP<=0) this.showStatus(label||'You have been defeated...');
+      if(this.playerHP<=0){
+        this.showStatus(label||'You have been defeated...');
+        if(typeof this.handlePlayerDefeat==='function') this.handlePlayerDefeat();
+      }
       return;
     }
     if(!actor||!actor.alive) return;
     actor.hp=Math.max(0,actor.hp-n);
-    this.spawnFloat(actor.tx*S+S/2,actor.ty*S-10,`-${n}`,color);
+    { const _aw=this.enemyWorldPos(actor); this.spawnFloat(_aw.x,_aw.y-S/2-10,`-${n}`,color); }
     if(actor.hp>0&&actor.img) playHitAnim(this,actor.img,actor.type||'');
     const ratio=Math.max(0,actor.hp/Math.max(1,actor.maxHp||actor.hp||1));
     if(actor.hpFg){
@@ -53,7 +56,7 @@ Object.assign(GameScene.prototype, {
     const prev=actor.hp;
     actor.hp=Math.min(max,actor.hp+n);
     const healed=actor.hp-prev;
-    if(healed>0) this.spawnFloat(actor.tx*S+S/2,actor.ty*S-10,`+${healed}`,color);
+    if(healed>0) { const _aw=this.enemyWorldPos(actor); this.spawnFloat(_aw.x,_aw.y-S/2-10,`+${healed}`,color); }
     const ratio=Math.max(0,actor.hp/max);
     if(actor.hpFg){
       actor.hpFg.setDisplaySize((S-8)*ratio,5);

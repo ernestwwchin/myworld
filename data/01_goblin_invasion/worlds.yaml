@@ -1,0 +1,34 @@
+worlds:
+  townStage: town_hub
+  defaultWorld: goblin_warren
+
+  worlds:
+    goblin_warren:
+      name: Goblin Warren
+      entryStage: gw_cave_b1f
+      bossStage: gw_b5f
+      fallbackNextStage: gw_b2f
+      resolution:
+        extract:
+          bankCarriedToStash: true
+          healToFullInTown: true
+        victory:
+          bankCarriedToStash: true
+          healToFullInTown: true
+          rewardGold: 100
+        death:
+          carriedItemLoss: all
+          goldLossPct: 30
+          healToFullInTown: true
+      stageSequence:
+        - gw_cave_b1f
+        - gw_b2f
+        - gw_b3f
+        - gw_b4f
+        - gw_b5f
+      depthBands:
+        - { from: 1, to: 1, stages: [gw_cave_b1f] }
+        - { from: 2, to: 2, stages: [gw_b2f] }
+        - { from: 3, to: 3, stages: [gw_b3f] }
+        - { from: 4, to: 4, stages: [gw_b4f] }
+        - { from: 5, to: 99, stages: [gw_b5f] }

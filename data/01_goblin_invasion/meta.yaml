@@ -3,18 +3,20 @@
 # specific to the goblin invasion story arc.
 
 id: 01_goblin_invasion
-name: Goblin Invasion
+name: "Dungeon Campaign (World 1: Goblin Warren)"
 author: MyWorld
 version: 1.0.0
-description: The goblin warren dungeon — floors B1F through the boss floor.
+description: Town hub + world-run campaign. World 1 is the goblin warren descent.
 enabled: true
 
-startMap: gw_cave_b1f
+startMap: town_hub
 
 includes:
   - creatures.yaml
+  - worlds.yaml
 
 stages:
+  - town_hub
   - gw_b1f
   - gw_cave_b1f
   - gw_b2f

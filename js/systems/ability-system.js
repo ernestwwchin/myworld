@@ -158,17 +158,14 @@ const GameSceneAbilitySystem = {
   },
 
   // Check if a specific enemy can see the player through stealth.
-  // Returns { spotted, reason } or { spotted: false }.
-  _stealthContestEnemy(enemy) {
+  // Returns { spotted, reason, perception } or { spotted: false }.
+  // If stealthRoll is provided, uses that instead of stored playerStealthRoll.
+  _stealthContestEnemy(enemy, stealthRoll) {
     if (!enemy.alive) return { spotted: false };
-    const px = this.playerTile.x, py = this.playerTile.y;
-    const dist = Math.sqrt((enemy.tx - px) ** 2 + (enemy.ty - py) ** 2);
-    const sightRange = this.effectiveEnemySight(enemy);
-    if (dist > sightRange) return { spotted: false };
-    if (!inFOV(enemy, px, py)) return { spotted: false };
-    if (!hasLOS(enemy.tx, enemy.ty, px, py)) return { spotted: false };
+    if (!this.canEnemySeePlayer(enemy)) return { spotted: false };
 
     // Light at player position
+    const px = this.playerTile.x, py = this.playerTile.y;
     const light = this.tileLightLevel(px, py);
 
     // Bright light + in FOV + LOS → auto-spotted (no check)
@@ -180,15 +177,17 @@ const GameSceneAbilitySystem = {
     const hasDarkvision = !!(enemy.traits?.darkvision || enemy.darkvision);
     if (light === 0 && !hasDarkvision) return { spotted: false };
 
-    // Contested: stored Stealth roll vs enemy Passive Perception
+    // Contested: stealth roll vs enemy Passive Perception
+    const roll = stealthRoll ?? this.playerStealthRoll;
     const perception = this.getEnemyPassivePerception(enemy);
 
     // Dim light with darkvision or dark with darkvision → normal contest
     // Adjacent (dist <= 1.5) → Perception gets +5 (proximity awareness)
+    const dist = Math.sqrt((enemy.tx - px) ** 2 + (enemy.ty - py) ** 2);
     const proxBonus = dist <= 1.5 ? 5 : 0;
     const effectivePerception = perception + proxBonus;
 
-    if (this.playerStealthRoll < effectivePerception) {
+    if (roll < effectivePerception) {
       return { spotted: true, reason: 'perception', perception: effectivePerception };
     }
     return { spotted: false };
@@ -233,19 +232,17 @@ const GameSceneAbilitySystem = {
     this.setActionButtonsUsed(true);
 
     // Immediate check: can any combat enemy see through this roll?
-    let spotted = false;
-    let spottersList = [];
+    const spotters = [];
     for (const enemy of this.combatGroup) {
-      if (!enemy.alive) continue;
-      const perception = this.getEnemyPassivePerception(enemy);
-      if (stealthRoll.total < perception) {
-        spotted = true;
-        spottersList.push(`${enemy.displayName||enemy.type} (Perception ${perception})`);
+      const result = this._stealthContestEnemy(enemy, stealthRoll.total);
+      if (result.spotted) {
+        const tag = result.reason === 'bright_light' ? 'bright light' : `Perception ${result.perception}`;
+        spotters.push(`${enemy.displayName||enemy.type} (${tag})`);
       }
     }
 
-    if (spotted) {
-      this.showStatus(`Failed to hide (Stealth ${stealthRoll.total}). Spotted by: ${spottersList.join(', ')}`);
+    if (spotters.length) {
+      this.showStatus(`Failed to hide (Stealth ${stealthRoll.total}). Spotted by: ${spotters.join(', ')}`);
       return;
     }
 
@@ -257,6 +254,7 @@ const GameSceneAbilitySystem = {
         const searchTurns = Math.max(1, Number(enemy?.ai?.searchTurns || enemy?.searchTurns || 4));
         enemy.lastSeenPlayerTile = { x: this.playerTile.x, y: this.playerTile.y };
         enemy.searchTurnsRemaining = searchTurns;
+        enemy._searchAbandonedAnnounced = false;
       }
     }
 
@@ -274,12 +272,7 @@ const GameSceneAbilitySystem = {
 
     // Bright light: cannot hide if ANY enemy has LOS+FOV
     if (light === 2) {
-      const exposed = this.enemies.some(e => {
-        if (!e.alive) return false;
-        const d = Math.sqrt((e.tx - this.playerTile.x) ** 2 + (e.ty - this.playerTile.y) ** 2);
-        return d <= e.sight && inFOV(e, this.playerTile.x, this.playerTile.y)
-          && hasLOS(e.tx, e.ty, this.playerTile.x, this.playerTile.y);
-      });
+      const exposed = this.enemies.some(e => e.alive && this.canEnemySeePlayer(e));
       if (exposed) {
         this.showStatus('Too exposed! Cannot hide in bright light within enemy sight.');
         return;
@@ -294,26 +287,18 @@ const GameSceneAbilitySystem = {
     if (light === 0) stealthTotal += 5;
 
     // Immediate contest vs nearby enemies who can see this tile
-    let spotted = false;
-    let spottersList = [];
+    const spotters = [];
     for (const enemy of this.enemies) {
-      if (!enemy.alive) continue;
-      const d = Math.sqrt((enemy.tx - this.playerTile.x) ** 2 + (enemy.ty - this.playerTile.y) ** 2);
-      if (d > enemy.sight) continue;
-      if (!inFOV(enemy, this.playerTile.x, this.playerTile.y)) continue;
-      if (!hasLOS(enemy.tx, enemy.ty, this.playerTile.x, this.playerTile.y)) continue;
-      const hasDV = !!(enemy.traits?.darkvision || enemy.darkvision);
-      if (light === 0 && !hasDV) continue;
-      const perception = this.getEnemyPassivePerception(enemy);
-      if (stealthTotal < perception) {
-        spotted = true;
-        spottersList.push(`${enemy.displayName||enemy.type} (Perception ${perception})`);
+      const result = this._stealthContestEnemy(enemy, stealthTotal);
+      if (result.spotted) {
+        const tag = result.reason === 'bright_light' ? 'bright light' : `Perception ${result.perception}`;
+        spotters.push(`${enemy.displayName||enemy.type} (${tag})`);
       }
     }
 
-    if (spotted) {
+    if (spotters.length) {
       const lightLabel = light === 0 ? ' (dark)' : light === 1 ? ' (dim)' : '';
-      this.showStatus(`Failed to hide (Stealth ${stealthTotal}${lightLabel}). Spotted by: ${spottersList.join(', ')}`);
+      this.showStatus(`Failed to hide (Stealth ${stealthTotal}${lightLabel}). Spotted by: ${spotters.join(', ')}`);
       return;
     }
 
@@ -327,6 +312,7 @@ const GameSceneAbilitySystem = {
         const searchTurns = Math.max(2, Number(enemy?.ai?.searchTurns || enemy?.searchTurns || 4));
         enemy.lastSeenPlayerTile = { x: this.playerTile.x, y: this.playerTile.y };
         enemy.searchTurnsRemaining = searchTurns;
+        enemy._searchAbandonedAnnounced = false;
       }
     }
 

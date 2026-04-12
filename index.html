@@ -89,6 +89,17 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 
 /* ── Hotbar Grid (center) ── */
 #hotbar-grid{display:flex;flex-direction:column;gap:2px;flex:1;min-height:0;}
+#hotbar-grid-wrap{display:flex;gap:6px;flex:1;min-height:0;align-items:flex-start;}
+/* ── Action Center (between hotbar & cmd-strip) ── */
+#action-center{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:4px 6px;border-left:1px solid rgba(255,255,255,0.06);flex-shrink:0;width:68px;}
+#default-atk-slot{width:62px;min-width:62px;border-radius:6px;background:rgba(255,255,255,0.06);border:2px solid rgba(240,192,96,0.5);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 2px;transition:all 0.15s;position:relative;}
+#default-atk-slot:hover{background:rgba(255,255,255,0.1);border-color:rgba(240,192,96,0.8);}
+#default-atk-slot.selected{border-color:rgba(240,192,96,0.8);box-shadow:0 0 8px rgba(240,192,96,0.4);background:rgba(240,192,96,0.1);}
+#default-atk-slot .da-icon{font-size:22px;line-height:1;}
+#default-atk-slot .da-name{font-size:8px;color:#ccc;letter-spacing:0.3px;text-align:center;line-height:1.1;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#default-atk-slot .da-hint{font-size:7px;color:rgba(255,255,255,0.3);letter-spacing:0.5px;}
+#default-atk-slot.unavail{opacity:0.5;border-color:rgba(240,192,96,0.25);}
+#default-atk-slot.unavail::after{content:'!';position:absolute;top:2px;right:4px;font-size:9px;color:#e74c3c;font-weight:bold;}
 .hb-row{display:flex;gap:4px;}
 .hb-slot{width:58px;height:56px;border-radius:5px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-left:3px solid rgba(255,255,255,0.1);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;transition:all 0.15s;flex-shrink:0;}
 .hb-slot:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2);}
@@ -216,6 +227,7 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 
 #vignette{position:absolute;inset:0;pointer-events:none;z-index:8;box-shadow:inset 0 0 0px rgba(231,76,60,0);transition:box-shadow 0.4s;}
 #enemy-stat-popup{display:none;position:absolute;z-index:30;background:rgba(10,10,20,0.97);border:1px solid rgba(231,76,60,0.5);border-radius:8px;padding:16px 18px;font-family:'Courier New',monospace;font-size:13px;color:#f0e6c8;min-width:240px;max-width:320px;pointer-events:all;box-shadow:0 4px 20px rgba(0,0,0,0.6);}
+#atk-predict-popup{display:none;position:absolute;z-index:30;background:rgba(10,10,20,0.97);border:1px solid rgba(192,150,50,0.5);border-radius:8px;padding:14px 16px;font-family:'Courier New',monospace;color:#f0e6c8;min-width:160px;max-width:200px;pointer-events:all;box-shadow:0 4px 20px rgba(0,0,0,0.6);}
 #esp-name{color:#e74c3c;letter-spacing:2px;font-size:16px;margin-bottom:10px;font-weight:bold;}
 #vignette.combat{box-shadow:inset 0 0 80px rgba(231,76,60,0.35);}
 
@@ -307,6 +319,7 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
           <div id="hud-right">
             <span class="hl">Floor</span><span class="hv">B1F</span>
             <span class="hl" style="margin-top:4px">Pos</span><span class="hv" id="pos-text">—</span>
+            <span class="hl" style="margin-top:4px">Light</span><span class="hv" id="light-text">—</span>
           </div>
         </div>
         <div id="mode-badge" class="realtime">EXPLORE</div>
@@ -326,14 +339,12 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
         <div id="explore-bar">
           <button class="eb" id="btn-explore-hide"><span>🕶 Hide</span></button>
           <button class="eb" id="btn-explore-sight"><span>👁 Sight</span></button>
-          <button class="eb" id="btn-explore-tb"><span>⏱ TB</span></button>
           <button class="eb" id="btn-explore-stats"><span>📊 Stats</span></button>
           <button class="eb" id="demoplay-btn" onclick="DemoPlay.start()" title="Auto-play through all 5 floors"><span>▶ Demo</span></button>
         </div>
 
         <button id="stats-btn" onclick="toggleStats()">📊 STATS</button>
         <button id="sight-btn" onclick="toggleEnemySight()">👁 SIGHT ON</button>
-        <button id="tb-btn" class="off" onclick="toggleExploreTurnBased()">⏱ TB OFF</button>
         <div id="demoplay-log" style="display:none;position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#f0c060;font-size:11px;font-family:monospace;padding:4px 10px;border-radius:4px;z-index:80;pointer-events:none;"></div>
         <div id="stats-panel"></div>
         <div id="asi-panel">
@@ -363,6 +374,7 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
           <div id="esp-name"></div>
           <div id="esp-stats"></div>
         </div>
+        <div id="atk-predict-popup"></div>
         <div id="context-menu" style="display:none;position:fixed;z-index:31;background:rgba(10,10,20,0.98);border:1px solid rgba(200,180,100,0.6);border-radius:6px;padding:6px;font-family:'Courier New',monospace;font-size:13px;pointer-events:all;min-width:160px;box-shadow:0 4px 16px rgba(0,0,0,0.6);">
         </div>
         <div id="dev-console" style="display:none;">
@@ -426,7 +438,9 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
       <div class="rp-sep"></div>
       <div class="rp-group" id="rp-charges"><span class="rp-label">CLASS</span></div>
     </div>
-    <div id="hotbar-grid"></div>
+    <div id="hotbar-grid-wrap">
+      <div id="hotbar-grid"></div>
+    </div>
     <div id="hotbar-tabs">
       <div class="hb-cat-tab active" data-cat="common">Common</div>
       <div class="hb-cat-tab" data-cat="class">Class</div>
@@ -435,12 +449,18 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
     </div>
     <div id="hotbar-desc"></div>
   </div>
-  <div id="cmd-strip">
+  <div id="action-center">
+    <div id="default-atk-slot" onclick="Hotbar._useDefaultAttack()" oncontextmenu="event.preventDefault();Hotbar._showDefaultAtkPicker()">
+      <div class="da-icon">⚔️</div>
+      <div class="da-name">Attack</div>
+      <div class="da-hint">LMB</div>
+    </div>
     <div class="cmd-btn end-turn hidden" id="cmd-end" onclick="Hotbar._cmd('end_turn')"><div class="cmd-icon">⏳</div><div class="cmd-label">END</div></div>
+  </div>
+  <div id="cmd-strip">
     <div class="cmd-btn hidden" id="cmd-flee" onclick="Hotbar._cmd('flee')"><div class="cmd-icon">🏳</div><div class="cmd-label">FLEE</div></div>
     <div class="cmd-btn hidden" id="cmd-reset" onclick="Hotbar._cmd('reset_move')"><div class="cmd-icon">↺</div><div class="cmd-label">RESET</div></div>
     <div class="cmd-sep"></div>
-    <div class="cmd-btn sys" id="cmd-tb" onclick="Hotbar._cmd('toggle_tb')"><div class="cmd-icon">⏱</div><div class="cmd-label">TB</div></div>
     <div class="cmd-btn sys" onclick="toggleStats()"><div class="cmd-icon">📊</div><div class="cmd-label">STATS</div></div>
     <div class="cmd-btn sys" onclick="Hotbar._cmd('quest_log')"><div class="cmd-icon">📜</div><div class="cmd-label">LOG</div></div>
     <div class="cmd-btn sys" onclick="Hotbar._cmd('settings')"><div class="cmd-icon">⚙</div><div class="cmd-label">SET</div></div>
@@ -516,23 +536,30 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 <script src="js/entities/interactable-entity.js"></script>
 <script src="js/entities/door-entity.js"></script>
 <script src="js/entities/chest-entity.js"></script>
+<script src="js/entities/floor-item-entity.js"></script>
 <!-- shared systems -->
 <script src="js/systems/entity-system.js"></script>
 <script src="js/systems/door-handler.js"></script>
 <script src="js/systems/chest-handler.js"></script>
+<script src="js/systems/floor-item-handler.js"></script>
 <script src="js/systems/light-system.js"></script>
 <script src="js/systems/ability-system.js"></script>
 <script src="js/systems/fog-system.js"></script>
 <script src="js/systems/sight-system.js"></script>
 <script src="js/systems/damage-system.js"></script>
 <script src="js/systems/status-effect-system.js"></script>
+<script src="js/systems/inventory-system.js"></script>
+<script src="js/systems/leveling-system.js"></script>
+<script src="js/systems/world-position-system.js"></script>
 <script src="js/systems/movement-system.js"></script>
 <!-- mode controllers -->
 <script src="js/modes/mode-explore.js"></script>
-<script src="js/modes/mode-explore-tb.js"></script>
 <script src="js/modes/mode-combat.js"></script>
+<script src="js/modes/combat-ai.js"></script>
+<script src="js/modes/combat-ranges.js"></script>
 <!-- input router -->
 <script src="js/systems/input-system.js"></script>
+<script src="js/systems/camera-system.js"></script>
 <script src="js/demoplay.js"></script>
 <script src="js/ui/action-buttons.js"></script>
 <script src="js/ui/core-ui.js"></script>

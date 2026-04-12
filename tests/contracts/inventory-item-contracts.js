@@ -6,10 +6,10 @@ function testInventoryContracts() {
   assert.ok(configSrc.includes('gold: 0'));
   assert.ok(configSrc.includes('inventory: []'));
 
-  const gameSrc = fs.readFileSync(path.join(root, 'js', 'game.js'), 'utf8');
-  assert.ok(gameSrc.includes('useItem(item)'));
-  assert.ok(gameSrc.includes('equipItem(item)'));
-  assert.ok(gameSrc.includes('dropItem(item)'));
+  const invSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'inventory-system.js'), 'utf8');
+  assert.ok(invSrc.includes('useItem(item)'));
+  assert.ok(invSrc.includes('equipItem(item)'));
+  assert.ok(invSrc.includes('dropItem(item)'));
 
   const tables = loadYaml('data/00_core/loot-tables.yaml');
   const { dnd } = loadConfigExports();
@@ -40,8 +40,8 @@ function testItemDefinitionContracts() {
   const modloaderSrc = fs.readFileSync(path.join(root, 'js', 'modloader.js'), 'utf8');
   assert.ok(modloaderSrc.includes('applyItems(modData)'));
 
-  const gameSrc = fs.readFileSync(path.join(root, 'js', 'game.js'), 'utf8');
-  assert.ok(gameSrc.includes('ITEM_DEFS[item.id]'));
+   const invSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'inventory-system.js'), 'utf8');
+  assert.ok(invSrc.includes('ITEM_DEFS[item.id]'));
 }
 
 function runInventoryItemContracts() {
