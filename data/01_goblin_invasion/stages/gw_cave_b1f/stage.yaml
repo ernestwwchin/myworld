@@ -1,7 +1,7 @@
 name: "B1F — The Warren Depths"
 floor: B1F
 globalLight: dark
-nextStage: gw_b2f
+nextStage: auto
 
 generator:
   type: cellular_automata

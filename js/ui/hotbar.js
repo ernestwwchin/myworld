@@ -185,7 +185,20 @@ const Hotbar = {
     else if (action === 'reset_move' && typeof s.resetMove === 'function') s.resetMove();
     else if (action === 'toggle_tb' && typeof s.toggleExploreTurnBased === 'function') { s.toggleExploreTurnBased(); s.syncExploreBar(); }
     else if (action === 'quest_log') { /* Phase 2 */ }
-    else if (action === 'settings') { /* Phase 2 */ }
+    else if (action === 'settings') {
+      const ok = (typeof window !== 'undefined' && typeof window.confirm === 'function')
+        ? window.confirm('Reset all progress and restart the game?')
+        : false;
+      if (!ok) {
+        s.showStatus?.('Reset cancelled.');
+        return;
+      }
+      if (typeof ModLoader !== 'undefined' && typeof ModLoader.resetPersistentGame === 'function') {
+        ModLoader.resetPersistentGame(true);
+      } else {
+        s.showStatus?.('Reset is unavailable right now.');
+      }
+    }
   },
 
   /** Update command strip visibility based on mode */

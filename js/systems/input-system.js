@@ -35,6 +35,15 @@ const GameSceneInputSystem = {
   },
 
   initInputHandlers(){
+    document.addEventListener('contextmenu', (e) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      // Keep hotbar right-click descriptions working; suppress browser menu for map/canvas interactions.
+      if (target.closest('#gc') || target.closest('#ui-overlay')) {
+        e.preventDefault();
+      }
+    });
+
     document.addEventListener('click', (e) => {
       const menu=document.getElementById('context-menu');
       if(menu && menu.style.display==='block' && !menu.contains(e.target)){
@@ -58,6 +67,12 @@ const GameSceneInputSystem = {
     const tx=Math.floor(ptr.worldX/S), ty=Math.floor(ptr.worldY/S);
     if(tx<0||ty<0||tx>=COLS||ty>=ROWS) return;
     const enemy=this.enemies.find(e=>e.alive&&e.tx===tx&&e.ty===ty);
+
+    // Reliable enemy inspect on right-click even when sprite-level events don't fire first.
+    if (enemy && typeof ptr.rightButtonDown === 'function' && ptr.rightButtonDown()) {
+      this.showCombatEnemyPopup(enemy);
+      return;
+    }
 
     // Delegate to active mode handler
     if(this.mode===MODE.COMBAT){ this.onTapCombat(tx,ty,enemy); return; }

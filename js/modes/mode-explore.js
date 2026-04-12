@@ -34,7 +34,7 @@ Object.assign(GameScene.prototype, {
     if (enemy) { this.onTapEnemy(enemy); return; }
     // Entities only → auto-execute or entity context menu
     if (hasEntity) {
-      const result = this.interactAtTile(tx, ty, { ptr });
+      const result = this.interactAtTile(tx, ty, { ptr, autoMove: true });
       if (result) return;
     }
     if (this.isWallTile(tx, ty)) return;

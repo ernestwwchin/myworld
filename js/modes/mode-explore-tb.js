@@ -94,9 +94,15 @@ Object.assign(GameScene.prototype, {
     if (enemy) { this.onTapEnemy(enemy); return; }
     // Entities only → auto-execute or entity context menu
     if (hasEntity) {
-      const result = this.interactAtTile(tx, ty, { ptr });
-      if (result && result !== 'blocked') { this.endExploreTurnBasedPlayerTurn(); return; }
-      if (result === 'blocked' || result === 'menu') return;
+      const result = this.interactAtTile(tx, ty, {
+        ptr,
+        autoMove: true,
+        onAutoMoveComplete: (r) => {
+          if (r && r !== 'blocked' && r !== 'menu') this.endExploreTurnBasedPlayerTurn();
+        },
+      });
+      if (result === 'moving' || result === 'blocked' || result === 'menu') return;
+      if (result) { this.endExploreTurnBasedPlayerTurn(); return; }
     }
     if (this.isWallTile(tx, ty)) return;
     if (this._exploreTBMovesRemaining <= 0) { this.showStatus('No movement left this turn.'); return; }

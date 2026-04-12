@@ -189,6 +189,7 @@ const PLAYER_STATS = {
   profBonus:  2,
   hitDie:     8,            // Rogue d8
   maxHP:      10,           // 1d8 max + CON mod(2)
+  currentHP: 10,           // Current health points
   savingThrows: new Set(['dex','int']),
   skillProficiencies: new Set(['stealth','sleightOfHand','acrobatics','investigation']),
   expertiseSkills: new Set(['stealth','sleightOfHand']),  // Double proficiency bonus (Rogue Expertise)
@@ -198,6 +199,7 @@ const PLAYER_STATS = {
 
   gold: 0,
   inventory: [],        // array of item objects { id, name, icon, type, ... }
+  stash: [],            // persistent town storage across runs
   equippedWeapon: null, // item object currently in weapon slot (null = using default weapon)
   equippedArmor:  null, // item object currently in armor slot
   baseAC: 14,           // AC without any equipped armor bonuses

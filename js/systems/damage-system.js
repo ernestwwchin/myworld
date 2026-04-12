@@ -13,7 +13,10 @@ Object.assign(GameScene.prototype, {
       this.spawnFloat(this.player.x,this.player.y-12,`-${n}`,color);
       if(this.player) playHitAnim(this,this.player,'player');
       this.updateHUD();
-      if(this.playerHP<=0) this.showStatus(label||'You have been defeated...');
+      if(this.playerHP<=0){
+        this.showStatus(label||'You have been defeated...');
+        if(typeof this.handlePlayerDefeat==='function') this.handlePlayerDefeat();
+      }
       return;
     }
     if(!actor||!actor.alive) return;

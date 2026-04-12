@@ -383,6 +383,9 @@ Object.assign(GameScene.prototype, {
   },
 
   exitCombat(reason='victory'){
+    const bossVictory=(typeof ModLoader!=='undefined'&&typeof ModLoader.shouldResolveBossVictory==='function')
+      ? ModLoader.shouldResolveBossVictory(this,reason)
+      : false;
     this._returnToExploreTB=false;
     this.mode=MODE.EXPLORE;
     if (this.playerHidden) this._breakStealth(null);
@@ -399,7 +402,11 @@ Object.assign(GameScene.prototype, {
     document.getElementById('init-bar').classList.remove('show');
     document.getElementById('action-bar').classList.remove('show');
     document.getElementById('res-pips').classList.remove('show');
-    if(reason==='flee'){
+    if(bossVictory){
+      this.flashBanner('BOSS CLEARED','explore');
+      this.showStatus('Boss defeated! Returning to town.');
+      CombatLog.log('Boss stage cleared! Returning to town.','player','combat');
+    }else if(reason==='flee'){
       this.flashBanner('FLED COMBAT','explore');
       this.showStatus('Escaped combat. Stay hidden to avoid re-engage.');
       CombatLog.log('Fled combat!', 'system', 'combat');
@@ -413,6 +420,10 @@ Object.assign(GameScene.prototype, {
     CombatLog.logSep();
     this.resetActionButtons();
     withHotbar(hotbar => hotbar.resetUsed());
+    if(bossVictory&&typeof ModLoader!=='undefined'&&typeof ModLoader.resolveRunOutcome==='function'){
+      this.time.delayedCall(350,()=>ModLoader.resolveRunOutcome(this,'victory'));
+      return;
+    }
     this.time.delayedCall(300,()=>{ this.drawSightOverlays(); this.updateFogOfWar(); });
   },
 
@@ -725,7 +736,11 @@ Object.assign(GameScene.prototype, {
     const eDmgType=eWpn?eWpn.damageType:'';
     CombatLog.logRoll({actor:enemy.displayName,target:'You',result:isCrit?'crit':'hit',damage:dmg,rollDetail:rollLine,dmgDetail:`${dmgText}${eDmgType?' '+eDmgType:''}`});
     this.updateHUD();
-    if(this.playerHP<=0){ this.showStatus('You have been defeated...'); CombatLog.log('You have been defeated...','enemy','combat'); }
+    if(this.playerHP<=0){
+      this.showStatus('You have been defeated...');
+      CombatLog.log('You have been defeated...','enemy','combat');
+      if(typeof this.handlePlayerDefeat==='function') this.handlePlayerDefeat();
+    }
     // Crit → dramatic dice overlay; normal hit → just log
     if(isCrit){
       this.diceWaiting='enemy';

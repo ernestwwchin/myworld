@@ -107,6 +107,7 @@ class GameScene extends Phaser.Scene {
 
   create(){
     generateAnims(this);
+    window._scene=this;
     this.cameras.main.setBackgroundColor('#0a0a0f');
     // state
     this.mode=MODE.EXPLORE;
@@ -114,11 +115,13 @@ class GameScene extends Phaser.Scene {
     this.pStats.features=[...PLAYER_STATS.features];
     this.pStats.savingThrows=new Set(PLAYER_STATS.savingThrows);
     this.pStats.inventory=[...PLAYER_STATS.inventory];
+    this.pStats.stash=Array.isArray(PLAYER_STATS.stash)?PLAYER_STATS.stash.map(i=>({ ...i })) : [];
     this.pStats.equippedWeapon=PLAYER_STATS.equippedWeapon?{...PLAYER_STATS.equippedWeapon}:null;
     this.pStats.equippedArmor=PLAYER_STATS.equippedArmor?{...PLAYER_STATS.equippedArmor}:null;
     this.pStats.baseAC=PLAYER_STATS.baseAC||this.pStats.ac;
     this.pStats._statMods=[];
-    this.playerHP=this.pStats.maxHP; this.playerMaxHP=this.pStats.maxHP;
+    this.playerMaxHP=this.pStats.maxHP;
+    this.playerHP=Math.max(0,Math.min(this.playerMaxHP,Number(PLAYER_STATS.currentHP??this.pStats.maxHP)));
     this.playerTile={x:PLAYER_STATS.startTile.x, y:PLAYER_STATS.startTile.y};
     this.isMoving=false; this.movePath=[]; this.onArrival=null; this.pathDots=[]; this._movingToAttack=false; this.lastCompletedTile={...PLAYER_STATS.startTile};
     this.rangeTiles=[]; this.atkRangeTiles=[]; this.sightTiles=[];
@@ -135,6 +138,7 @@ class GameScene extends Phaser.Scene {
     this._pendingEnemyTurnActor=null;
     this._queuedEngageEnemy=null;
     this._engageInProgress=false;
+    this._defeatHandled=false;
     this._suppressExploreSightChecks=false;
     this._manualExploreTurnBased=false;
     this._returnToExploreTB=false;
@@ -146,6 +150,7 @@ class GameScene extends Phaser.Scene {
     this.doorStates={};
     this.tileSprites=[];
     this.stageSprites=[];
+    this._ensureInventoryModel();
 
     // map tiles
     // Debug: find stairs in MAP
@@ -300,6 +305,22 @@ class GameScene extends Phaser.Scene {
     }
     if (typeof DialogRunner !== 'undefined') {
       DialogRunner.init(this, ModLoader._modData?._stageDialogs || {});
+    }
+
+    if (typeof ModLoader !== 'undefined' && typeof ModLoader.installAutosaveHooks === 'function') {
+      ModLoader.installAutosaveHooks(this);
+    }
+
+    if (this._isTownStage() && typeof ModLoader !== 'undefined' && typeof ModLoader.consumeLastRunSummary === 'function') {
+      const rs = ModLoader.consumeLastRunSummary();
+      if (rs && rs.summary) {
+        const detail = rs.outcome === 'death'
+          ? `Depth ${rs.depth} | Lost ${rs.lostItems} item(s), ${rs.lostGold} gold.`
+          : rs.outcome === 'victory'
+            ? `Depth ${rs.depth} | Banked ${rs.bankedItems} item(s), Reward ${rs.rewardGold || 0} gold.`
+            : `Depth ${rs.depth} | Banked ${rs.bankedItems} item(s).`;
+        this.time.delayedCall(220, () => this.showStatus(`${rs.summary} ${detail}`));
+      }
     }
 
     console.log(`[GameScene] create() complete — mode:${this.mode} map:${COLS}x${ROWS} enemies:${this.enemies.length} player:(${this.playerTile.x},${this.playerTile.y}) floor:${window._MAP_META?.floor} nextStage:${window._MAP_META?.nextStage}`);
@@ -554,7 +575,11 @@ class GameScene extends Phaser.Scene {
       return;
     }
     if(this.isExploreMode()){
-      this.showEnemyStatPopup(enemy);
+      if(typeof this.tryEngageEnemyFromExplore==='function'){
+        this.tryEngageEnemyFromExplore(enemy);
+      } else {
+        this.enterCombat([enemy]);
+      }
       return;
     }
     this.onTapCombat(enemy.tx,enemy.ty,enemy);
@@ -577,6 +602,71 @@ class GameScene extends Phaser.Scene {
   // ─────────────────────────────────────────
   // INVENTORY ACTIONS
   // ─────────────────────────────────────────
+  _ensureInventoryModel(){
+    if(!this.pStats) return;
+    if(!Array.isArray(this.pStats.inventory)) this.pStats.inventory=[];
+    if(!Array.isArray(this.pStats.stash)) this.pStats.stash=[];
+  }
+
+  _isTownStage(){
+    return String(window._MAP_META?.floor||'').toUpperCase()==='TOWN';
+  }
+
+  showTownStashSummary(){
+    this._ensureInventoryModel();
+    const carried=this.pStats.inventory.length;
+    const stash=this.pStats.stash.length;
+    this.showStatus(`Town Stash — carried: ${carried} item(s), stash: ${stash} item(s).`);
+    if(typeof SidePanel!=='undefined'){ SidePanel.switchTab('inventory'); SidePanel.refresh(); }
+  }
+
+  depositAllToStash(){
+    if(!this._isTownStage()){ this.showStatus('You can only use the stash in town.'); return; }
+    this._ensureInventoryModel();
+    if(!this.pStats.inventory.length){ this.showStatus('You are not carrying any items.'); return; }
+    const moved=this.pStats.inventory.length;
+    this.pStats.stash.push(...this.pStats.inventory.map(i=>({ ...i })));
+    this.pStats.inventory=[];
+    this.showStatus(`Stored ${moved} item(s) in town stash.`);
+    if(typeof SidePanel!=='undefined') SidePanel.refresh();
+    if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
+  }
+
+  withdrawAllFromStash(){
+    if(!this._isTownStage()){ this.showStatus('You can only use the stash in town.'); return; }
+    this._ensureInventoryModel();
+    if(!this.pStats.stash.length){ this.showStatus('Town stash is empty.'); return; }
+    const moved=this.pStats.stash.length;
+    this.pStats.inventory.push(...this.pStats.stash.map(i=>({ ...i })));
+    this.pStats.stash=[];
+    this.showStatus(`Withdrew ${moved} item(s) from town stash.`);
+    if(typeof SidePanel!=='undefined') SidePanel.refresh();
+    if(typeof Hotbar!=='undefined') Hotbar.refreshItems();
+  }
+
+  extractRunToTown(){
+    if(typeof ModLoader!=='undefined'&&typeof ModLoader.resolveRunOutcome==='function'){
+      ModLoader.resolveRunOutcome(this,'extract');
+      return;
+    }
+    this.showStatus('Extraction is unavailable right now.');
+  }
+
+  handlePlayerDefeat(){
+    if(this._defeatHandled) return;
+    this._defeatHandled=true;
+
+    if(this.mode===MODE.COMBAT&&typeof this.exitCombat==='function'){
+      this.exitCombat('flee');
+    }
+
+    if(typeof ModLoader!=='undefined'&&typeof ModLoader.resolveRunOutcome==='function'){
+      this.time.delayedCall(120,()=>ModLoader.resolveRunOutcome(this,'death'));
+      return;
+    }
+    this.showStatus('You have been defeated...');
+  }
+
   _getItemMaxStack(item){
     if(!item) return 1;
     const def=(typeof ITEM_DEFS!=='undefined'&&item.id)?ITEM_DEFS[item.id]:null;

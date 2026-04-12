@@ -1,0 +1,7 @@
+events:
+  - id: town_intro
+    trigger: { tile: { x: 4, y: 5 } }
+    once: true
+    steps:
+      - { do: say, speaker: "Guide", text: "Welcome to Portal Square. Approach the central portal and interact to begin your run." }
+      - { do: log, text: "Town loaded. Interact with the center portal to enter the Goblin Warren." }
