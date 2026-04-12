@@ -686,6 +686,26 @@ function testBug3_FleeZoneAlpha() {
   assert.ok(spritesSrc.includes("dt('t_flee'"), 'BUG-3: t_flee procedural texture must be defined in sprites.js');
 }
 
+/** BUG-5: hotbar must track and render bonus action usage */
+function testBug5_BonusActionHotbarTracking() {
+  const gameSrc = fs.readFileSync(path.join(root, 'js', 'game.js'), 'utf8');
+  const combatSrc = fs.readFileSync(path.join(root, 'js', 'modes', 'mode-combat.js'), 'utf8');
+  const hotbarSrc = fs.readFileSync(path.join(root, 'js', 'ui', 'hotbar.js'), 'utf8');
+
+  assert.ok(gameSrc.includes('playerBonusAPMax=1') && gameSrc.includes('playerBonusAP=1'),
+    'game.js must initialize player bonus action resource state');
+  assert.ok(combatSrc.includes('this.playerBonusAP=this.playerBonusAPMax'),
+    'combat turn start must refresh playerBonusAP from playerBonusAPMax');
+  assert.ok(combatSrc.includes("action==='disengage'") && combatSrc.includes('this.playerBonusAP=Math.max(0,this.playerBonusAP-1)'),
+    'disengage must spend one bonus action');
+  assert.ok(!hotbarSrc.includes('TODO: track bonus action usage'),
+    'hotbar bonus action TODO must be replaced by real resource tracking');
+  assert.ok(hotbarSrc.includes('s.playerBonusAPMax') && hotbarSrc.includes('s.playerBonusAP ?? total'),
+    'hotbar must render BA pips from scene bonus action state');
+  assert.ok(hotbarSrc.includes("bonus${i < used ? ' spent' : ''}"),
+    'hotbar must mark spent BA pips with the spent class');
+}
+
 // ── Inventory system tests ──
 
 /** PLAYER_STATS must declare gold and inventory fields */
@@ -1041,6 +1061,7 @@ function runLegacyContracts() {
   testBug1_StairsNextStage();
   testBug2_DisplayNameFallback();
   testBug3_FleeZoneAlpha();
+  testBug5_BonusActionHotbarTracking();
 
   // Item definition system tests
   testItemDefsRegistry();
