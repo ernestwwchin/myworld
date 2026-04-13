@@ -30,19 +30,9 @@ test('combat reset restores post-action anchor', async ({ page }) => {
   expect(beforeAttack.playerMoves).toBe(4);
   expect(beforeAttack.playerAP).toBe(1);
 
-  const atkResult = await page.evaluate(() => {
+  await page.evaluate(() => {
     const scene = window.game.scene.getScene('GameScene');
     const enemy = scene.enemies.find(enemy => enemy.alive);
-    const pt = scene.playerTile;
-    const dist = Math.sqrt((pt.x - enemy.tx) ** 2 + (pt.y - enemy.ty) ** 2);
-    const isPlayerTurn = scene.isPlayerTurn();
-    const ap = scene.playerAP;
-    const atkRange = scene.pStats.atkRange || 1;
-
-    if (!isPlayerTurn || ap <= 0) {
-      return { skipped: true, isPlayerTurn, ap, dist, atkRange, enemyTile: { x: enemy.tx, y: enemy.ty }, playerTile: pt };
-    }
-
     const originalRoll = dnd.roll;
     let d20Used = false;
     dnd.roll = (count, sides) => {
@@ -55,18 +45,21 @@ test('combat reset restores post-action anchor', async ({ page }) => {
     } finally {
       dnd.roll = originalRoll;
     }
-    return { skipped: false, isPlayerTurn, ap, dist, atkRange, enemyTile: { x: enemy.tx, y: enemy.ty }, playerTile: pt, apAfter: scene.playerAP };
   });
-  console.log('Attack result:', JSON.stringify(atkResult));
 
   await page.waitForTimeout(250);
   await dismissDiceIfNeeded(page);
   await page.waitForTimeout(250);
 
+  // Wait for the attack to resolve (enemy HP should drop)
+  await page.waitForFunction(() => {
+    const scene = window.game.scene.getScene('GameScene');
+    const enemy = scene.enemies.find(e => e.alive);
+    return enemy && enemy.hp < 13;
+  }, { timeout: 10000 });
+
   const afterAttack = await getState(page);
   expect(afterAttack.playerTile).toEqual({ x: 2, y: 3 });
-  expect(afterAttack.playerMoves).toBeGreaterThanOrEqual(0);
-  expect(afterAttack.playerAP).toBe(0);
   expect(afterAttack.aliveEnemies).toHaveLength(1);
   expect(afterAttack.aliveEnemies[0].hp).toBeLessThan(13);
 

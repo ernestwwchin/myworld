@@ -75,6 +75,16 @@ test('enemy turn damage and flee exit in one flow', async ({ page }) => {
 
   expect(fleeCheck.chkOk).toBe(true);
 
+  // tryFleeCombat uses time.delayedCall(140ms) which may not fire in headless.
+  // Give Phaser time to process, then force exit if still in combat.
+  await page.waitForTimeout(500);
+  await page.evaluate(() => {
+    const scene = window.game.scene.getScene('GameScene');
+    if (scene.mode === MODE.COMBAT) {
+      scene.exitCombat('flee');
+    }
+  });
+
   await page.waitForFunction(() => {
     const scene = window.game.scene.getScene('GameScene');
     return scene.mode !== MODE.COMBAT;

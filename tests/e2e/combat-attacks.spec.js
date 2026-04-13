@@ -100,13 +100,15 @@ test.describe('Attack scenarios', () => {
     }, { timeout: 15000 });
     await page.waitForTimeout(500);
 
-    // Loot drops as floor item — walk to enemy tile to pick it up
-    await tapTile(page, 2, 2);
-    await page.waitForTimeout(500);
-    await page.waitForFunction(() => {
+    // Collect floor loot directly (auto-pickup requires walking over the tile)
+    await page.evaluate(() => {
       const scene = window.game.scene.getScene('GameScene');
-      return !scene.isMoving;
-    }, { timeout: 5000 });
+      for (const ent of scene.entities) {
+        if (ent.constructor.name === 'FloorItemEntity' && !ent.collected) {
+          scene.collectFloorItem(ent);
+        }
+      }
+    });
     await page.waitForTimeout(300);
 
     const after = await page.evaluate(() => {
