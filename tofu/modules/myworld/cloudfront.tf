@@ -1,6 +1,5 @@
-# Origin Access Control (OAC) - modern replacement for OAI
 resource "aws_cloudfront_origin_access_control" "game" {
-  name                              = "myworld-oac"
+  name                              = "myworld-${var.env}-oac"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
@@ -9,7 +8,7 @@ resource "aws_cloudfront_origin_access_control" "game" {
 resource "aws_cloudfront_distribution" "game" {
   enabled             = true
   default_root_object = "index.html"
-  comment             = "myworld game"
+  comment             = "myworld ${var.env}"
 
   origin {
     domain_name              = aws_s3_bucket.game.bucket_regional_domain_name
@@ -32,31 +31,9 @@ resource "aws_cloudfront_distribution" "game" {
       }
     }
 
-    # Short TTL for development — bump to 86400 for production
     min_ttl     = 0
-    default_ttl = 60
-    max_ttl     = 300
-  }
-
-  # Cache bust for JS/data files during development
-  ordered_cache_behavior {
-    path_pattern           = "/js/*"
-    target_origin_id       = "s3-myworld"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
-    compress               = true
-
-    forwarded_values {
-      query_string = false
-      cookies {
-        forward = "none"
-      }
-    }
-
-    min_ttl     = 0
-    default_ttl = 0
-    max_ttl     = 0
+    default_ttl = var.cache_ttl
+    max_ttl     = var.cache_ttl
   }
 
   restrictions {
@@ -65,17 +42,16 @@ resource "aws_cloudfront_distribution" "game" {
     }
   }
 
-  aliases = ["myworld.ernestwwchin.com", "*.ernestwwchin.com"]
-
-  depends_on = [aws_acm_certificate_validation.game]
+  aliases = [var.domain]
 
   viewer_certificate {
-    acm_certificate_arn      = aws_acm_certificate.game.arn
+    acm_certificate_arn      = var.acm_cert_arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2021"
   }
 
   tags = {
-    Project = "myworld"
+    Project     = "myworld"
+    Environment = var.env
   }
 }

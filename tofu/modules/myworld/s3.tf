@@ -1,13 +1,12 @@
-# Dedicated bucket for the game
 resource "aws_s3_bucket" "game" {
-  bucket = var.bucket_name
+  bucket = "myworld-${var.env}-game-${var.account_id}"
 
   tags = {
-    Project = "myworld"
+    Project     = "myworld"
+    Environment = var.env
   }
 }
 
-# Block all public access — CloudFront OAC handles access
 resource "aws_s3_bucket_public_access_block" "game" {
   bucket = aws_s3_bucket.game.id
 
@@ -17,7 +16,6 @@ resource "aws_s3_bucket_public_access_block" "game" {
   restrict_public_buckets = true
 }
 
-# Allow CloudFront OAC to read from the bucket
 resource "aws_s3_bucket_policy" "game" {
   bucket     = aws_s3_bucket.game.id
   depends_on = [aws_s3_bucket_public_access_block.game]

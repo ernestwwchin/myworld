@@ -1,0 +1,17 @@
+#!/bin/bash
+# Pre-commit hook: scan staged files for secrets using gitleaks
+
+if ! command -v gitleaks &>/dev/null; then
+  echo "WARNING: gitleaks not installed, skipping secret scan"
+  exit 0
+fi
+
+echo "Running gitleaks secret scan..."
+gitleaks protect --staged -v
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "ERROR: Secrets detected in staged files. Commit blocked."
+  echo "Fix the issue or use 'git commit --no-verify' to bypass (not recommended)."
+  exit 1
+fi

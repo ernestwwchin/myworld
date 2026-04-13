@@ -1,13 +1,6 @@
-# GitHub OIDC provider — allows GitHub Actions to get AWS credentials without stored keys
-resource "aws_iam_openid_connect_provider" "github" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
-}
-
-# IAM role for deploying game files from GitHub Actions
+# IAM role for deploying game files from GitHub Actions (per-env)
 resource "aws_iam_role" "deploy" {
-  name = "myworld-deploy"
+  name = "myworld-${var.env}-deploy"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -16,7 +9,7 @@ resource "aws_iam_role" "deploy" {
         Sid    = "GitHubActionsOIDC"
         Effect = "Allow"
         Principal = {
-          Federated = aws_iam_openid_connect_provider.github.arn
+          Federated = var.oidc_provider_arn
         }
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
@@ -24,7 +17,7 @@ resource "aws_iam_role" "deploy" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:ernestwwchin/myworld:ref:refs/heads/main"
+            "token.actions.githubusercontent.com:sub" = "repo:ernestwwchin/myworld:environment:${var.env}"
           }
         }
       }
@@ -32,12 +25,13 @@ resource "aws_iam_role" "deploy" {
   })
 
   tags = {
-    Project = "myworld"
+    Project     = "myworld"
+    Environment = var.env
   }
 }
 
 resource "aws_iam_role_policy" "deploy" {
-  name = "myworld-deploy-policy"
+  name = "myworld-${var.env}-deploy-policy"
   role = aws_iam_role.deploy.id
 
   policy = jsonencode({
@@ -57,14 +51,20 @@ resource "aws_iam_role_policy" "deploy" {
         ]
       },
       {
-        Sid      = "CloudFrontInvalidate"
+        Sid    = "CloudFrontDeploy"
+        Effect = "Allow"
+        Action = [
+          "cloudfront:CreateInvalidation",
+          "cloudfront:ListDistributions"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid      = "STSGetCallerIdentity"
         Effect   = "Allow"
-        Action   = "cloudfront:CreateInvalidation"
-        Resource = aws_cloudfront_distribution.game.arn
+        Action   = "sts:GetCallerIdentity"
+        Resource = "*"
       }
     ]
   })
 }
-
-# Used to get current account ID
-data "aws_caller_identity" "current" {}

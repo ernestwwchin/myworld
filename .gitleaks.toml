@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "ignore encrypted and non-sensitive files"
+paths = [
+  '''data\.secret\.yaml''',   # SOPS encrypted — values are ciphertext
+  '''\.gitleaks\.toml''',     # this file
+]

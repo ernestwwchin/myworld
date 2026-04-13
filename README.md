@@ -103,6 +103,41 @@ DEBUG_TOOLS=1 DEBUG_TOKEN=your-secret npm start
 
 Then pass header `x-debug-token: your-secret` or query `?token=your-secret`.
 
+## Deployment
+
+Two environments: **nonprod** → **prod** (requires approval).
+
+Game files deploy automatically via GitHub Actions on push to `main`:
+1. Deploy to nonprod (auto)
+2. Deploy to prod (requires manual approval)
+
+Infrastructure is managed by OpenTofu via a separate workflow:
+- PR with `tofu/` changes → `tofu plan` for all stacks posted as PR comments
+- Merge to `main` → `tofu apply` runs: shared → nonprod → prod (approval required)
+
+### First-time setup
+
+See [tofu/BOOTSTRAP.md](tofu/BOOTSTRAP.md) for initial setup instructions.
+
+### Manual deploy (fallback)
+
+```bash
+export AWS_PROFILE="<your-aws-profile>"
+export TF_VAR_account_id="<your-account-id>"
+
+# Deploy game files to nonprod
+aws s3 sync . s3://myworld-nonprod-game-${TF_VAR_account_id}/ \
+  --exclude "*" \
+  --include "index.html" --include "js/*" --include "assets/*" --include "data/*" \
+  --delete
+
+# Run tofu for a specific environment
+cd tofu/nonprod
+export TF_VAR_domain="myworld-nonprod.ernestwwchin.com"
+export TF_VAR_cache_ttl=0
+tofu init && tofu apply
+```
+
 ## License
 
 All rights reserved. This source code is provided for viewing purposes only. You may not use, copy, modify, or distribute any part of this project without explicit written permission from the author.
