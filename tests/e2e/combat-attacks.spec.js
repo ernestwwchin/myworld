@@ -21,8 +21,8 @@ async function enterSingleEnemyCombat(page) {
   }, { timeout: 45000 });
 }
 
-async function attackWithForcedD20(page, d20Value) {
-  await page.evaluate((rollValue) => {
+async function attackWithForcedD20(page, d20Value, dmgValue) {
+  await page.evaluate(({ rollValue, dmg }) => {
     const scene = window.game.scene.getScene('GameScene');
     const enemy = scene.enemies.find((e) => e.alive);
     if (!enemy) return;
@@ -33,8 +33,10 @@ async function attackWithForcedD20(page, d20Value) {
     }
 
     const originalRoll = roller.roll;
+    let d20Used = false;
     roller.roll = (count, sides) => {
-      if (count === 1 && sides === 20) return rollValue;
+      if (count === 1 && sides === 20 && !d20Used) { d20Used = true; return rollValue; }
+      if (dmg !== undefined && sides !== 20) return dmg;
       return originalRoll(count, sides);
     };
 
@@ -43,7 +45,7 @@ async function attackWithForcedD20(page, d20Value) {
     } finally {
       roller.roll = originalRoll;
     }
-  }, d20Value);
+  }, { rollValue: d20Value, dmg: dmgValue });
 
   await page.waitForTimeout(250);
   await dismissDiceIfNeeded(page);
@@ -89,7 +91,7 @@ test.describe('Attack scenarios', () => {
     });
 
     await enterSingleEnemyCombat(page);
-    await attackWithForcedD20(page, 19);
+    await attackWithForcedD20(page, 19, 6);
     await page.waitForTimeout(750);
 
     // Loot drops as floor item — pick it up by tapping the enemy's tile
