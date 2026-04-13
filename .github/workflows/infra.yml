@@ -11,6 +11,10 @@ on:
       - 'tofu/**'
       - '.github/workflows/infra.yml'
 
+concurrency:
+  group: infra-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   id-token: write
   contents: read

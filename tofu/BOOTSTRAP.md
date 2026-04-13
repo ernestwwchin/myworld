@@ -194,3 +194,6 @@ Once all steps are complete, CI/CD handles everything:
 
 - Push to `main` → deploy nonprod → (approve) → deploy prod
 - PR with `tofu/**` changes → plan all stacks → merge → apply shared → nonprod → (approve) → prod
+
+> **Note:** The deploy workflow will fail if infra hasn't been applied yet (S3 buckets don't exist).
+> During first-time setup, run the infra workflow first before pushing game file changes.
