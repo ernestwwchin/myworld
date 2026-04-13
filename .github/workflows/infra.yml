@@ -17,7 +17,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  # ── Plan (PR only) ─────────────────────────────────
+  # --- Plan (PR only) ---
   plan:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -77,14 +77,14 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `### Tofu Plan — ${{ matrix.stack }}\n\`\`\`\n${truncated}\n\`\`\``
+              body: `### Tofu Plan - ${{ matrix.stack }}\n\`\`\`\n${truncated}\n\`\`\``
             });
 
       - name: Fail if plan failed
         if: steps.plan.outcome == 'failure'
         run: exit 1
 
-  # ── Apply shared (merge to main) ───────────────────
+  # --- Apply shared (merge to main) ---
   apply-shared:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -115,7 +115,7 @@ jobs:
         working-directory: tofu/shared
         run: tofu apply -auto-approve
 
-  # ── Apply nonprod (after shared) ───────────────────
+  # --- Apply nonprod (after shared) ---
   apply-nonprod:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: apply-shared
@@ -149,7 +149,7 @@ jobs:
         working-directory: tofu/nonprod
         run: tofu apply -auto-approve
 
-  # ── Apply prod (after nonprod, requires approval) ──
+  # --- Apply prod (after nonprod, requires approval) ---
   apply-prod:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: apply-nonprod
