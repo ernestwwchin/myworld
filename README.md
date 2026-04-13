@@ -59,18 +59,23 @@ Current intended flow (BG3-style):
 
 ## Testing
 
-Run automated tests:
+Run unit tests:
 
 ```bash
 npm test
 ```
 
-E2E note:
+Run e2e tests (Playwright):
+
+```bash
+npm run test:e2e
+```
 
 - `@playwright/test` in `package.json` installs the Playwright library.
 - Browser binaries are separate and may need a one-time install per environment (Windows, WSL, CI image).
 - This repo currently runs `playwright install` via `postinstall` for convenience.
 - Manual fallback: `npm run e2e:install:browsers`
+- Both unit and e2e tests run on every PR via CI and must pass before merge.
 
 ## Backend Debug Tools
 
@@ -103,17 +108,50 @@ DEBUG_TOOLS=1 DEBUG_TOKEN=your-secret npm start
 
 Then pass header `x-debug-token: your-secret` or query `?token=your-secret`.
 
-## Deployment
+## CI/CD
 
-Two environments: **nonprod** → **prod** (requires approval).
+Three GitHub Actions workflows manage the pipeline:
 
-Game files deploy automatically via GitHub Actions on push to `main`:
-1. Deploy to nonprod (auto)
-2. Deploy to prod (requires manual approval)
+### `ci.yml` — Pull Request Checks
 
-Infrastructure is managed by OpenTofu via a separate workflow:
-- PR with `tofu/` changes → `tofu plan` for all stacks posted as PR comments
-- Merge to `main` → `tofu apply` runs: shared → nonprod → prod (approval required)
+Triggers on PRs to `main`. Required to pass before merge.
+
+- **test** — runs unit tests (`npm test`) and e2e tests (Playwright)
+- **check-tofu** — detects changes in `tofu/`
+- **plan** — runs `tofu plan` for shared/nonprod/prod (only if tofu files changed), posts plan as PR comment
+- **plan-result** — gate job, passes if plan succeeded or was skipped (no tofu changes)
+
+Branch protection requires both `test` and `plan-result` to pass.
+
+### `deploy.yml` — Game Deployment
+
+Triggers on push to `main`. Deploys game files to S3 + invalidates CloudFront.
+
+1. **deploy-nonprod** — automatic
+2. **deploy-prod** — requires manual approval
+
+Concurrency group: `deploy-${{ github.ref }}` (cancels in-progress).
+
+### `infra.yml` — Infrastructure Apply
+
+Triggers on push to `main` when `tofu/` files change. Runs `tofu apply`:
+
+1. **apply-shared** — OIDC, ACM cert
+2. **apply-nonprod** — S3, CloudFront, IAM (after shared)
+3. **apply-prod** — same, requires approval (after nonprod)
+
+Concurrency group: `infra-${{ github.ref }}` (queues, no cancel).
+
+### Environments
+
+| Environment | Domain | Auto-deploy |
+|---|---|---|
+| nonprod | `myworld-nonprod.ernestwwchin.com` | Yes |
+| prod | `myworld.ernestwwchin.com` | Requires approval |
+
+### Secret Scanning
+
+[gitleaks](https://github.com/gitleaks/gitleaks) runs as a pre-commit hook on every commit. Config: [.gitleaks.toml](.gitleaks.toml).
 
 ### First-time setup
 
