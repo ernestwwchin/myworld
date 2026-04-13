@@ -1,3 +1,4 @@
+# Shared stack providers
 terraform {
   required_providers {
     aws = {
