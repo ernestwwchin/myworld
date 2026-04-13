@@ -6,6 +6,9 @@ tofu/.terraform/
 *.secret.*
 .sops.yaml
 
+# AI agent config — may contain infrastructure identifiers
+.claude/
+
 test-results/
 playwright-report/
 node_modules/

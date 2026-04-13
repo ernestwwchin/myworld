@@ -96,31 +96,27 @@ Why this helps:
 ## AWS S3 Backup Reference
 
 Preferred profile for asset backup:
-- `REDACTED_AWS_PROFILE`
-
-Accessible buckets at time of writing:
-- `ernestwwchin-bucket` (recommended for project asset vault)
-- `REDACTED_CLOUDTRAIL_BUCKET` (CloudTrail logs, do not use for asset storage)
+- Set via `AWS_PROFILE` environment variable.
 
 Recommended S3 path layout:
-- `s3://ernestwwchin-bucket/myworld-asset-vault/itch/<artist>/<pack>/`
+- `s3://<your-bucket>/myworld-asset-vault/itch/<artist>/<pack>/`
 
 Example commands:
 
 ```bash
 # List buckets
-aws s3 ls --profile REDACTED_AWS_PROFILE
+aws s3 ls --profile "$AWS_PROFILE"
 
 # Upload one zip
 aws s3 cp "assets/SomePack.zip" \
-  "s3://ernestwwchin-bucket/myworld-asset-vault/itch/snowhex/dungeon-gathering/SomePack.zip" \
-  --profile REDACTED_AWS_PROFILE
+  "s3://<your-bucket>/myworld-asset-vault/itch/snowhex/dungeon-gathering/SomePack.zip" \
+  --profile "$AWS_PROFILE"
 
 # Sync local zip cache to S3 vault
 aws s3 sync "assets/" \
-  "s3://ernestwwchin-bucket/myworld-asset-vault/" \
+  "s3://<your-bucket>/myworld-asset-vault/" \
   --exclude "*" --include "*.zip" \
-  --profile REDACTED_AWS_PROFILE
+  --profile "$AWS_PROFILE"
 ```
 
 Notes:

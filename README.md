@@ -103,6 +103,10 @@ DEBUG_TOOLS=1 DEBUG_TOKEN=your-secret npm start
 
 Then pass header `x-debug-token: your-secret` or query `?token=your-secret`.
 
+## License
+
+All rights reserved. This source code is provided for viewing purposes only. You may not use, copy, modify, or distribute any part of this project without explicit written permission from the author.
+
 ## Notes
 
 Current server configuration in [server.js](server.js) serves [index.html](index.html) from the repository root at route `/`, so the current file placement is correct.

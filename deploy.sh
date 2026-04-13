@@ -3,7 +3,7 @@ set -e
 
 BUCKET="${AWS_S3_BUCKET:-wonwong-myworld-game}"
 DISTRIBUTION_ID="${AWS_CF_DISTRIBUTION_ID}"
-PROFILE="${AWS_PROFILE:-REDACTED_AWS_PROFILE}"
+PROFILE="${AWS_PROFILE:?Set AWS_PROFILE before running deploy.sh}"
 
 echo "Deploying to s3://$BUCKET ..."
 
