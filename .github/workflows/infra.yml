@@ -21,8 +21,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        stack: [shared, nonprod, prod]
-    environment: ${{ matrix.stack == 'shared' && 'nonprod' || matrix.stack }}
+        include:
+          - stack: shared
+            env_name: nonprod
+          - stack: nonprod
+            env_name: nonprod
+          - stack: prod
+            env_name: prod
+    environment: ${{ matrix.env_name }}
 
     env:
       TF_VAR_account_id: ${{ vars.AWS_ACCOUNT_ID }}
