@@ -1,3 +1,11 @@
+# Tofu/Terraform state — stored in S3, never commit locally
+tofu/terraform.tfstate*
+tofu/.terraform/
+
+# Secrets — never commit these
+*.secret.*
+.sops.yaml
+
 test-results/
 playwright-report/
 node_modules/
