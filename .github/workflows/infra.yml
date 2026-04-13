@@ -4,10 +4,12 @@ on:
   pull_request:
     paths:
       - 'tofu/**'
+      - '.github/workflows/infra.yml'
   push:
     branches: [main]
     paths:
       - 'tofu/**'
+      - '.github/workflows/infra.yml'
 
 permissions:
   id-token: write
