@@ -689,10 +689,92 @@ const ModLoader = {
     return raw;
   },
 
+  _stableHashString(input) {
+    const text = String(input || '');
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < text.length; i++) {
+      h ^= text.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return h >>> 0;
+  },
+
+  _resolveStageDescriptor(descriptor, context = {}) {
+    if (!descriptor) return null;
+
+    if (typeof descriptor === 'string') {
+      const raw = descriptor.trim();
+      if (!raw) return null;
+      const token = raw.toLowerCase();
+      if (token === 'town') return this._resolveTownStage();
+      if (token === 'boss') return this._resolveBossStage();
+      if (token === 'auto') return null;
+      return raw;
+    }
+
+    if (typeof descriptor !== 'object') return null;
+
+    const directStage = descriptor.stageId || descriptor.stage || descriptor.id || descriptor.targetStage || null;
+    if (directStage) {
+      return this._resolveStageDescriptor(directStage, context);
+    }
+
+    if (descriptor.token) {
+      return this._resolveStageDescriptor(String(descriptor.token), context);
+    }
+
+    const seq = Array.isArray(context.stageSequence) ? context.stageSequence : [];
+    const currentIndex = seq.indexOf(this._activeMap);
+
+    if (Number.isFinite(Number(descriptor.stageIndex)) && seq.length) {
+      const idx = Number(descriptor.stageIndex);
+      if (idx >= 0 && idx < seq.length) return seq[idx];
+    }
+
+    if (Number.isFinite(Number(descriptor.stageOffset)) && seq.length && currentIndex >= 0) {
+      const idx = currentIndex + Number(descriptor.stageOffset);
+      if (idx >= 0 && idx < seq.length) return seq[idx];
+    }
+
+    return null;
+  },
+
+  _pickDeterministicStage(candidates, world, nextDepth) {
+    if (!Array.isArray(candidates) || !candidates.length) return null;
+
+    const worldId = world?.id || this._runState?.worldId || 'world';
+    const runId = this._runState?.runId || 'run';
+    const runSeed = Number(this._runState?.seed);
+    const seed = Number.isFinite(runSeed) && runSeed > 0 ? runSeed : 1;
+    const base = `${worldId}|${runId}|${seed}|${this._activeMap || ''}|${Number(nextDepth || 0)}`;
+    const hash = this._stableHashString(base);
+
+    const weighted = candidates
+      .map((c) => ({
+        stage: c.stage,
+        weight: Math.max(1, Number(c.weight || 1)),
+      }))
+      .filter((c) => c.stage);
+
+    if (!weighted.length) return null;
+
+    const totalWeight = weighted.reduce((sum, c) => sum + c.weight, 0);
+    const bucket = hash % totalWeight;
+    let cursor = 0;
+
+    for (const c of weighted) {
+      cursor += c.weight;
+      if (bucket < cursor) return c.stage;
+    }
+
+    return weighted[weighted.length - 1].stage;
+  },
+
   _resolveAutoNextStage(_scene) {
     const world = this._getActiveWorldConfig();
 
     const depth = this._getRunDepth();
+    const seq = Array.isArray(world?.cfg?.stageSequence) ? world.cfg.stageSequence : [];
     const bands = Array.isArray(world?.cfg?.depthBands) ? world.cfg.depthBands : null;
     if (bands && bands.length) {
       const nextDepth = Math.max(1, depth + 1);
@@ -703,15 +785,23 @@ const ModLoader = {
       });
       if (band) {
         const stages = Array.isArray(band.stages) ? band.stages : [];
-        const candidates = stages.filter((s) => s && s !== this._activeMap);
+        const candidates = stages
+          .map((entry) => {
+            const stage = this._resolveStageDescriptor(entry, {
+              nextDepth,
+              stageSequence: seq,
+            });
+            if (!stage || stage === this._activeMap) return null;
+            const weight = (entry && typeof entry === 'object') ? Number(entry.weight || 1) : 1;
+            return { stage, weight };
+          })
+          .filter(Boolean);
         if (candidates.length) {
-          const pick = candidates[Math.floor(Math.random() * candidates.length)];
-          return pick;
+          return this._pickDeterministicStage(candidates, world, nextDepth);
         }
       }
     }
 
-    const seq = Array.isArray(world?.cfg?.stageSequence) ? world.cfg.stageSequence : null;
     if (seq && seq.length) {
       const idx = seq.indexOf(this._activeMap);
       if (idx >= 0 && idx < seq.length - 1) return seq[idx + 1];
