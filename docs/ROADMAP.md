@@ -53,7 +53,8 @@
 ### Sprint Tasks (Ordered)
 1. **Run planner skeleton**
    - [x] Create run state (`runId`, `seed`, `worldId`, `depth`, `acceptedQuests`, `carried`, `runGold`)
-   - [ ] Resolve next stage descriptor from world/depth bands
+   - [x] Resolve next stage descriptor from world/depth bands
+   - [x] Make `nextStage:auto` deterministic per run seed/context
 2. **Random map generator**
    - [ ] New file: `js/systems/map-generator.js`
    - [ ] BSP room + corridor algorithm
@@ -189,9 +190,10 @@ town_idle → town_prep → run_start → run_active → run_extraction/run_deat
 - [ ] Triage and fix 23 failing Playwright e2e tests (see `docs/BUGS.md` BUG-4)
 - [ ] Fix loot gold collection e2e (`combat-attacks.spec.js`, BUG-5)
 - [x] Unit tests for run-state scaffold initialization/start-run fields (`tests/unit/sandbox/modloader-run-state.test.js`)
-- Unit tests for run planner depth-band selection and generator resolution
+- [x] Unit tests for run planner depth-band deterministic selection and descriptor resolution (`tests/unit/sandbox/modloader-auto-transition.test.js`)
+- [ ] Unit tests for generator descriptor-to-stage resolution edge cases
 - Unit tests for extraction/death inventory transfer
-- E2E: town start → portal → generated stage → auto transition → return town
+- [~] E2E: town start → portal → generated stage → auto transition → return town
 - E2E: accept side quest → complete → reward on resolution
 
 ## Risk Notes

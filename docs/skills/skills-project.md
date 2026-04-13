@@ -49,6 +49,20 @@ Behavior notes:
 Verification:
 - `tests/unit/sandbox/modloader-run-state.test.js`
 
+## Deterministic Auto Transition (ModLoader)
+
+`nextStage:auto` planning now uses deterministic selection for depth-band candidates.
+
+Behavior notes:
+- `_resolveAutoNextStage()` evaluates depth band candidates for the next depth.
+- `_resolveStageDescriptor()` supports descriptor objects and token-based entries.
+- `_pickDeterministicStage()` picks candidates via stable hash and optional weights.
+- Existing plain string stage arrays remain supported.
+
+Verification:
+- `tests/unit/sandbox/modloader-auto-transition.test.js`
+- `tests/e2e/run-progression-smoke.spec.js`
+
 ## File Structure
 
 ```

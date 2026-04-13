@@ -17,6 +17,12 @@
 - Added sandbox coverage: `tests/unit/sandbox/modloader-run-state.test.js`.
 - No new runtime regression observed in unit/contracts at merge time.
 
+### Note: deterministic planner + descriptor update (2026-04-13)
+- `nextStage:auto` now resolves deterministically from run context (seed/run/world/depth), replacing random picks.
+- Depth-band stage descriptors now support object forms (`stageId`/`stage`/`id`/`targetStage`, `stageIndex`, `stageOffset`, `token`, optional `weight`).
+- Added sandbox coverage: `tests/unit/sandbox/modloader-auto-transition.test.js`.
+- Added smoke regression: `tests/e2e/run-progression-smoke.spec.js` (portal entry, deterministic auto target resolve, extraction back to town).
+
 ### BUG-4: E2E test suite failures
 - 23 Playwright e2e tests failing (may be environment/server or test rot)
 - Unit tests (21/21) and contract tests all pass
