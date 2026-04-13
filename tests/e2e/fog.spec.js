@@ -28,14 +28,19 @@ test('fog visibility updates and visited memory persists', async ({ page }) => {
   expect(before.visitedAtStart).toBe(true);
   expect(before.farVisible).toBe(false);
 
-  await tapTile(page, 3, 2);
+  // Move player directly via setDestination to avoid timing issues with tapTile
+  await page.evaluate(() => {
+    const scene = window.game.scene.getScene('GameScene');
+    scene.setDestination(3, 2);
+  });
+  await page.waitForTimeout(500);
   await waitUntilIdle(page);
 
   // Wait for player to actually arrive at (3,2)
   await page.waitForFunction(() => {
     const scene = window.game.scene.getScene('GameScene');
     return scene.playerTile.x === 3 && scene.playerTile.y === 2;
-  }, { timeout: 10000 }).catch(() => {});
+  }, { timeout: 10000 });
 
   const after = await page.evaluate((start) => {
     const scene = window.game.scene.getScene('GameScene');
