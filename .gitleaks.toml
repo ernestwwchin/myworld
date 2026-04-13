@@ -4,6 +4,6 @@ useDefault = true
 [allowlist]
 description = "ignore encrypted and non-sensitive files"
 paths = [
-  '''data\.secret\.yaml''',   # SOPS encrypted — values are ciphertext
-  '''\.gitleaks\.toml''',     # this file
+  '''\.secret\.(yaml|env|json|yml)$''',  # SOPS encrypted files (matches .sops.yaml path_regex)
+  '''\.gitleaks\.toml''',                # this file
 ]
