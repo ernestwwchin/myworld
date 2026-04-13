@@ -30,14 +30,24 @@ test('combat reset restores post-action anchor', async ({ page }) => {
   expect(beforeAttack.playerMoves).toBe(4);
   expect(beforeAttack.playerAP).toBe(1);
 
-  await page.evaluate(() => {
+  const atkResult = await page.evaluate(() => {
     const scene = window.game.scene.getScene('GameScene');
     const enemy = scene.enemies.find(enemy => enemy.alive);
+    const pt = scene.playerTile;
+    const dist = Math.sqrt((pt.x - enemy.tx) ** 2 + (pt.y - enemy.ty) ** 2);
+    const isPlayerTurn = scene.isPlayerTurn();
+    const ap = scene.playerAP;
+    const atkRange = scene.pStats.atkRange || 1;
+
+    if (!isPlayerTurn || ap <= 0) {
+      return { skipped: true, isPlayerTurn, ap, dist, atkRange, enemyTile: { x: enemy.tx, y: enemy.ty }, playerTile: pt };
+    }
+
     const originalRoll = dnd.roll;
     let d20Used = false;
     dnd.roll = (count, sides) => {
       if (count === 1 && sides === 20 && !d20Used) { d20Used = true; return 19; }
-      if (sides !== 20) return 1; // force min damage so skeleton survives
+      if (sides !== 20) return 1;
       return originalRoll(count, sides);
     };
     try {
@@ -45,7 +55,9 @@ test('combat reset restores post-action anchor', async ({ page }) => {
     } finally {
       dnd.roll = originalRoll;
     }
+    return { skipped: false, isPlayerTurn, ap, dist, atkRange, enemyTile: { x: enemy.tx, y: enemy.ty }, playerTile: pt, apAfter: scene.playerAP };
   });
+  console.log('Attack result:', JSON.stringify(atkResult));
 
   await page.waitForTimeout(250);
   await dismissDiceIfNeeded(page);

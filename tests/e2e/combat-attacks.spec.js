@@ -92,11 +92,22 @@ test.describe('Attack scenarios', () => {
 
     await enterSingleEnemyCombat(page);
     await attackWithForcedD20(page, 19, 6);
-    await page.waitForTimeout(750);
 
-    // Loot drops as floor item — pick it up by tapping the enemy's tile
+    // Wait for combat to exit after kill
+    await page.waitForFunction(() => {
+      const scene = window.game.scene.getScene('GameScene');
+      return scene.mode !== MODE.COMBAT;
+    }, { timeout: 15000 });
+    await page.waitForTimeout(500);
+
+    // Loot drops as floor item — walk to enemy tile to pick it up
     await tapTile(page, 2, 2);
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(500);
+    await page.waitForFunction(() => {
+      const scene = window.game.scene.getScene('GameScene');
+      return !scene.isMoving;
+    }, { timeout: 5000 });
+    await page.waitForTimeout(300);
 
     const after = await page.evaluate(() => {
       const scene = window.game.scene.getScene('GameScene');
