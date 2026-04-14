@@ -5,6 +5,13 @@ resource "aws_cloudfront_origin_access_control" "game" {
   signing_protocol                  = "sigv4"
 }
 
+resource "aws_cloudfront_function" "pr_routing" {
+  count   = var.enable_pr_previews ? 1 : 0
+  name    = "myworld-${var.env}-pr-routing"
+  runtime = "cloudfront-js-2.0"
+  code    = file("${path.module}/cf-function-pr-routing.js")
+}
+
 resource "aws_cloudfront_distribution" "game" {
   enabled             = true
   default_root_object = "index.html"
@@ -34,6 +41,14 @@ resource "aws_cloudfront_distribution" "game" {
     min_ttl     = 0
     default_ttl = var.cache_ttl
     max_ttl     = var.cache_ttl
+
+    dynamic "function_association" {
+      for_each = var.enable_pr_previews ? [1] : []
+      content {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.pr_routing[0].arn
+      }
+    }
   }
 
   restrictions {
@@ -42,7 +57,7 @@ resource "aws_cloudfront_distribution" "game" {
     }
   }
 
-  aliases = [var.domain]
+  aliases = var.enable_pr_previews && var.pr_wildcard_domain != "" ? [var.domain, var.pr_wildcard_domain] : [var.domain]
 
   viewer_certificate {
     acm_certificate_arn      = var.acm_cert_arn

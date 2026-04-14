@@ -120,6 +120,7 @@ Triggers on PRs to `main`. Required to pass before merge.
 - **check-tofu** — detects changes in `tofu/`
 - **plan** — runs `tofu plan` for shared/nonprod/prod (only if tofu files changed), posts plan as PR comment
 - **plan-result** — gate job, passes if plan succeeded or was skipped (no tofu changes)
+- **pr-deploy** — deploys PR preview to `myworld-pr-{N}.ernestwwchin.com` (after tests pass)
 
 Branch protection requires both `test` and `plan-result` to pass.
 
@@ -142,12 +143,17 @@ Triggers on push to `main` when `tofu/` files change. Runs `tofu apply`:
 
 Concurrency group: `infra-${{ github.ref }}` (queues, no cancel).
 
+### `pr-cleanup.yml` — PR Preview Cleanup
+
+Triggers on PR close. Deletes `s3://bucket/pr/{N}/` files.
+
 ### Environments
 
 | Environment | Domain | Auto-deploy |
 |---|---|---|
 | nonprod | `myworld-nonprod.ernestwwchin.com` | Yes |
 | prod | `myworld.ernestwwchin.com` | Requires approval |
+| PR preview | `myworld-pr-{N}.ernestwwchin.com` | Yes (after tests pass) |
 
 ### Secret Scanning
 
