@@ -1,14 +1,20 @@
 name: Infrastructure
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'tofu/**'
-      - '.github/workflows/infra.yml'
+  workflow_dispatch:
+    inputs:
+      stack:
+        description: 'Stack to apply'
+        required: true
+        type: choice
+        options:
+          - shared
+          - nonprod
+          - prod
+          - all
 
 concurrency:
-  group: infra-${{ github.ref }}
+  group: infra
   cancel-in-progress: false
 
 permissions:
@@ -16,8 +22,8 @@ permissions:
   contents: read
 
 jobs:
-  # --- Apply shared (merge to main) ---
   apply-shared:
+    if: inputs.stack == 'shared' || inputs.stack == 'all'
     runs-on: ubuntu-latest
     environment: nonprod
 
@@ -46,9 +52,9 @@ jobs:
         working-directory: tofu/shared
         run: tofu apply -auto-approve
 
-  # --- Apply nonprod (after shared) ---
   apply-nonprod:
     needs: apply-shared
+    if: always() && (inputs.stack == 'nonprod' || inputs.stack == 'all') && (needs.apply-shared.result == 'success' || needs.apply-shared.result == 'skipped')
     runs-on: ubuntu-latest
     environment: nonprod
 
@@ -79,9 +85,9 @@ jobs:
         working-directory: tofu/nonprod
         run: tofu apply -auto-approve
 
-  # --- Apply prod (after nonprod, requires approval) ---
   apply-prod:
     needs: apply-nonprod
+    if: always() && (inputs.stack == 'prod' || inputs.stack == 'all') && (needs.apply-nonprod.result == 'success' || needs.apply-nonprod.result == 'skipped')
     runs-on: ubuntu-latest
     environment: prod
 

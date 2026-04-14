@@ -69,17 +69,20 @@ jobs:
       matrix:
         include:
           - stack: shared
-            env_name: nonprod
+            domain: myworld-nonprod.ernestwwchin.com
+            cache_ttl: 0
           - stack: nonprod
-            env_name: nonprod
+            domain: myworld-nonprod.ernestwwchin.com
+            cache_ttl: 0
           - stack: prod
-            env_name: prod
-    environment: ${{ matrix.env_name }}
+            domain: myworld.ernestwwchin.com
+            cache_ttl: 86400
+    environment: nonprod
 
     env:
       TF_VAR_account_id: ${{ vars.AWS_ACCOUNT_ID }}
-      TF_VAR_domain: ${{ vars.DOMAIN }}
-      TF_VAR_cache_ttl: ${{ vars.CACHE_TTL }}
+      TF_VAR_domain: ${{ matrix.domain }}
+      TF_VAR_cache_ttl: ${{ matrix.cache_ttl }}
 
     steps:
       - uses: actions/checkout@v4

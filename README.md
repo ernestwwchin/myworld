@@ -110,7 +110,7 @@ Then pass header `x-debug-token: your-secret` or query `?token=your-secret`.
 
 ## CI/CD
 
-Three GitHub Actions workflows manage the pipeline:
+Five GitHub Actions workflows manage the pipeline:
 
 ### `ci.yml` — Pull Request Checks
 
@@ -124,24 +124,17 @@ Triggers on PRs to `main`. Required to pass before merge.
 
 Branch protection requires both `test` and `plan-result` to pass.
 
-### `deploy.yml` — Game Deployment
+### `deploy.yml` — Nonprod Deployment
 
-Triggers on push to `main`. Deploys game files to S3 + invalidates CloudFront.
+Triggers on push to `main`. Syncs game files to S3 + invalidates CloudFront for nonprod.
 
-1. **deploy-nonprod** — automatic
-2. **deploy-prod** — requires manual approval
+### `release.yml` — Prod Deployment
 
-Concurrency group: `deploy-${{ github.ref }}` (cancels in-progress).
+Triggers on GitHub release (`v*` tag). Syncs game files to S3 + invalidates CloudFront for prod. Creating a release is the approval mechanism.
 
 ### `infra.yml` — Infrastructure Apply
 
-Triggers on push to `main` when `tofu/` files change. Runs `tofu apply`:
-
-1. **apply-shared** — OIDC, ACM cert
-2. **apply-nonprod** — S3, CloudFront, IAM (after shared)
-3. **apply-prod** — same, requires approval (after nonprod)
-
-Concurrency group: `infra-${{ github.ref }}` (queues, no cancel).
+Manual dispatch (`workflow_dispatch`). Select a stack to apply: `shared`, `nonprod`, `prod`, or `all`. Sequential ordering: shared → nonprod → prod.
 
 ### `pr-cleanup.yml` — PR Preview Cleanup
 
@@ -149,11 +142,11 @@ Triggers on PR close. Deletes `s3://bucket/pr/{N}/` files.
 
 ### Environments
 
-| Environment | Domain | Auto-deploy |
+| Environment | Domain | Trigger |
 |---|---|---|
-| nonprod | `myworld-nonprod.ernestwwchin.com` | Yes |
-| prod | `myworld.ernestwwchin.com` | Requires approval |
-| PR preview | `myworld-pr-{N}.ernestwwchin.com` | Yes (after tests pass) |
+| nonprod | `myworld-nonprod.ernestwwchin.com` | Push to `main` |
+| prod | `myworld.ernestwwchin.com` | Release published |
+| PR preview | `myworld-pr-{N}.ernestwwchin.com` | PR (after tests pass) |
 
 ### Secret Scanning
 
