@@ -110,35 +110,19 @@ Then pass header `x-debug-token: your-secret` or query `?token=your-secret`.
 
 ## CI/CD
 
-Five GitHub Actions workflows manage the pipeline:
+Three workflows (+ one reusable):
 
-### `ci.yml` — Pull Request Checks
+### `pull-request.yml` — Pull Request
 
-Triggers on PRs to `main`. Required to pass before merge.
+Triggers on PRs to `main`. Jobs: **test**, **check-tofu**, **plan** (posts plan comment), **plan-result** (gate), **preview** (deploys to `myworld-pr-{N}.ernestwwchin.com`), **cleanup** (on PR close). Branch protection requires `test` + `plan-result`.
 
-- **test** — runs unit tests (`npm test`) and e2e tests (Playwright)
-- **check-tofu** — detects changes in `tofu/`
-- **plan** — runs `tofu plan` for shared/nonprod/prod (only if tofu files changed), posts plan as PR comment
-- **plan-result** — gate job, passes if plan succeeded or was skipped (no tofu changes)
-- **pr-deploy** — deploys PR preview to `myworld-pr-{N}.ernestwwchin.com` (after tests pass)
+### `deploy.yml` — Deploy
 
-Branch protection requires both `test` and `plan-result` to pass.
+Push to `main` → **nonprod** (S3 sync + CF invalidation). Release published → **prod**.
 
-### `deploy.yml` — Nonprod Deployment
+### `infra.yml` — Infra
 
-Triggers on push to `main`. Syncs game files to S3 + invalidates CloudFront for nonprod.
-
-### `release.yml` — Prod Deployment
-
-Triggers on GitHub release (`v*` tag). Syncs game files to S3 + invalidates CloudFront for prod. Creating a release is the approval mechanism.
-
-### `infra.yml` — Infrastructure Apply
-
-Manual dispatch (`workflow_dispatch`). Select a stack to apply: `shared`, `nonprod`, `prod`, or `all`. Sequential ordering: shared → nonprod → prod.
-
-### `pr-cleanup.yml` — PR Preview Cleanup
-
-Triggers on PR close. Deletes `s3://bucket/pr/{N}/` files.
+Manual dispatch. Select stack: `shared`, `nonprod`, `prod`, or `all`. Uses `_tofu-apply.yml` reusable workflow. Sequential: shared → nonprod → prod.
 
 ### Environments
 

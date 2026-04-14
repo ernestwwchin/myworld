@@ -1,49 +1,58 @@
-name: Deploy Nonprod
+name: Deploy
 
 on:
   push:
     branches: [main]
-
-concurrency:
-  group: deploy-nonprod
-  cancel-in-progress: true
+  release:
+    types: [published]
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  deploy:
+  nonprod:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: nonprod
-
+    concurrency: deploy-nonprod
     env:
-      ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-
+      BUCKET: myworld-nonprod-game-${{ vars.AWS_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/myworld-nonprod-deploy
           aws-region: ap-southeast-1
-
-      - name: Sync to S3
-        run: |
-          aws s3 sync . s3://myworld-nonprod-game-${ACCOUNT_ID}/ \
+      - run: |
+          aws s3 sync . s3://${BUCKET}/ \
             --exclude "*" \
-            --include "index.html" \
-            --include "js/*" \
-            --include "assets/*" \
-            --include "data/*" \
+            --include "index.html" --include "js/*" --include "assets/*" --include "data/*" \
             --delete
-
-      - name: Invalidate CloudFront cache
-        run: |
+      - run: |
           DIST_ID=$(aws cloudfront list-distributions \
-            --query "DistributionList.Items[?Comment=='myworld nonprod'].Id" \
-            --output text)
-          aws cloudfront create-invalidation \
-            --distribution-id "$DIST_ID" \
-            --paths "/*"
+            --query "DistributionList.Items[?Comment=='myworld nonprod'].Id" --output text)
+          aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
+
+  prod:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment: prod
+    concurrency: deploy-prod
+    env:
+      BUCKET: myworld-prod-game-${{ vars.AWS_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/myworld-prod-deploy
+          aws-region: ap-southeast-1
+      - run: |
+          aws s3 sync . s3://${BUCKET}/ \
+            --exclude "*" \
+            --include "index.html" --include "js/*" --include "assets/*" --include "data/*" \
+            --delete
+      - run: |
+          DIST_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Comment=='myworld prod'].Id" --output text)
+          aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
