@@ -29,3 +29,14 @@ variable "oidc_provider_arn" {
   type        = string
 }
 
+variable "enable_pr_previews" {
+  description = "Enable PR preview subdomain routing (nonprod only)"
+  type        = bool
+  default     = false
+}
+
+variable "pr_wildcard_domain" {
+  description = "Wildcard domain alias for catching PR preview subdomains (e.g. *.ernestwwchin.com)"
+  type        = string
+  default     = ""
+}

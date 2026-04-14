@@ -110,44 +110,27 @@ Then pass header `x-debug-token: your-secret` or query `?token=your-secret`.
 
 ## CI/CD
 
-Three GitHub Actions workflows manage the pipeline:
+Three workflows (+ one reusable):
 
-### `ci.yml` — Pull Request Checks
+### `pull-request.yml` — Pull Request
 
-Triggers on PRs to `main`. Required to pass before merge.
+Triggers on PRs to `main`. Jobs: **test**, **check-tofu**, **plan** (posts plan comment), **plan-result** (gate), **preview** (deploys to `myworld-pr-{N}.ernestwwchin.com`), **cleanup** (on PR close). Branch protection requires `test` + `plan-result`.
 
-- **test** — runs unit tests (`npm test`) and e2e tests (Playwright)
-- **check-tofu** — detects changes in `tofu/`
-- **plan** — runs `tofu plan` for shared/nonprod/prod (only if tofu files changed), posts plan as PR comment
-- **plan-result** — gate job, passes if plan succeeded or was skipped (no tofu changes)
+### `deploy.yml` — Deploy
 
-Branch protection requires both `test` and `plan-result` to pass.
+Push to `main` → **nonprod** (S3 sync + CF invalidation). Release published → **prod**.
 
-### `deploy.yml` — Game Deployment
+### `infra.yml` — Infra
 
-Triggers on push to `main`. Deploys game files to S3 + invalidates CloudFront.
-
-1. **deploy-nonprod** — automatic
-2. **deploy-prod** — requires manual approval
-
-Concurrency group: `deploy-${{ github.ref }}` (cancels in-progress).
-
-### `infra.yml` — Infrastructure Apply
-
-Triggers on push to `main` when `tofu/` files change. Runs `tofu apply`:
-
-1. **apply-shared** — OIDC, ACM cert
-2. **apply-nonprod** — S3, CloudFront, IAM (after shared)
-3. **apply-prod** — same, requires approval (after nonprod)
-
-Concurrency group: `infra-${{ github.ref }}` (queues, no cancel).
+Manual dispatch. Select stack: `shared`, `nonprod`, `prod`, or `all`. Uses `_tofu-apply.yml` reusable workflow. Sequential: shared → nonprod → prod.
 
 ### Environments
 
-| Environment | Domain | Auto-deploy |
+| Environment | Domain | Trigger |
 |---|---|---|
-| nonprod | `myworld-nonprod.ernestwwchin.com` | Yes |
-| prod | `myworld.ernestwwchin.com` | Requires approval |
+| nonprod | `myworld-nonprod.ernestwwchin.com` | Push to `main` |
+| prod | `myworld.ernestwwchin.com` | Release published |
+| PR preview | `myworld-pr-{N}.ernestwwchin.com` | PR (after tests pass) |
 
 ### Secret Scanning
 

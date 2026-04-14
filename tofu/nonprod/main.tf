@@ -30,10 +30,12 @@ data "terraform_remote_state" "shared" {
 module "myworld" {
   source = "../modules/myworld"
 
-  env               = "nonprod"
-  account_id        = var.account_id
-  domain            = var.domain
-  cache_ttl         = var.cache_ttl
-  acm_cert_arn      = data.terraform_remote_state.shared.outputs.acm_cert_arn
-  oidc_provider_arn = data.terraform_remote_state.shared.outputs.oidc_provider_arn
+  env                = "nonprod"
+  account_id         = var.account_id
+  domain             = var.domain
+  cache_ttl          = var.cache_ttl
+  acm_cert_arn       = data.terraform_remote_state.shared.outputs.acm_cert_arn
+  oidc_provider_arn  = data.terraform_remote_state.shared.outputs.oidc_provider_arn
+  enable_pr_previews = true
+  pr_wildcard_domain = "*.ernestwwchin.com"
 }
