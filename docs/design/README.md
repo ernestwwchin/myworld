@@ -38,6 +38,6 @@ These are areas the project will go deep on later. Files arrive when there's rea
 |---|---|
 | Player rules and controls | [`../play/`](../play/README.md) |
 | Modder reference (full schema/hooks) | [`../modding/`](../modding/README.md) |
-| D&D 5e rules lookup | [`../ref/5e.md`](../ref/5e.md) |
+| D&D 5e rules lookup | [`../ref/5e/`](../ref/5e/README.md) |
 | Code-level subsystem reference | [`../engineering/`](../engineering/README.md) |
 | Free-form idea capture | [`../ideas/`](../ideas/README.md) |

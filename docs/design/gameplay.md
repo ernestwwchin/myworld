@@ -39,7 +39,7 @@ Town (prep) → Portal → Dungeon floors → Extraction/Death → Town (resolve
 - Status effects: sleep, poison, hidden
 - Starting class: Fighter (others planned: Wizard, Cleric, Ranger)
 
-See [`../ref/5e.md`](../ref/5e.md) for full rules reference.
+See [`../ref/5e/`](../ref/5e/README.md) for full rules reference.
 
 ## Side Quests
 
