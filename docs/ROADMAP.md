@@ -5,212 +5,138 @@ status: active
 
 # MyWorld RPG — Roadmap
 
+## Anchor: Playable v1
+
+**One complete Goblin Warren run, end-to-end.** Player starts in town → enters portal → traverses 5–10 generated floors → fights a boss on the final floor → wins (or extracts mid-run) → returns to town with banked loot → can start another run. Side-quest board offers 1–2 simple contracts. Shop is functional enough to spend gold.
+
+Everything not on that path is deferred. See "Post-v1 candidates" below.
+
 ## Legend
-- [ ] Not started
-- [~] Partial / in progress
-- [x] Done
+- [ ] Not started · [~] Partial · [x] Done
 
 ---
 
 ## Phase 1: Foundation (Done)
 
-### Stage Transition System
-- [x] Stairs interaction: step on STAIRS tile → trigger floor transition
-- [x] `ModLoader.transitionToStage()`: reload MAP, enemies, entities, events, lights
-- [x] GameScene reset: clear sprites, fog, enemies → rebuild from new stage data
-- [x] Persist player state across floors (HP, items, flags, level)
-- [x] Floor indicator in HUD (e.g., "B2F")
-- [x] Deterministic map persistence (seed saved to localStorage immediately)
-- [x] Spawn safety (player never lands in wall after transition)
-- [x] `nextStage` token resolution (`$auto`, `$boss`, `$town`)
-
-### Town Hub
-- [x] Town stage with portal plaza + quest keeper + quartermaster
-- [x] Dialog-prefixed NPC action support
-- [x] Portal interaction → enter dungeon
-
-### Combat System
-- [x] BG3-style turn-based combat with initiative
-- [x] Stealth / hidden movement with sight detection
-- [x] Room-based combat joining (nearby enemies alert)
-- [x] Loot tables with weighted pools
-- [x] Floor item drops and pickup
-- [x] Combat log with roll details
-
-### Chest & Loot
-- [x] ChestEntity with behaviorPresets: standard, locked, trapped
-- [x] Loot resolution: fixed items + random rolls from table
-- [x] BG3-style chest opening VFX
+- Stage transitions, deterministic seed persistence, spawn safety, `nextStage` token resolution
+- Town hub with portal + NPCs + dialog actions
+- BG3-style turn-based combat with initiative, stealth, room-based joining, loot tables, combat log
+- Chest behaviors (standard / locked / trapped scaffolds)
+- Run-state scaffold (`runId`, `seed`, `worldId`, `depth`, carried/stash, history)
+- Inventory split (carried vs stash) + extraction banking + death loss
 
 ---
 
-## Phase 2: World-Run Loop (Next)
+## Phase 2: Playable v1 (Current)
 
-### Design
-- Start from town hub (`startMap: town_hub`)
-- Main quest: reach depth 10 and defeat boss
-- Side quests: generated contracts (hunt/retrieve/scout/rescue/cull)
-- Generated floors follow depth-based difficulty curve
-- Camp/refuge floors as pacing relief
-- Inventory split: carried run inventory + persistent town stash
-- Extraction banks loot; death applies difficulty-based loss
+Sprint goals, ordered. Each one ends in a thing the player notices.
 
-### Sprint Tasks (Ordered)
-1. **Run planner skeleton**
-   - [x] Create run state (`runId`, `seed`, `worldId`, `depth`, `acceptedQuests`, `carried`, `runGold`)
-   - [x] Resolve next stage descriptor from world/depth bands
-   - [x] Make `nextStage:auto` deterministic per run seed/context
-2. **Random map generator**
-   - [x] Generator file lives at `js/mapgen.js` (cellular automata only, BSP TBD)
-   - [ ] BSP room + corridor algorithm
-   - [x] Stage YAML `generator:` block replaces `grid:` for random floors
-   - [x] Config: width, height, plus CA-specific knobs
-   - [x] Seed support: persisted to localStorage so the same generated floor reappears
-   - [x] Auto-place: playerStart and stairs resolved at scene start (`_randomFloorTile()`)
-   - [ ] Auto-generate lights per room (dim/bright based on config)
-   - [ ] Feature tiles: water pools, grass patches
-   - [x] ModLoader integration: detect `generator:` → run generator → produce grid/encounters/entities
-3. **Encounter placement**
-   - [x] `count: N` encounters resolved into floor positions at scene start
-   - [ ] Weighted creature pool per floor config
-   - [ ] Density levels: low / medium / high (enemies per room)
-   - [ ] Boss room: optional boss + guards in deepest room
-   - [ ] Group assignment: enemies in same room share a group
-   - [ ] Scaling: higher floors → more enemies, tougher creatures
-4. **World 1 baseline (Goblin Warren — `01_goblin_invasion`)**
-   - [x] One portal world configured with `worlds.yaml` depthBands
-   - [~] Generated hostile stages + boss stage (refuge floors TBD)
-   - [~] Floor pools wired via creatures.yaml (full 10-depth tuning ongoing)
-   - [ ] Floor 5: hand-crafted boss stage (goblin captain + guards)
-   - [ ] Floor 6-9: undead/demon pool, darker theme
-   - [ ] Floor 10: hand-crafted shrine (special dialog, reward, ending)
-5. **Inventory split + resolution**
-   - [x] Carried (`PLAYER_STATS.inventory`) vs stash (`PLAYER_STATS.stash`) data model
-   - [x] Extraction banking and death loss (`resolution.extract` / `resolution.death` per world)
-6. **Side-quest board MVP**
-   - [ ] Offer 2-3 contracts, accept up to 1-2
-   - [ ] Templates: `depth_scout`, `hunt_cull`, `retrieve_item`
+### 1. Map generation good enough for 10 floors
+- [x] CA generator wired (`js/mapgen.js`)
+- [ ] BSP room+corridor algorithm (better readability than CA for combat)
+- [ ] Per-floor difficulty: room count/size scales with depth
+- [ ] Auto-place player start + stairs + at least one chest
 
-### Architecture Decisions
-- One-folder-per-authored-stage layout (`stages/<id>/stage.yaml`)
-- Registry YAML files for generated progression logic (`worlds.yaml`, `generation-rules.yaml`)
-- `nextStage` convention: `<stage_id>` (fixed), `auto` (planner), `boss` (world boss), `town` (hub), omitted (no link)
-- `auto` does not infer generator from current stage; next-stage descriptor defines generator type
-- Target mod: `data/02_dungeon_campaign/`
+### 2. Encounter placement
+- [ ] Weighted creature pool defined per depth band (already structured in `worlds.yaml`)
+- [ ] Density: low/medium/high enemies per floor
+- [ ] Floor scaling — deeper floors get more/tougher enemies
+- [ ] Group assignment so room-based combat join behaves coherently
 
-### State Flow
-```
-town_idle → town_prep → run_start → run_active → run_extraction/run_death → town_resolution → town_idle
-```
+### 3. Boss floor + win condition
+- [ ] Hand-crafted final stage (Goblin Warren boss + guards)
+- [ ] Boss-defeat → "victory" resolution path (carries to town, win screen/dialog)
+- [ ] Run history records the win
+
+### 4. Shop (un-stub)
+- [ ] Town shop interactable — buy consumables (potions, etc.) + basic gear
+- [ ] Sell from carried inventory for gold
+- [ ] Shop stock + prices in YAML, refresh between runs
+
+### 5. Side-quest board MVP
+- [ ] Quest board interactable — offers 2 contracts per visit
+- [ ] Templates: `hunt_cull` (kill N of monster type), `retrieve_item` (find item, return)
+- [ ] Accept up to 1 active contract per run; reward on town return
+
+### 6. Run-loop polish
+- [ ] Win/loss/extraction screens (currently silent transitions)
+- [ ] Floor counter + objective hint in HUD ("Boss: B5", "Quest: 2/3 goblins")
+- [ ] One refuge/camp floor mid-run for pacing relief
+
+### 7. v1 content tuning
+- [ ] Monster pools balanced: floors 1–4 weak goblins, 5 mini-boss, 6–9 tougher mix, 10 boss
+- [ ] Loot tables tuned so the loop produces enough gold to use the shop
+- [ ] Starting Fighter kit playable through to boss
 
 ---
 
-## Phase 3: Content & Systems
+## Post-v1 candidates
 
-### Chest Enhancements
-- [ ] Trapped chest: Dex saving throw (DC from config) to halve damage
-- [ ] Locked chest: Thieves' Tools check (Dex + proficiency vs lockDC)
-- [ ] Perception/Investigation check to detect traps before opening
-- [ ] Random chest placement in generator
-- [ ] Chest behavior distribution: standard 60%, trapped 25%, locked 10%, mimic 5%
+Not on the v1 path. Promote to a phase when v1 ships.
 
-### Key Item System
-- [ ] Player key inventory (Set/Map of keyIds)
-- [ ] Pick up key: from chest loot, enemy drop, or interactable
-- [ ] Use key: auto-consume on matching locked chest/door
-- [ ] Generator: place locked chest → place matching key in earlier room
+### Content & systems
+- Map events: Monster House, Golden Vault, Lost NPC, hazard rooms, treasure goblin, healing fountain
+- Mimic creature + chest preset
+- Key item system + locked-chest puzzle placement
+- Equipment slots, weight limits, full inventory grid
+- Player light sources (torch/lantern, fog interplay, stealth tradeoff)
+- Ranged attacks (bow/crossbow, LoS, range bands)
+- AI: patrols, smarter targeting, enemy flee
+- Trap detection (Perception/Investigation)
 
-### Mimic
-- [ ] New creature type + ChestEntity behavior preset
-- [ ] On open → transform to mimic → enter combat
-- [ ] Mimic gets surprise round
+### Classes & abilities
+- Wizard, Cleric, Ranger progression
+- Spell slots + casting flow
+- AoE abilities (fireball, etc.)
+- Healing spells
 
-### Map Events (Random Floor Specials)
-- [ ] Monster House: room packed with 3-5x enemies, door locks, extra loot
-- [ ] Golden Vault: rare golden chest room, higher-tier loot
-- [ ] Lost NPC: prisoner/merchant/adventurer, dialog tree, rewards
-- [ ] Poison Gas Room: damage per turn, status effect, ventilation switch
-- [ ] Future ideas: treasure goblin, healing fountain, collapsed passage, altar, teleport trap
+### Polish
+- Crit display, chest log entries, dialog log entries
+- Death animation, level-up VFX, screen shake, floor theme variations
+- Stealth enter/break animations
+- Hunt-quest expansion (`hunt_named` injection)
+- Passive system (schema + starter set)
 
-### Equipment & Inventory
-- [ ] Equipment slots: weapon, off-hand, armor, helmet, ring, amulet
-- [ ] Inventory grid in side panel
-- [ ] Stat recalculation on equip change
-- [ ] Weight limit system (carry capacity from STR)
-- [ ] Shared `tryPickupItem()` for all loot flows
-
-### Player Light Source
-- [ ] Torch/lantern with configurable radius
-- [ ] Fog visibility scales with light source
-- [ ] Stealth tradeoff: light → easier to detect
-
-### Ranged Attacks
-- [ ] Support atkRange > 1 (bow, crossbow, thrown)
-- [ ] Line-of-sight check
-- [ ] Disadvantage at long range / melee range
-
-### AI Improvements
-- [ ] Patrol path following
-- [ ] Smarter targeting (lowest HP, closest)
-- [ ] Enemy flee behavior at low HP
-- [ ] Disengage mechanic investigation
+### Long-shot deep-dives (need their own ADR before starting)
+- Sprite/sound/music sourcing strategy (buy vs craft, asset criteria)
+- Multiple map generators (WFC, hand-stitched rooms)
+- Art direction (maps, characters, UI overhaul)
+- Backstory + main story + scripted quest framework
+- **Framework re-evaluation** (Phaser → alt; 2.5D/3D). Resolve before any heavy art/VFX work.
 
 ---
 
-## Phase 4: Polish & Expansion
-
-### Combat Log
-- [ ] Crit display simplification
-- [ ] Chest interaction log entries
-- [ ] Floor transition log entries
-- [ ] NPC dialog in log with 'dialog' category
-
-### Classes & Abilities
-- [ ] Wizard, Cleric, Ranger progression
-- [ ] Spell slots and casting
-- [ ] AoE abilities (fireball, etc.)
-- [ ] Healing spells
-
-### Art & VFX
-- [ ] DENZI CC0 sprites for items/icons
-- [ ] Tiny 16 animated characters
-- [ ] DCSS supplemental tiles
-- [ ] CobraLad portraits
-- [ ] Screen shake on big hits
-- [ ] Death animation for enemies
-- [ ] Level-up celebration effect
-- [ ] Floor theme variations
-- [ ] Stealth enter/break animations
-
-### Hunt Quest Expansion
-- [ ] `hunt_named` injection into valid depth/theme stage
-
-### Passive System Foundation
-- [ ] Define passive schema/triggers/effects
-- [ ] Small starter passive set
+## Deliberately out of v1
+- Multiple worlds — only Goblin Warren ships
+- Ranged attacks, multiple classes, spell slots
+- Map events / mimics / key items
+- Equipment slot polish, weight limit
+- Art & VFX polish
+- Framework re-evaluation
 
 ---
 
-## Testing Priorities
-- Contract test for transition keywords (`auto`, `boss`, `town`) ✅
-- [x] Triage and fix 23 failing Playwright e2e tests — root cause: broken local Playwright install (BUG-4 resolved 2026-04-18, suite 24/24 green)
-- [x] Fix loot gold collection e2e (`combat-attacks.spec.js`, BUG-5 resolved 2026-04-18 — passes with fixed Playwright env)
-- [x] Unit tests for run-state scaffold initialization/start-run fields (`tests/unit/sandbox/modloader-run-state.test.js`)
-- [x] Unit tests for run planner depth-band deterministic selection and descriptor resolution (`tests/unit/sandbox/modloader-auto-transition.test.js`)
-- [x] Unit tests for descriptor-to-stage resolution edge cases (stageOffset, OOB stageIndex, NaN, field priority, self-exclusion, weight=0, fallback chains) — `tests/unit/sandbox/modloader-auto-transition.test.js`
-- Unit tests for extraction/death inventory transfer
-- [~] E2E: town start → portal → generated stage → auto transition → return town
-- E2E: accept side quest → complete → reward on resolution
-
-## Risk Notes
+## Risk notes
 - Avoid overloading null `nextStage` with multiple meanings
 - Keep generated progression deterministic per seed
 - Don't let camp frequency erase attrition pressure
-- Avoid showing actions that aren't functionally implemented
+- Avoid showing actions that aren't functionally implemented (current shop/quest stubs are visible — un-stubbing is a v1 task)
+- Tune monster pools before content-balance rework — premature tuning gets wasted on placeholder data
 
-## Non-Goals for MVP
+## Non-goals (for v1, possibly forever)
 - Full WFC generator
 - Giant city/town simulation
-- Full NPC economy and reputation web
-- General equipment durability
+- NPC economy and reputation web
+- Equipment durability
 - Fully dynamic primary quest generation
+
+---
+
+## Testing priorities (v1)
+- [x] Run-state scaffold + auto-transition unit tests
+- [x] Descriptor resolution edge cases
+- [~] E2E: town start → portal → generated stage → auto transition → return town
+- [ ] E2E: accept side quest → complete → reward on resolution
+- [ ] E2E: full run to boss + win screen
+- [ ] E2E: shop buy/sell
+- [ ] Unit: extraction/death inventory transfer
