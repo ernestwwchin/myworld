@@ -15,6 +15,7 @@ Browser-based tactical RPG inspired by Baldur's Gate 3 and classic roguelikes.
 | **Building a mod** | [modding/](modding/README.md) — full schema, hooks, examples |
 | **Looking up D&D 5e rules** | [ref/](ref/5e.md) — weapons, armor, classes, spells, monsters, etc. |
 | **AI tools / contributors** | [engineering/](engineering/README.md) — architecture, conventions, testing, subsystem refs |
+| **Capturing a half-baked idea** | [ideas/](ideas/README.md) — free-form scratchpad; nothing here is a commitment |
 
 ## Trackers
 
