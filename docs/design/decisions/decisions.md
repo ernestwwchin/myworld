@@ -9,10 +9,10 @@ All significant design and tech choices, with rationale.
 
 | Date | Decision | Status |
 |---|---|---|
-| 2026-04-16 | [[2026-04-16-no-bundler\|No bundler (vanilla JS)]] | active |
-| 2026-04-16 | [[2026-04-16-yaml-data\|YAML for all game data]] | active |
-| 2026-04-16 | [[2026-04-16-bsp-map-gen\|BSP for map generation]] | active |
-| 2026-04-16 | [[2026-04-16-seeded-rng\|Mulberry32 seeded PRNG]] | active |
+| 2026-04-16 | [No bundler (vanilla JS)](2026-04-16-no-bundler.md) | active |
+| 2026-04-16 | [YAML for all game data](2026-04-16-yaml-data.md) | active |
+| 2026-04-16 | [BSP for map generation](2026-04-16-bsp-map-gen.md) | active |
+| 2026-04-16 | [Mulberry32 seeded PRNG](2026-04-16-seeded-rng.md) | active |
 
 ## Status legend
 - `active` — in effect
