@@ -61,31 +61,32 @@ status: active
    - [x] Resolve next stage descriptor from world/depth bands
    - [x] Make `nextStage:auto` deterministic per run seed/context
 2. **Random map generator**
-   - [ ] New file: `js/systems/map-generator.js`
+   - [x] Generator file lives at `js/mapgen.js` (cellular automata only, BSP TBD)
    - [ ] BSP room + corridor algorithm
-   - [ ] Stage YAML `generator:` block replaces `grid:` for random floors
-   - [ ] Config: width, height, room count/size ranges, corridor style
-   - [ ] Seed support: `seed: ~` (random) or `seed: 42` (reproducible)
-   - [ ] Auto-place: playerStart (first room), stairs/exit (last room)
+   - [x] Stage YAML `generator:` block replaces `grid:` for random floors
+   - [x] Config: width, height, plus CA-specific knobs
+   - [x] Seed support: persisted to localStorage so the same generated floor reappears
+   - [x] Auto-place: playerStart and stairs resolved at scene start (`_randomFloorTile()`)
    - [ ] Auto-generate lights per room (dim/bright based on config)
    - [ ] Feature tiles: water pools, grass patches
-   - [ ] ModLoader integration: detect `generator:` → run generator → produce grid/encounters/entities
+   - [x] ModLoader integration: detect `generator:` → run generator → produce grid/encounters/entities
 3. **Encounter placement**
+   - [x] `count: N` encounters resolved into floor positions at scene start
    - [ ] Weighted creature pool per floor config
    - [ ] Density levels: low / medium / high (enemies per room)
    - [ ] Boss room: optional boss + guards in deepest room
    - [ ] Group assignment: enemies in same room share a group
    - [ ] Scaling: higher floors → more enemies, tougher creatures
-4. **World 1 baseline (10-depth)**
-   - [ ] One portal world configured for 10-depth run
-   - [ ] Generated hostile stages + one guaranteed refuge + fixed boss stage
-   - [ ] Floor 1-4: goblin/skeleton pool, dark lighting
+4. **World 1 baseline (Goblin Warren — `01_goblin_invasion`)**
+   - [x] One portal world configured with `worlds.yaml` depthBands
+   - [~] Generated hostile stages + boss stage (refuge floors TBD)
+   - [~] Floor pools wired via creatures.yaml (full 10-depth tuning ongoing)
    - [ ] Floor 5: hand-crafted boss stage (goblin captain + guards)
    - [ ] Floor 6-9: undead/demon pool, darker theme
    - [ ] Floor 10: hand-crafted shrine (special dialog, reward, ending)
 5. **Inventory split + resolution**
-   - [ ] Carried vs stash data model
-   - [ ] Extraction banking and death loss rules (easy/normal/hard)
+   - [x] Carried (`PLAYER_STATS.inventory`) vs stash (`PLAYER_STATS.stash`) data model
+   - [x] Extraction banking and death loss (`resolution.extract` / `resolution.death` per world)
 6. **Side-quest board MVP**
    - [ ] Offer 2-3 contracts, accept up to 1-2
    - [ ] Templates: `depth_scout`, `hunt_cull`, `retrieve_item`

@@ -26,36 +26,23 @@ npm start
 - [index.html](index.html): Main game page and UI shell.
 - [test.html](test.html): Browser-based test runner page.
 - [server.js](server.js): Express server entrypoint.
-- [js](js): Runtime game logic (scene, UI, helpers, loader).
-- [data](data): YAML-driven game content and rules.
-- [data/stages](data/stages): Stage-folder content (BG3-style map/stage packaging).
-- [tests](tests): Node-based automated validation scripts.
+- [js/](js/): Runtime game logic (scene, UI, helpers, loader).
+- [data/](data/): YAML-driven mods. Folders are loaded in numeric-prefix order (`00_core` → `01_goblin_invasion` → …).
+- [tests/](tests/): Contracts, unit (pure + sandbox), and Playwright e2e suites.
 
-## Stage Folder Pattern
+## Documentation
 
-Preferred (BG3-like) stage definition location:
+Start at [docs/README.md](docs/README.md) — an audience-keyed index.
 
-- [data/stages/b1f/stage.yaml](data/stages/b1f/stage.yaml)
+| You are… | Start here |
+|---|---|
+| **Playing** | [docs/play/](docs/play/README.md) — controls, UI, combat rules |
+| **Designing features** | [docs/design/](docs/design/README.md) — concept, gameplay, world-gen, ADRs |
+| **Building a mod** | [docs/modding/](docs/modding/README.md) — schema, hooks, examples |
+| **Looking up D&D 5e rules** | [docs/ref/5e/](docs/ref/5e/README.md) |
+| **AI / contributors** | [docs/engineering/](docs/engineering/README.md) — architecture, conventions, testing |
 
-Loader behavior:
-
-- If a stage file under data/stages/map-id/stage.yaml exists, it is used.
-- Otherwise loader falls back to [data/core/maps.yaml](data/core/maps.yaml).
-
-## Documentation Index
-
-- [Battle System Rules](BATTLE_SYSTEM.md): Combat entry, alert logic, actions, flee rules, and conditions.
-
-## Combat Initiation Reminder
-
-Current intended flow (BG3-style):
-
-1. In explore mode, Engage first moves the player into melee range.
-2. A single opener attack is resolved before combat mode begins.
-3. If the opener misses, combat does not start.
-4. If the opener lands, combat starts and initiative is rolled for everyone.
-5. Initiative ordering uses roll plus Dexterity modifier (highest first).
-6. Surprise is applied to unaware enemies and causes a first-turn skip; it does not change initiative score.
+Trackers: [docs/BUGS.md](docs/BUGS.md) · [docs/ROADMAP.md](docs/ROADMAP.md)
 
 ## Testing
 
@@ -76,37 +63,6 @@ npm run test:e2e
 - This repo currently runs `playwright install` via `postinstall` for convenience.
 - Manual fallback: `npm run e2e:install:browsers`
 - Both unit and e2e tests run on every PR via CI and must pass before merge.
-
-## Backend Debug Tools
-
-The server now includes opt-in debug helpers for local backend diagnostics.
-
-Enable debug endpoints:
-
-```bash
-DEBUG_TOOLS=1 npm start
-```
-
-Enable request timing logs:
-
-```bash
-DEBUG_LOG_REQUESTS=1 npm start
-```
-
-Useful endpoints:
-
-- <http://localhost:3000/health>
-- <http://localhost:3000/_debug/health> (when `DEBUG_TOOLS=1`)
-- <http://localhost:3000/_debug/config> (when `DEBUG_TOOLS=1`)
-- <http://localhost:3000/_debug/routes> (when `DEBUG_TOOLS=1`)
-
-Optional protection token for non-local access:
-
-```bash
-DEBUG_TOOLS=1 DEBUG_TOKEN=your-secret npm start
-```
-
-Then pass header `x-debug-token: your-secret` or query `?token=your-secret`.
 
 ## CI/CD
 

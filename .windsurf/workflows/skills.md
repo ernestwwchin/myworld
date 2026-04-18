@@ -1,24 +1,12 @@
 ---
-description: Show AI skills documentation for quick reference
+description: Pointer to the docs index for AI assistants
 ---
 
-# AI Skills Documentation
+# Docs Quick Reference
 
-Focused skills files in `docs/skills/`. Load only what's relevant to your current task.
+The old `docs/skills/` folder has been redistributed. Start at [`docs/README.md`](../../docs/README.md) for the audience-keyed index, then drill into:
 
-## Skills Files
-
-| File | Purpose | When to load |
-|------|---------|--------------|
-| `skills-project.md` | Conventions, globals, file structure | **Always** |
-| `skills-architecture.md` | Module extraction, system design | Refactoring / new systems |
-| `skills-dnd5e.md` | Dice, combat, ability scores | Game mechanics work |
-| `skills-testing.md` | Test patterns, mocks, debugging | Writing/fixing tests |
-| `skills-modding.md` | YAML data, modding API | Data/modding work |
-
-## Usage Examples
-
-- **Refactoring game.js** → `skills-project` + `skills-architecture`
-- **Implementing combat damage** → `skills-project` + `skills-dnd5e`
-- **Writing unit tests** → `skills-project` + `skills-testing`
-- **Adding new weapon data** → `skills-project` + `skills-modding`
+- [`docs/engineering/`](../../docs/engineering/README.md) — architecture, conventions, testing (former `skills-architecture` / `skills-project` / `skills-testing`)
+- [`docs/modding/README.md`](../../docs/modding/README.md) — full modding reference
+- [`docs/ref/5e/`](../../docs/ref/5e/README.md) — D&D 5e rules
+- [`CLAUDE.md`](../../CLAUDE.md) — auto-loaded AI guidance for Claude Code

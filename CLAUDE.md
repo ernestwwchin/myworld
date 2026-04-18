@@ -31,7 +31,7 @@ Mods are folders under `data/` with two-digit numeric prefixes that drive load o
 
 Stage folder layout: `data/<mod>/stages/<stage_id>/{stage.yaml, events.yaml, dialogs.yaml}`. **`events.yaml` and `dialogs.yaml` are optional but every fetched path must exist** — when adding a new stage, create stub `events: []` and `dialogs: {}` files to avoid 404s in the network panel (the loader handles missing files gracefully but the noise is undesirable; this was BUG-6).
 
-Design intent for any mod-facing change is in `.github/instructions/bg3-modding.instructions.md`: prefer YAML-driven mechanics, status-based rules over hardcoded special cases, and keep JS additions generic so multiple mods can reuse them. The full authoring reference is `docs/modding_guide.md`.
+Design intent for any mod-facing change is in `.github/instructions/bg3-modding.instructions.md`: prefer YAML-driven mechanics, status-based rules over hardcoded special cases, and keep JS additions generic so multiple mods can reuse them. The full authoring reference is `docs/modding/README.md`.
 
 ### Stage progression and run state
 `stage.yaml` declares `nextStage:` as either a literal stage id, `auto` (run planner picks based on `worlds.yaml` `depthBands`/`stageSequence`), `boss` (active world's `bossStage`), or `town` (configured hub). Resolution lives in `ModLoader.resolveNextStage()` and `_resolveStageDescriptor()` — depth-band entries can be strings or objects (`stageId`/`stage`/`id`/`targetStage`, `stageIndex`, `stageOffset`, `token`, optional `weight`).
@@ -44,7 +44,7 @@ Stages with a `generator:` block (instead of `grid:`) run `js/mapgen.js` — cur
 For generated stages, `encounters:` use `count: N` (no x/y) and `applyCreatures` emits entries with `tx: -1, ty: -1`; `js/game.js:_randomFloorTile()` resolves them into actual positions at scene start.
 
 ### Modes and turn flow
-Two modes: `MODE.EXPLORE` and `MODE.COMBAT`. Combat entry uses BG3-style "engage → opener attack → on-hit start combat → roll initiative" flow (see `BATTLE_SYSTEM.md` and the README "Combat Initiation Reminder" for canonical rules). Mode logic lives in `js/modes/`; combat AI in `js/modes/combat-ai.js`.
+Two modes: `MODE.EXPLORE` and `MODE.COMBAT`. Combat entry uses BG3-style "engage → opener attack → on-hit start combat → roll initiative" flow (see `docs/play/combat.md` for canonical rules). Mode logic lives in `js/modes/`; combat AI in `js/modes/combat-ai.js`.
 
 ### Inventory model
 `PLAYER_STATS.inventory` is the **carried** run inventory. `PLAYER_STATS.stash` is **persistent town storage**. Extraction (per `resolution.extract.bankCarriedToStash`) moves carried → stash; death applies `goldLossPct` and `carriedItemLoss` per world config. Town interactables (`stash`/`stash_deposit_all`/`stash_withdraw_all`/`shop`/`quests`) are wired in `js/entities/interactable-entity.js` — `shop` and `quests` are currently stubs returning "Coming soon".
@@ -59,7 +59,7 @@ Two modes: `MODE.EXPLORE` and `MODE.COMBAT`. Combat entry uses BG3-style "engage
 After Phaser destroys a sprite, **null out the reference and guard subsequent access with `.active`** — this was the root cause of post-kill freeze bugs (see `docs/BUGS.md` archive). The same lesson applies to fog/sight overlays, which must be cleared on combat enter/exit.
 
 ### Server
-`server.js` is a 17-line static Express server. Port via `PORT` env var (defaults 3000; e2e uses 3100). The README mentions `DEBUG_TOOLS=1` debug endpoints — they're not actually present in the current `server.js`; treat that section of the README as aspirational/stale.
+`server.js` is a 17-line static Express server. Port via `PORT` env var (defaults 3000; e2e uses 3100). No debug endpoints; the older `DEBUG_TOOLS=1` section was removed from the README.
 
 ## Conventions and gotchas
 
@@ -94,9 +94,12 @@ Subsystem directories — the names are short; their responsibilities are not. U
 
 ## Key documentation
 
-- `docs/modding_guide.md` — full mod authoring reference (tiers, hooks, schema)
+- `docs/README.md` — top-level docs index, organized by audience (play/design/modding/ref/engineering/ideas)
+- `docs/engineering/` — AI/dev reference (architecture, conventions, testing, subsystem refs)
+- `docs/modding/README.md` — full mod authoring reference (tiers, hooks, schema)
+- `docs/play/combat.md` — combat entry/turn/flee rules
+- `docs/design/` — concept, gameplay, world-gen, story, decisions (ADRs)
+- `docs/ref/5e/` — D&D 5e rules reference
 - `docs/BUGS.md` — bug tracker (with archived fix notes worth scanning before re-investigating issues)
 - `docs/ROADMAP.md` — feature plan (treat as direction, not state)
-- `BATTLE_SYSTEM.md` — combat entry/turn/flee rules
-- `docs/ai_behavior.md`, `docs/fog-of-war.md`, `docs/depth-layers.md`, `docs/debug-bridge.md` — focused subsystem references
 - `.github/instructions/bg3-modding.instructions.md` — design intent for mod-facing changes
