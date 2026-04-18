@@ -1,3 +1,7 @@
+---
+tags: [myworld, docs]
+---
+
 # AI Behavior Design — MyWorld RPG
 
 ## Overview

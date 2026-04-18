@@ -1,3 +1,7 @@
+---
+tags: [myworld, docs]
+---
+
 # Sprite & Asset Documentation
 
 ## Overview

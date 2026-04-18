@@ -1,3 +1,7 @@
+---
+tags: [myworld, docs]
+---
+
 # UI Design: BG3 Comparison & Improvements
 
 Current state analysis vs Baldur's Gate 3 UI patterns, with actionable improvements.

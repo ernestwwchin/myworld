@@ -1,0 +1,4 @@
+# Goblin Warren Cave B1F — stage events
+# No scripted events yet; encounters are handled via stage.yaml/encounters.
+
+events: []

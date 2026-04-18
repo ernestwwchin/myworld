@@ -1,3 +1,7 @@
+---
+tags: [myworld, docs]
+---
+
 # Depth Layer Reference
 
 Phaser renders objects with higher depth values on top of lower ones.

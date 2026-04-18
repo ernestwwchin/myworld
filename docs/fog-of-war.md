@@ -1,3 +1,7 @@
+---
+tags: [myworld, docs]
+---
+
 # Fog of War Rendering Approach
 
 This project uses a hybrid fog-of-war renderer that balances smooth visuals and runtime performance.

@@ -1,0 +1,4 @@
+# Goblin Warren B2F — stage events
+# No scripted events yet; encounters are handled via stage.yaml/encounters.
+
+events: []

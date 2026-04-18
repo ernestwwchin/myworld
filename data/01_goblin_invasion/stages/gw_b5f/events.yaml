@@ -1,0 +1,4 @@
+# Goblin Warren B5F — stage events
+# Boss floor; gameplay events live in stage.yaml/encounters for now.
+
+events: []

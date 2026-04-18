@@ -1,9 +1,17 @@
+---
+tags: [myworld, bugs]
+status: active
+---
+
 # Known Bugs & Issues
 
 ## Fixed (Archived)
 - ~~BUG-1: Stairs transition not working~~ — Fixed: wired in movement-system.js
 - ~~BUG-2: "undefined enemies" in combat message~~ — Fixed: enemy name fallback chain
 - ~~BUG-3: Flee zone overlay not visible~~ — Fixed: depth/alpha corrected
+- ~~BUG-4: E2E test suite failures (23 tests)~~ — Resolved 2026-04-18: caused by broken local Playwright install (0-byte CLI binary, missing chromium browser). Restored CLI symlink + `npx playwright install chromium`; full suite now 24/24 green.
+- ~~BUG-5: Loot gold collection in e2e~~ — Resolved 2026-04-18: `combat-attacks.spec.js` "defeated enemy grants loot-table rewards" now passes once the e2e environment is fixed (no code change required).
+- ~~BUG-6: Missing mod data files (404s)~~ — Resolved 2026-04-18: stub `items.yaml`/`events.yaml`/`dialogs.yaml` created for goblin warren stages and test stages that lacked them; fetches no longer 404.
 - ~~Kill freeze after defeating enemy~~ — Fixed: null out Phaser refs after destroy, `.active` guards
 - ~~Permanent sight line after combat~~ — Fixed: clearSightOverlays on enter/exit combat
 - ~~Damage text unreadable in dark areas~~ — Fixed: depth 31 + stroke 5
@@ -20,20 +28,7 @@
 ### Note: deterministic planner + descriptor update (2026-04-13)
 - `nextStage:auto` now resolves deterministically from run context (seed/run/world/depth), replacing random picks.
 - Depth-band stage descriptors now support object forms (`stageId`/`stage`/`id`/`targetStage`, `stageIndex`, `stageOffset`, `token`, optional `weight`).
-- Added sandbox coverage: `tests/unit/sandbox/modloader-auto-transition.test.js`.
+- Added sandbox coverage: `tests/unit/sandbox/modloader-auto-transition.test.js` (12 edge-case tests added 2026-04-18 covering stageOffset, out-of-range stageIndex, NaN values, descriptor field priority, self-exclusion, weight clamping, and fallback chains).
 - Added smoke regression: `tests/e2e/run-progression-smoke.spec.js` (portal entry, deterministic auto target resolve, extraction back to town).
 
-### BUG-4: E2E test suite failures
-- 23 Playwright e2e tests failing (may be environment/server or test rot)
-- Unit tests (21/21) and contract tests all pass
-- Need to triage: which failures are real bugs vs stale test expectations
-
-### BUG-5: Loot gold collection in e2e
-- `combat-attacks.spec.js` expects `pStats.gold` to increase after enemy defeat
-- Floor loot bag spawns but gold routing to player stats may not work correctly
-- Related: `floor-item-handler.js`, `inventory-system.js`
-
-### BUG-6: Missing mod data files (404s)
-- `data/01_goblin_invasion/items.yaml` — 404 (file doesn't exist)
-- Some stage `events.yaml` and `dialogs.yaml` — 404 (referenced but not created)
-- Non-blocking (ModLoader handles gracefully) but should be resolved
+_No active bugs at present (2026-04-18). Phase 2 work tracked in `ROADMAP.md`._

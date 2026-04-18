@@ -1,3 +1,7 @@
+---
+tags: [myworld, docs]
+---
+
 # Modding Guide
 
 How to create mods for MyWorld RPG. Covers YAML data mods, JavaScript hooks, and restrictions.

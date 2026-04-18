@@ -1,3 +1,8 @@
+---
+tags: [myworld, roadmap]
+status: active
+---
+
 # MyWorld RPG — Roadmap
 
 ## Legend
@@ -187,11 +192,11 @@ town_idle → town_prep → run_start → run_active → run_extraction/run_deat
 
 ## Testing Priorities
 - Contract test for transition keywords (`auto`, `boss`, `town`) ✅
-- [ ] Triage and fix 23 failing Playwright e2e tests (see `docs/BUGS.md` BUG-4)
-- [ ] Fix loot gold collection e2e (`combat-attacks.spec.js`, BUG-5)
+- [x] Triage and fix 23 failing Playwright e2e tests — root cause: broken local Playwright install (BUG-4 resolved 2026-04-18, suite 24/24 green)
+- [x] Fix loot gold collection e2e (`combat-attacks.spec.js`, BUG-5 resolved 2026-04-18 — passes with fixed Playwright env)
 - [x] Unit tests for run-state scaffold initialization/start-run fields (`tests/unit/sandbox/modloader-run-state.test.js`)
 - [x] Unit tests for run planner depth-band deterministic selection and descriptor resolution (`tests/unit/sandbox/modloader-auto-transition.test.js`)
-- [ ] Unit tests for generator descriptor-to-stage resolution edge cases
+- [x] Unit tests for descriptor-to-stage resolution edge cases (stageOffset, OOB stageIndex, NaN, field priority, self-exclusion, weight=0, fallback chains) — `tests/unit/sandbox/modloader-auto-transition.test.js`
 - Unit tests for extraction/death inventory transfer
 - [~] E2E: town start → portal → generated stage → auto transition → return town
 - E2E: accept side quest → complete → reward on resolution

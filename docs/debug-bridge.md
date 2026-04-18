@@ -1,3 +1,7 @@
+---
+tags: [myworld, docs]
+---
+
 # Remote Debug Bridge
 
 Backend-to-frontend debug interface using SSE + curl. Requires `DEBUG_TOOLS=1`.

@@ -1,3 +1,7 @@
+---
+tags: [myworld, docs]
+---
+
 # Tileset and Sprite Sourcing Guide
 
 This guide helps choose additional tilesets and sprite packs for richer map content while keeping licensing and integration safe.

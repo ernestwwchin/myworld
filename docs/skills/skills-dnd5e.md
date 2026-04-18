@@ -25,7 +25,7 @@ const result = dnd.rollDamageSpec('1d12+1d4+3', isCrit);
 ### Armor Class (AC)
 - Base AC depends on armor type + DEX modifier
 - Shield adds +2
-- Formula in `docs/ref/armor_5e.md`
+- Formula in `docs/ref/armor.md`
 
 ### Attack Rolls
 - Roll: `1d20 + ability modifier + proficiency bonus`
@@ -53,14 +53,14 @@ const result = dnd.rollDamageSpec('1d12+1d4+3', isCrit);
 Key conditions: Blinded, Charmed, Frightened, Grappled, Incapacitated,
 Invisible, Paralyzed, Poisoned, Prone, Restrained, Stunned, Unconscious
 
-- Details in `docs/ref/statuses_5e.md`
+- Details in `docs/ref/statuses.md`
 - Applied via `processStatusEffectsForActor(actor, trigger, context)`
 
 ## Reference Docs
 
-- `docs/ref/classes_5e.md` — Class features and progression
-- `docs/ref/monsters_5e.md` — Creature stats and CR
-- `docs/ref/weapons_5e.md` — Weapon damage and properties
-- `docs/ref/spells_5e.md` — Spells by level and class
-- `docs/ref/feats_5e.md` — Feat prerequisites and benefits
-- `docs/ref/races_5e.md` — Racial traits and bonuses
+- `docs/ref/classes.md` — Class features and progression
+- `docs/ref/monsters.md` — Creature stats and CR
+- `docs/ref/weapons.md` — Weapon damage and properties
+- `docs/ref/spells.md` — Spells by level and class
+- `docs/ref/feats.md` — Feat prerequisites and benefits
+- `docs/ref/races.md` — Racial traits and bonuses

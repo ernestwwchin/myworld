@@ -1,0 +1,5 @@
+# Goblin Invasion — mod-specific items
+# Currently empty; the goblin warren campaign reuses items from data/00_core/items.yaml.
+# Add mod-specific items below under `items:` when needed.
+
+items: {}
