@@ -18,3 +18,11 @@ assets/_downloads/
 assets/_staging/
 **/_MACOSX/
 **/.DS_Store
+
+# Obsidian — workspace state is machine-specific; plugin binaries are re-fetched from manifests
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache
+.obsidian/plugins/*/main.js
+.obsidian/plugins/*/styles.css
+.obsidian/plugins/*/data.json

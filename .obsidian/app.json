@@ -1,0 +1,12 @@
+{
+  "userIgnoreFilters": [
+    "js",
+    "data",
+    "assets",
+    "node_modules",
+    "test-results",
+    "playwright-report",
+    "infra",
+    ".githooks"
+  ]
+}
