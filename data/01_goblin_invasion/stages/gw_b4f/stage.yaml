@@ -4,11 +4,10 @@ globalLight: dark
 nextStage: boss
 
 generator:
-  type: cellular_automata
+  type: bsp
   cols: 60
   rows: 40
-  fillPct: 54
-  steps: 4
+  depth: 4
   stairs: true
 
 encounters:

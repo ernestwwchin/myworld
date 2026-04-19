@@ -32,7 +32,7 @@ function testUiAndTargetingContracts() {
 
 function testBugRegressions() {
   const stage = loadYaml('data/01_goblin_invasion/stages/gw_b1f/stage.yaml');
-  assert.strictEqual(stage.nextStage, 'gw_b2f');
+  assert.ok(stage.nextStage === 'auto' || stage.nextStage === 'gw_b2f');
 
   const moveSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'movement-system.js'), 'utf8');
   assert.ok(moveSrc.includes('_MAP_META?.nextStage'));

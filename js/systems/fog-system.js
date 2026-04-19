@@ -24,6 +24,12 @@ const GameSceneFogSystem = {
 
   updateFogOfWar() {
     if (!this.fogLayer || !this._fogCtx) return;
+    // Guard: bail out if scene arrays don't match current map dimensions.
+    // During floor transitions, applyMap() updates ROWS/COLS before the old
+    // scene restarts — stale timer callbacks (wanderEnemies, etc.) can reach
+    // here with fogVisited/fogVisible still sized for the old map.
+    if (!this.fogVisited || this.fogVisited.length !== ROWS || !this.fogVisited[0] || this.fogVisited[0].length !== COLS) return;
+    if (!this.fogVisible || this.fogVisible.length !== ROWS || !this.fogVisible[0] || this.fogVisible[0].length !== COLS) return;
     const ctx = this._fogCtx;
     const W = COLS * S, H = ROWS * S;
     ctx.clearRect(0, 0, W, H);

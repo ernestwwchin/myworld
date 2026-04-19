@@ -514,13 +514,13 @@ function testEventsYamlExistence() {
     }
   }
 
-  // gw_b1f should have events.yaml with story events
-  const gwEvts = loadYaml('data/01_goblin_invasion/stages/gw_b1f/events.yaml');
-  assert.ok(Array.isArray(gwEvts.events), 'gw_b1f events.yaml must have events array');
-  assert.ok(gwEvts.events.length > 0, 'gw_b1f must have at least one event');
+  // gw_scripted_b1f should have events.yaml with story events
+  const gwEvts = loadYaml('data/01_goblin_invasion/stages/gw_scripted_b1f/events.yaml');
+  assert.ok(Array.isArray(gwEvts.events), 'gw_scripted_b1f events.yaml must have events array');
+  assert.ok(gwEvts.events.length > 0, 'gw_scripted_b1f must have at least one event');
   for (const evt of gwEvts.events) {
-    assert.ok(evt.trigger, `gw_b1f event missing trigger: ${evt.id || '?'}`);
-    assert.ok(Array.isArray(evt.steps), `gw_b1f event missing steps: ${evt.id || '?'}`);
+    assert.ok(evt.trigger, `gw_scripted_b1f event missing trigger: ${evt.id || '?'}`);
+    assert.ok(Array.isArray(evt.steps), `gw_scripted_b1f event missing steps: ${evt.id || '?'}`);
   }
 }
 
@@ -595,10 +595,10 @@ function testPatrolPathContracts() {
   assert.ok(src.includes('bfs(e.tx,e.ty,tgt.x,tgt.y'),
     'wanderEnemies must BFS from enemy tile toward patrol waypoint');
 
-  // gw_b1f encounters must have patrolPath on relevant enemies
-  const stage = loadYaml('data/01_goblin_invasion/stages/gw_b1f/stage.yaml');
+  // gw_scripted_b1f encounters must have patrolPath on relevant enemies
+  const stage = loadYaml('data/01_goblin_invasion/stages/gw_scripted_b1f/stage.yaml');
   const patrolEncs = stage.encounters.filter(enc => enc.ai && enc.ai.patrolPath);
-  assert.ok(patrolEncs.length > 0, 'gw_b1f must have at least one encounter with ai.patrolPath');
+  assert.ok(patrolEncs.length > 0, 'gw_scripted_b1f must have at least one encounter with ai.patrolPath');
   for (const enc of patrolEncs) {
     assert.ok(Array.isArray(enc.ai.patrolPath), `encounter at (${enc.x},${enc.y}) patrolPath must be an array`);
     assert.ok(enc.ai.patrolPath.length >= 2, `patrol path must have at least 2 waypoints`);
@@ -613,7 +613,9 @@ function testPatrolPathContracts() {
 function testBug1_StairsNextStage() {
   const stage = loadYaml('data/01_goblin_invasion/stages/gw_b1f/stage.yaml');
   assert.ok(stage.nextStage, 'BUG-1: gw_b1f stage.yaml must declare nextStage');
-  assert.strictEqual(stage.nextStage, 'gw_b2f', 'BUG-1: gw_b1f nextStage must be gw_b2f');
+  // nextStage can be 'auto' (resolved at runtime) or a direct stage id
+  assert.ok(stage.nextStage === 'auto' || stage.nextStage === 'gw_b2f',
+    'BUG-1: gw_b1f nextStage must be auto or gw_b2f');
 
   // Target stage must actually exist
   const targetPath = path.join(root, 'data/01_goblin_invasion/stages/gw_b2f/stage.yaml');

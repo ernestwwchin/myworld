@@ -1,0 +1,20 @@
+# Test: Autorun Floor 2
+# Destination floor for the autorun test. No enemies, no stairs.
+# The test verifies we arrived here after clearing F1 and taking the stairs.
+
+name: "Test: Autorun F2"
+floor: TAR2
+globalLight: bright
+nextStage: ~
+
+grid:
+  - "#########"
+  - "#.......#"
+  - "#.......#"
+  - "#.......#"
+  - "#.......#"
+  - "#.......#"
+  - "#########"
+
+playerStart: { x: 1, y: 1 }
+encounters: []

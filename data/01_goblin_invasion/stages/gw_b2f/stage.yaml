@@ -4,11 +4,10 @@ globalLight: dark
 nextStage: gw_b3f
 
 generator:
-  type: cellular_automata
+  type: bsp
   cols: 56
   rows: 36
-  fillPct: 50
-  steps: 5
+  depth: 2
   stairs: true
 
 encounters:

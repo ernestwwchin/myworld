@@ -1,0 +1,25 @@
+# Test: Autorun Floor 1
+# Small crafted map with 2 weak goblins and stairs.
+# Player starts at (1,4); enemies at (3,4) and (3,3) — close but not adjacent.
+# Stairs at (9,1) in far corner.
+
+name: "Test: Autorun F1"
+floor: TAR1
+globalLight: bright
+nextStage: ts_autorun_f2
+
+grid:
+  - "###########"
+  - "#.........#"
+  - "#.........#"
+  - "#.........#"
+  - "#.........#"
+  - "#.........#"
+  - "#....S....#"
+  - "#.........#"
+  - "###########"
+
+playerStart: { x: 1, y: 4 }
+encounters:
+  - { creature: goblin, x: 3, y: 4, facing: 180 }
+  - { creature: goblin, x: 3, y: 3, facing: 180 }

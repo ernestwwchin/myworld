@@ -1,0 +1,275 @@
+# B1F — The Warren Gate
+# Floor: Basement 1st Floor — Full Goblin Base (56×36)
+# Loaded preferentially by modloader when activeMap: gw_b1f
+#
+# NOTE: This map is for layout/encounter testing only.
+# Several features defined here are NOT yet implemented in the engine:
+#   - Chest interaction & loot tables (chests render but cannot be opened)
+#   - Key item system (locked doors with keyId will not unlock)
+#   - Prisoner interactables (kind: prisoner has no interaction handler)
+#   - AI patrol paths (ai.patrolPath parsed but patrol movement unconfirmed)
+# See interactable-system.js and door-system.js for implementation status.
+
+name: "B1F — The Warren Gate"
+floor: B1F
+globalLight: dark
+nextStage: gw_b2f
+
+lights:
+  # Entry — bright, first safe zone
+  - { x: 10, y: 2,  radius: 5, level: bright }
+  # Barracks — dim, goblins sleep
+  - { x: 12, y: 7,  radius: 4, level: dim }
+  # Storage
+  - { x: 28, y: 6,  radius: 3, level: dim }
+  # East guard post
+  - { x: 42, y: 4,  radius: 4, level: dim }
+  - { x: 50, y: 10, radius: 3, level: dim }
+  # Main corridor — well-lit, DANGER ZONE for stealth
+  - { x: 12, y: 13, radius: 5, level: bright }
+  - { x: 38, y: 13, radius: 5, level: bright }
+  # Prison — dim, eerie
+  - { x: 12, y: 19, radius: 3, level: dim }
+  # Captain's chamber — brightly lit
+  - { x: 30, y: 17, radius: 5, level: bright }
+  # Ritual study — eerie dim
+  - { x: 42, y: 16, radius: 3, level: dim }
+  # Water pool glow
+  - { x: 46, y: 19, radius: 2, level: dim }
+  # Lower corridor — dramatic
+  - { x: 26, y: 25, radius: 4, level: bright }
+  # Descent chamber — ominous
+  - { x: 36, y: 30, radius: 4, level: bright }
+
+grid:
+  - "########################################################"
+  - "#....................#............#....................#"
+  - "#....................#............#....................#"
+  - "#....................D............D....................#"
+  - "#....................#............#....................#"
+  - "#....................#............#....................#"
+  - "#....................#............#....................#"
+  - "#....................D............D....................#"
+  - "#....................#....C......#....................#"
+  - "#......#.............#............#....................#"
+  - "#......D.............#............#............C.......#"
+  - "#..C...#.............#............#....................#"
+  - "#......#.............#............#....................#"
+  - "#......................................................#"
+  - "#......................................................#"
+  - "#.....#............#.................#.................#"
+  - "#.....#............#.................#.................#"
+  - "#.....D............#.................#.................#"
+  - "#.....#............#.................#.....~~~~~......#"
+  - "#.....#............#.................#.....~~~~~...C..#"
+  - "#######............#.....#...........#.....~~~~~......#"
+  - "#.....#............#.....D...........#.................#"
+  - "#.....D............#..C..#...........#.................#"
+  - "#.....#............#.....#...........#.................#"
+  - "#.....#............#.....#...........#.................#"
+  - "#......................................................#"
+  - "#......................................................#"
+  - "####################################D###################"
+  - "############################.................###########"
+  - "############################..............C.###########"
+  - "############################.................###########"
+  - "############################........S........###########"
+  - "############################.................###########"
+  - "############################.................###########"
+  - "########################################################"
+  - "########################################################"
+
+playerStart: { x: 2, y: 2 }
+
+encounters:
+  # Entry patrol — timing-based stealth challenge
+  - creature: goblin
+    x: 8
+    y: 2
+    facing: 0
+    group: entry_patrol
+    ai:
+      patrolPath:
+        - { x: 8,  y: 2 }
+        - { x: 18, y: 2 }
+
+  - creature: goblin
+    x: 18
+    y: 4
+    facing: 180
+    group: entry_patrol
+    ai:
+      patrolPath:
+        - { x: 18, y: 4 }
+        - { x: 8,  y: 4 }
+
+  # Barracks patrol — loops the barracks area
+  - creature: goblin
+    x: 5
+    y: 6
+    facing: 0
+    group: barracks
+    ai:
+      patrolPath:
+        - { x: 3,  y: 6 }
+        - { x: 18, y: 6 }
+        - { x: 18, y: 12 }
+        - { x: 3,  y: 12 }
+
+  - creature: goblin
+    x: 15
+    y: 11
+    facing: 180
+    group: barracks
+    ai:
+      patrolPath:
+        - { x: 15, y: 9 }
+        - { x: 8,  y: 9 }
+        - { x: 8,  y: 12 }
+        - { x: 15, y: 12 }
+
+  # Main corridor patrol — well-lit danger zone
+  - creature: goblin
+    x: 27
+    y: 14
+    facing: 0
+    group: corridor_patrol
+    ai:
+      patrolPath:
+        - { x: 2,  y: 14 }
+        - { x: 52, y: 14 }
+        - { x: 52, y: 13 }
+        - { x: 2,  y: 13 }
+
+  # Storage guard — stationary
+  - creature: goblin
+    x: 30
+    y: 9
+    facing: 270
+    group: ~
+
+  # East guard post patrol
+  - creature: goblin
+    x: 40
+    y: 4
+    facing: 180
+    group: east_guards
+    ai:
+      patrolPath:
+        - { x: 38, y: 3 }
+        - { x: 52, y: 3 }
+
+  - creature: goblin
+    x: 50
+    y: 11
+    facing: 90
+    group: east_guards
+    ai:
+      patrolPath:
+        - { x: 52, y: 11 }
+        - { x: 38, y: 11 }
+
+  # Prison corridor patrol
+  - creature: goblin
+    x: 10
+    y: 20
+    facing: 0
+    group: ~
+    ai:
+      patrolPath:
+        - { x: 8,  y: 16 }
+        - { x: 17, y: 16 }
+        - { x: 17, y: 24 }
+        - { x: 8,  y: 24 }
+
+  # Captain's chamber — patrol + heavy guard
+  - creature: goblin_captain
+    x: 28
+    y: 17
+    facing: 180
+    group: captain_detail
+    ai:
+      patrolPath:
+        - { x: 21, y: 16 }
+        - { x: 35, y: 16 }
+        - { x: 35, y: 24 }
+        - { x: 21, y: 24 }
+
+  - creature: orc
+    x: 33
+    y: 23
+    facing: 90
+    group: captain_detail
+
+  # Ritual study — shaman, stationary
+  - creature: goblin_shaman
+    x: 45
+    y: 21
+    facing: 270
+    group: ~
+
+  # Descent chamber — skeleton guardian
+  - creature: skeleton
+    x: 36
+    y: 30
+    facing: 90
+    group: ~
+
+interactables:
+  # ── Doors ─────────────────────────────────────────────
+  - { id: door_entry_w,      kind: door, x: 21, y: 3,  behavior: standard }
+  - { id: door_entry_e,      kind: door, x: 34, y: 3,  behavior: standard }
+  - { id: door_barracks_stg, kind: door, x: 21, y: 7,  behavior: standard }
+  - { id: door_storage_east, kind: door, x: 34, y: 7,  behavior: standard }
+  - { id: door_bunk,         kind: door, x: 7,  y: 10, behavior: standard }
+  - { id: door_cell1,        kind: door, x: 6,  y: 17, behavior: locked, locked: true, keyId: prison_key }
+  - { id: door_cell2,        kind: door, x: 6,  y: 22, behavior: locked, locked: true, keyId: prison_key }
+  - { id: door_alcove,       kind: door, x: 25, y: 21, behavior: standard }
+  - { id: door_descent,      kind: door, x: 36, y: 27, behavior: locked, locked: true, keyId: descent_key }
+
+  # ── Chests ────────────────────────────────────────────
+  - { id: chest_bunk,    kind: chest, x: 3,  y: 11, tags: [loot],       state: { opened: false, lootTable: hidden_stash } }
+  - { id: chest_storage, kind: chest, x: 27, y: 8,  tags: [loot],       state: { opened: false, lootTable: starter_common } }
+  - { id: chest_east,    kind: chest, x: 47, y: 10, tags: [loot],       state: { opened: false, lootTable: starter_common } }
+  - { id: chest_captain, kind: chest, x: 22, y: 22, tags: [loot, key],  state: { opened: false, lootTable: prison_key } }
+  - { id: chest_ritual,  kind: chest, x: 52, y: 19, tags: [loot, key],  state: { opened: false, lootTable: descent_key } }
+  - { id: chest_descent, kind: chest, x: 42, y: 29, tags: [loot],       state: { opened: false, lootTable: boss_prep } }
+
+  # ── Prisoners ─────────────────────────────────────────
+  - { id: prisoner_marta, kind: prisoner, x: 2, y: 17, tags: [npc], state: { rescued: false, name: "Villager Marta", hint: "The captain keeps all his valuables in the back room." } }
+  - { id: prisoner_goren, kind: prisoner, x: 2, y: 22, tags: [npc], state: { rescued: false, name: "Elder Goren",    hint: "The shaman knows the way down. She keeps the key close." } }
+
+  # ── Traps ─────────────────────────────────────────────
+  - { id: trap_bunk_entry, kind: floor_trap, x: 8,  y: 10, tags: [trap], state: { armed: true, damage: '1d4' } }
+  - { id: trap_corridor,   kind: floor_trap, x: 38, y: 14, tags: [trap], state: { armed: true, damage: '1d6' } }
+  - { id: trap_descent_1,  kind: floor_trap, x: 30, y: 30, tags: [trap], state: { armed: true, damage: '1d8' } }
+  - { id: trap_descent_2,  kind: floor_trap, x: 40, y: 32, tags: [trap], state: { armed: true, damage: '1d8' } }
+
+  # ── Torches ───────────────────────────────────────────
+  - { id: torch_entry,     kind: torch, x: 10, y: 2,  tags: [light, decor], state: { lit: true } }
+  - { id: torch_barracks,  kind: torch, x: 12, y: 7,  tags: [light, decor], state: { lit: true } }
+  - { id: torch_storage,   kind: torch, x: 28, y: 6,  tags: [light, decor], state: { lit: true } }
+  - { id: torch_east1,     kind: torch, x: 42, y: 4,  tags: [light, decor], state: { lit: true } }
+  - { id: torch_east2,     kind: torch, x: 50, y: 10, tags: [light, decor], state: { lit: true } }
+  - { id: torch_corridor1, kind: torch, x: 12, y: 13, tags: [light, decor], state: { lit: true } }
+  - { id: torch_corridor2, kind: torch, x: 38, y: 13, tags: [light, decor], state: { lit: true } }
+  - { id: torch_prison,    kind: torch, x: 12, y: 19, tags: [light, decor], state: { lit: true } }
+  - { id: torch_captain,   kind: torch, x: 30, y: 17, tags: [light, decor], state: { lit: true } }
+  - { id: torch_ritual,    kind: torch, x: 42, y: 16, tags: [light, decor], state: { lit: true } }
+  - { id: torch_lower,     kind: torch, x: 26, y: 25, tags: [light, decor], state: { lit: true } }
+  - { id: torch_descent,   kind: torch, x: 36, y: 30, tags: [light, decor], state: { lit: true } }
+
+stageSprites:
+  - { type: torch,   x: 10, y: 2,  pulse: true }
+  - { type: torch,   x: 12, y: 7,  pulse: true }
+  - { type: torch,   x: 28, y: 6,  pulse: true }
+  - { type: torch,   x: 42, y: 4,  pulse: true }
+  - { type: torch,   x: 50, y: 10, pulse: true }
+  - { type: torch,   x: 12, y: 13, pulse: true }
+  - { type: torch,   x: 38, y: 13, pulse: true }
+  - { type: torch,   x: 12, y: 19, pulse: true, alpha: 0.7 }
+  - { type: torch,   x: 30, y: 17, pulse: true }
+  - { type: torch,   x: 42, y: 16, pulse: true, alpha: 0.7 }
+  - { type: torch,   x: 26, y: 25, pulse: true }
+  - { type: torch,   x: 36, y: 30, pulse: true }
+  - { type: crystal, x: 36, y: 31, pulse: true }

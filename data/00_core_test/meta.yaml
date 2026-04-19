@@ -27,3 +27,5 @@ stages:
   - ts_chest_pickup
   - ts_potion_heal
   - ts_chest_loot
+  - ts_autorun_f1
+  - ts_autorun_f2

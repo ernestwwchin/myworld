@@ -1,40 +1,4 @@
-# Goblin Warren B1F — dialog trees
-# Conversation nodes for story encounters on this floor.
+# Goblin Warren Cave B1F — dialog trees
+# No dialogs authored for this stage yet.
 
-dialogs:
-  goblin_guard:
-    speaker: Goblin Guard
-    text: "Halt! Who dares enter the warren?"
-    choices:
-      - label: "Prepare to die, goblin!"
-        next: guard_fight
-      - label: "[Persuasion] I come in peace. Let me pass."
-        check: { skill: persuasion, dc: 14 }
-        pass: guard_bribed
-        fail: guard_angry
-      - label: "[Stealth — slip away]"
-        if: { hidden: true }
-        next: guard_sneak
-
-  guard_fight:
-    speaker: Goblin Guard
-    text: "Then you die here!"
-    actions:
-      - { do: enterCombat }
-
-  guard_bribed:
-    speaker: Goblin Guard
-    text: "...Fine. But the captain won't be so kind."
-    actions:
-      - { do: setFlag, guard_bribed: true }
-
-  guard_angry:
-    speaker: Goblin Guard
-    text: "Nice try, smoothskin. Get them!"
-    actions:
-      - { do: enterCombat }
-
-  guard_sneak:
-    text: "(You slip past the guard unnoticed.)"
-    actions:
-      - { do: setFlag, bypassed_guard: true }
+dialogs: {}

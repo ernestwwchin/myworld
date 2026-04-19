@@ -33,9 +33,9 @@ Sprint goals, ordered. Each one ends in a thing the player notices.
 
 ### 1. Map generation good enough for 10 floors
 - [x] CA generator wired (`js/mapgen.js`)
-- [ ] BSP room+corridor algorithm (better readability than CA for combat)
-- [ ] Per-floor difficulty: room count/size scales with depth
-- [ ] Auto-place player start + stairs + at least one chest
+- [x] BSP room+corridor algorithm (better readability than CA for combat)
+- [x] Per-floor difficulty: room count/size scales with depth
+- [x] Auto-place player start + stairs + at least one chest
 
 ### 2. Encounter placement
 - [ ] Weighted creature pool defined per depth band (already structured in `worlds.yaml`)

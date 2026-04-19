@@ -28,7 +28,7 @@ function baseWorldConfig() {
         w1: {
           bossStage: 'gw_b5f',
           fallbackNextStage: 'gw_b2f',
-          stageSequence: ['gw_cave_b1f', 'gw_b2f', 'gw_b3f', 'gw_b4f', 'gw_b5f'],
+          stageSequence: ['gw_b1f', 'gw_b2f', 'gw_b3f', 'gw_b4f', 'gw_b5f'],
         },
       },
     },
@@ -42,13 +42,13 @@ test('nextStage:auto depth-band selection is deterministic for the same run seed
     { from: 2, to: 2, stages: ['gw_b2f', 'gw_b3f', 'gw_b4f'] },
   ];
 
-  mod._activeMap = 'gw_cave_b1f';
+  mod._activeMap = 'gw_b1f';
   mod._runState = {
     worldId: 'w1',
     runId: 'run_fixed',
     seed: 424242,
-    history: ['town_hub', 'gw_cave_b1f'],
-    plannedStages: ['gw_cave_b1f', 'gw_b2f', 'gw_b3f', 'gw_b4f', 'gw_b5f'],
+    history: ['town_hub', 'gw_b1f'],
+    plannedStages: ['gw_b1f', 'gw_b2f', 'gw_b3f', 'gw_b4f', 'gw_b5f'],
   };
 
   const first = mod.resolveNextStage('auto');
@@ -74,12 +74,12 @@ test('nextStage:auto resolves descriptor objects in depth bands', () => {
     },
   ];
 
-  mod._activeMap = 'gw_cave_b1f';
+  mod._activeMap = 'gw_b1f';
   mod._runState = {
     worldId: 'w1',
     runId: 'run_descriptor',
     seed: 777,
-    history: ['town_hub', 'gw_cave_b1f'],
+    history: ['town_hub', 'gw_b1f'],
   };
 
   const next = mod.resolveNextStage('auto');
@@ -94,12 +94,12 @@ test('nextStage:auto depth-band token descriptors resolve boss and town targets'
     { from: 3, to: 3, stages: [{ token: 'town' }] },
   ];
 
-  mod._activeMap = 'gw_cave_b1f';
+  mod._activeMap = 'gw_b1f';
   mod._runState = {
     worldId: 'w1',
     runId: 'run_tokens',
     seed: 99,
-    history: ['town_hub', 'gw_cave_b1f'],
+    history: ['town_hub', 'gw_b1f'],
   };
 
   assert.equal(mod.resolveNextStage('auto'), 'gw_b5f');
@@ -116,12 +116,12 @@ test('nextStage:auto descriptor stageOffset advances relative to current stage',
     { from: 2, to: 2, stages: [{ stageOffset: 1 }] },
   ];
 
-  mod._activeMap = 'gw_cave_b1f';
+  mod._activeMap = 'gw_b1f';
   mod._runState = {
     worldId: 'w1',
     runId: 'run_offset',
     seed: 5,
-    history: ['town_hub', 'gw_cave_b1f'],
+    history: ['town_hub', 'gw_b1f'],
   };
 
   assert.equal(mod.resolveNextStage('auto'), 'gw_b2f');
@@ -134,12 +134,12 @@ test('nextStage:auto descriptor with out-of-range stageIndex falls back to fallb
     { from: 2, to: 2, stages: [{ stageIndex: 99 }] },
   ];
 
-  mod._activeMap = 'gw_cave_b1f';
+  mod._activeMap = 'gw_b1f';
   mod._runState = {
     worldId: 'w1',
     runId: 'run_oob',
     seed: 7,
-    history: ['town_hub', 'gw_cave_b1f'],
+    history: ['town_hub', 'gw_b1f'],
   };
 
   assert.equal(mod.resolveNextStage('auto'), 'gw_b2f');
@@ -152,12 +152,12 @@ test('nextStage:auto descriptor with NaN stageIndex/stageOffset is ignored, fall
     { from: 2, to: 2, stages: [{ stageIndex: 'not-a-number' }, { stageOffset: 'nope' }] },
   ];
 
-  mod._activeMap = 'gw_cave_b1f';
+  mod._activeMap = 'gw_b1f';
   mod._runState = {
     worldId: 'w1',
     runId: 'run_nan',
     seed: 11,
-    history: ['town_hub', 'gw_cave_b1f'],
+    history: ['town_hub', 'gw_b1f'],
   };
 
   assert.equal(mod.resolveNextStage('auto'), 'gw_b2f');
@@ -174,12 +174,12 @@ test('nextStage:auto descriptor stageId wins over stageIndex/stageOffset/token',
     },
   ];
 
-  mod._activeMap = 'gw_cave_b1f';
+  mod._activeMap = 'gw_b1f';
   mod._runState = {
     worldId: 'w1',
     runId: 'run_priority',
     seed: 13,
-    history: ['town_hub', 'gw_cave_b1f'],
+    history: ['town_hub', 'gw_b1f'],
   };
 
   assert.equal(mod.resolveNextStage('auto'), 'gw_b3f');
@@ -192,16 +192,16 @@ test('nextStage:auto excludes the active map from descriptor candidates', () => 
     {
       from: 2,
       to: 2,
-      stages: [{ stage: 'gw_cave_b1f' }, { stage: 'gw_b3f' }],
+      stages: [{ stage: 'gw_b1f' }, { stage: 'gw_b3f' }],
     },
   ];
 
-  mod._activeMap = 'gw_cave_b1f';
+  mod._activeMap = 'gw_b1f';
   mod._runState = {
     worldId: 'w1',
     runId: 'run_self_excl',
     seed: 17,
-    history: ['town_hub', 'gw_cave_b1f'],
+    history: ['town_hub', 'gw_b1f'],
   };
 
   assert.equal(mod.resolveNextStage('auto'), 'gw_b3f');
@@ -216,7 +216,7 @@ test('nextStage:auto with no depth bands falls through to stage sequence next en
     worldId: 'w1',
     runId: 'run_seq',
     seed: 23,
-    history: ['town_hub', 'gw_cave_b1f', 'gw_b2f'],
+    history: ['town_hub', 'gw_b1f', 'gw_b2f'],
   };
 
   assert.equal(mod.resolveNextStage('auto'), 'gw_b3f');
@@ -229,15 +229,15 @@ test('nextStage:auto with empty descriptor object returns null candidate, falls 
     { from: 2, to: 2, stages: [{}] },
   ];
 
-  mod._activeMap = 'gw_cave_b1f';
+  mod._activeMap = 'gw_b1f';
   mod._runState = {
     worldId: 'w1',
     runId: 'run_empty_desc',
     seed: 29,
-    history: ['town_hub', 'gw_cave_b1f'],
+    history: ['town_hub', 'gw_b1f'],
   };
 
-  // No resolvable candidate from band → falls through to stageSequence (next after gw_cave_b1f).
+  // No resolvable candidate from band → falls through to stageSequence (next after gw_b1f).
   assert.equal(mod.resolveNextStage('auto'), 'gw_b2f');
 });
 
@@ -248,12 +248,12 @@ test('nextStage:auto descriptor weight=0 is clamped to 1 and still yields a stag
     { from: 2, to: 2, stages: [{ stage: 'gw_b3f', weight: 0 }] },
   ];
 
-  mod._activeMap = 'gw_cave_b1f';
+  mod._activeMap = 'gw_b1f';
   mod._runState = {
     worldId: 'w1',
     runId: 'run_zero_weight',
     seed: 31,
-    history: ['town_hub', 'gw_cave_b1f'],
+    history: ['town_hub', 'gw_b1f'],
   };
 
   assert.equal(mod.resolveNextStage('auto'), 'gw_b3f');
@@ -267,7 +267,7 @@ test('nextStage:boss returns configured boss stage; nextStage:town returns hub',
     worldId: 'w1',
     runId: 'run_tokens_top',
     seed: 41,
-    history: ['town_hub', 'gw_cave_b1f', 'gw_b2f', 'gw_b3f', 'gw_b4f'],
+    history: ['town_hub', 'gw_b1f', 'gw_b2f', 'gw_b3f', 'gw_b4f'],
   };
 
   assert.equal(mod.resolveNextStage('boss'), 'gw_b5f');
@@ -277,12 +277,12 @@ test('nextStage:boss returns configured boss stage; nextStage:town returns hub',
 test('resolveNextStage returns the literal id for a non-token string', () => {
   const mod = loadModLoader();
   mod._modData = baseWorldConfig();
-  mod._activeMap = 'gw_cave_b1f';
+  mod._activeMap = 'gw_b1f';
   mod._runState = {
     worldId: 'w1',
     runId: 'run_literal',
     seed: 43,
-    history: ['town_hub', 'gw_cave_b1f'],
+    history: ['town_hub', 'gw_b1f'],
   };
 
   assert.equal(mod.resolveNextStage('gw_b3f'), 'gw_b3f');

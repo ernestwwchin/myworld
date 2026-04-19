@@ -1,0 +1,4 @@
+# Autorun F1 — autoplay steps (stub for contract compliance).
+# The real test logic is driven by Playwright in tests/e2e/autorun.spec.js.
+autoplay:
+  - { do: log, text: "=== ts_autorun_f1: Playwright-driven autorun test ===" }

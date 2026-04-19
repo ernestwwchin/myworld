@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 const { waitForScene } = require('./helpers');
 
 test('generated floor keeps layout and valid spawn after save + refresh', async ({ page }) => {
-  await page.goto('/?map=gw_cave_b1f&ignoreSave=1', { waitUntil: 'networkidle' });
+  await page.goto('/?map=gw_b1f&ignoreSave=1', { waitUntil: 'networkidle' });
 
   await page.evaluate(() => {
     localStorage.removeItem('myworld.save.v1');
@@ -25,7 +25,7 @@ test('generated floor keeps layout and valid spawn after save + refresh', async 
       grid,
       playerTile: { ...scene.playerTile },
       isWalkable,
-      seed: Number(ModLoader._generatedMapSeeds?.gw_cave_b1f || 0),
+      seed: Number(ModLoader._generatedMapSeeds?.gw_b1f || 0),
     };
   });
 
@@ -49,7 +49,7 @@ test('generated floor keeps layout and valid spawn after save + refresh', async 
       grid,
       playerTile: { ...scene.playerTile },
       isWalkable,
-      seed: Number(ModLoader._generatedMapSeeds?.gw_cave_b1f || 0),
+      seed: Number(ModLoader._generatedMapSeeds?.gw_b1f || 0),
     };
   });
 

@@ -18,11 +18,11 @@ includes:
 stages:
   - town_hub
   - gw_b1f
-  - gw_cave_b1f
   - gw_b2f
   - gw_b3f
   - gw_b4f
   - gw_b5f
+  - gw_scripted_b1f   # hand-crafted map (not in run rotation)
 
 flags:
   entered_warren: { type: bool, default: false }

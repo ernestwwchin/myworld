@@ -20,7 +20,8 @@ function testModContracts() {
   assert.ok(meta.stages.includes(meta.startMap));
 
   const stage = loadYaml('data/01_goblin_invasion/stages/gw_b1f/stage.yaml');
-  assert.ok(Array.isArray(stage.grid) && stage.grid.length > 0);
+  // gw_b1f now uses a procedural generator instead of a static grid
+  assert.ok(stage.generator && stage.generator.type, 'gw_b1f must have a generator config');
   assert.ok(Array.isArray(stage.encounters));
 }
 
@@ -51,9 +52,10 @@ function testGoblinInvasionFlagsAndPatrol() {
   assert.ok(meta.flags.goblin_captain_dead);
   assert.ok(meta.flags.goblins_killed);
 
-  const stage = loadYaml('data/01_goblin_invasion/stages/gw_b1f/stage.yaml');
+  // Patrol encounters live in the hand-crafted scripted map
+  const stage = loadYaml('data/01_goblin_invasion/stages/gw_scripted_b1f/stage.yaml');
   const patrolEncs = stage.encounters.filter((enc) => enc.ai && enc.ai.patrolPath);
-  assert.ok(patrolEncs.length > 0);
+  assert.ok(patrolEncs.length > 0, 'gw_scripted_b1f must have patrol encounters');
   for (const enc of patrolEncs) {
     assert.ok(Array.isArray(enc.ai.patrolPath));
     assert.ok(enc.ai.patrolPath.length >= 2);

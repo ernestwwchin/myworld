@@ -1,0 +1,3 @@
+# Autorun F2 — autoplay steps (stub for contract compliance).
+autoplay:
+  - { do: log, text: "=== ts_autorun_f2: Destination floor reached ===" }
