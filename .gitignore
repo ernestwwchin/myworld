@@ -13,11 +13,13 @@
 test-results/
 playwright-report/
 node_modules/
-assets/*.zip
-assets/_downloads/
-assets/_staging/
+dist/
+public/assets/*.zip
+public/assets/_downloads/
+public/assets/_staging/
 **/_MACOSX/
 **/.DS_Store
+scratch/
 
 # Obsidian — workspace state is machine-specific; plugin binaries are re-fetched from manifests
 .obsidian/workspace.json
