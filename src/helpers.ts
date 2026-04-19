@@ -167,17 +167,19 @@ export function stringPull(
 
 export interface EnemyFOVShape {
   tx: number; ty: number;
-  facing: number; fov: number;
+  facing?: number; fov?: number;
 }
 
 export function inFOV(enemy: EnemyFOVShape, tx: number, ty: number): boolean {
   const dx = tx - enemy.tx;
   const dy = ty - enemy.ty;
   if (dx === 0 && dy === 0) return true;
-  let diff = Math.atan2(dy, dx) * 180 / Math.PI - enemy.facing;
+  const facing = Number(enemy.facing) || 0;
+  let diff = Math.atan2(dy, dx) * 180 / Math.PI - facing;
   while (diff > 180) diff -= 360;
   while (diff < -180) diff += 360;
-  return Math.abs(diff) <= enemy.fov / 2;
+  const fov = Number(enemy.fov) || 360;
+  return Math.abs(diff) <= fov / 2;
 }
 
 export function sameOpenArea(
