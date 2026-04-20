@@ -352,7 +352,7 @@ declare module '@/game' {
     clearPendingAction(): void;
     updateResBar(): void;
     setActionButtonsUsed(used: boolean): void;
-    snapshotMoveResetAnchor?: () => void;
+    snapshotMoveResetAnchor(): void;
     isPlayerTurn(): boolean;
     getEnemyPassivePerception(enemy: Enemy): number;
     tileLightLevel(x: number, y: number): number;

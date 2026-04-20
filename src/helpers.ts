@@ -293,7 +293,7 @@ function _buildRoomTopology(): RoomTopology {
   return _roomTopoCache;
 }
 
-function _getRoomTopology(): RoomTopology {
+export function _getRoomTopology(): RoomTopology {
   if (_roomTopoCache) return _roomTopoCache;
   return _buildRoomTopology();
 }
