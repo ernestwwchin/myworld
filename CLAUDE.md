@@ -9,7 +9,7 @@ npm start                         # dev server at http://localhost:3000 (Vite, H
 npm run build                     # production bundle → dist/
 npm run typecheck                 # tsc --noEmit (0 errors on clean branch)
 npm test                          # typecheck + contracts + unit (fast, no browser)
-npm run test:contracts            # node tests/contracts/run-contracts.mjs
+npm run test:contracts            # vitest run tests/contracts/run-contracts.test.js
 npm run test:unit                 # vitest run
 npm run test:e2e                  # build + Playwright against vite preview on port 3100
 npm run test:e2e:headed           # headed + single worker (debugging)
@@ -52,7 +52,7 @@ Two modes: `MODE.EXPLORE` and `MODE.COMBAT`. Combat entry uses BG3-style "engage
 `PLAYER_STATS.inventory` is the **carried** run inventory. `PLAYER_STATS.stash` is **persistent town storage**. Extraction (per `resolution.extract.bankCarriedToStash`) moves carried → stash; death applies `goldLossPct` and `carriedItemLoss` per world config. Town interactables (`stash`/`stash_deposit_all`/`stash_withdraw_all`/`shop`/`quests`) are wired in `src/entities/interactable-entity.ts` — `shop` and `quests` are currently stubs returning "Coming soon".
 
 ### Test architecture
-- **Contracts** (`tests/contracts/`) — schema/structural assertions run by a custom runner (`run-contracts.mjs`). Validates YAML shapes, mod metadata, registry resolution, and enforces absence of removed-feature TODOs.
+- **Contracts** (`tests/contracts/`) — schema/structural assertions run via vitest (`run-contracts.test.js`). Validates YAML shapes, mod metadata, registry resolution, and enforces absence of removed-feature TODOs.
 - **Unit/pure** (`tests/unit/pure/`) — no game globals; pure helper logic. Run under vitest.
 - **Unit/sandbox** (`tests/unit/sandbox/`) — imports directly from `src/` (same as unit/pure). Use this for tests that mutate singleton state (e.g. `ModLoader._modData`) and need explicit reset in `beforeEach`.
 - **E2E** (`tests/e2e/`) — Playwright, runs against `vite preview` on port 3100. `helpers.js` provides shared boot/teardown.
