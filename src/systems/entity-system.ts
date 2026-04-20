@@ -397,10 +397,8 @@ declare module '@/game' {
     ): boolean;
     _executeEntityAction(actionDef: ActionDef): string;
 
-    isBlockedTile(x: number, y: number, opts?: { doorMode?: string; excludeEnemy?: unknown }): boolean;
     setDestination(tx: number, ty: number, onArrival?: (() => void) | null, finalPos?: { wx: number; wy: number } | null): void;
     showContextMenu(x: number, y: number, options: Array<{ label: string; action: () => void }>): void;
-    onTapEnemy(enemy: unknown): void;
     toggleDoor(x: number, y: number): void;
     tryOpenChest(x: number, y: number): boolean;
     collectFloorItem(ent: unknown): { ok?: boolean; kind?: string };

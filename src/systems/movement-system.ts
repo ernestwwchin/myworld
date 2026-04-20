@@ -354,9 +354,6 @@ declare module '@/game' {
     clearPathDots(): void;
     advancePath(): void;
     wanderEnemies(forceStep?: boolean): void;
-    isBlockedTile(x: number, y: number, opts?: { doorMode?: string; excludeEnemy?: Enemy }): boolean;
-    canMoveDiagonal(x0: number, y0: number, x1: number, y1: number): boolean;
-    isDoorTile(x: number, y: number): boolean;
     setDoorOpen(x: number, y: number, open: boolean, silent: boolean): boolean;
     getDoorState(x: number, y: number): { open: boolean; locked: boolean; auto: boolean };
     playActorIdle(actor: Phaser.GameObjects.Sprite, type: string): void;

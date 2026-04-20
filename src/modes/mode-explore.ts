@@ -200,7 +200,7 @@ declare module '@/game' {
     _holdMoveStep(): void;
     checkSight(): void;
     checkFloorItemPickup(): void;
-    setDoorOpen(x: number, y: number, open: boolean, silent?: boolean): void;
+    setDoorOpen(x: number, y: number, open: boolean, silent?: boolean): boolean;
     advancePath(): void;
     onTapEnemy(enemy: unknown): void;
     playActorMove(img: unknown, type: unknown, fast?: boolean): void;
