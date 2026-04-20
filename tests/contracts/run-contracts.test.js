@@ -1,11 +1,12 @@
+import { test } from 'vitest';
 import assert from 'node:assert';
 import { runCoreContracts } from './core-contracts.js';
 import { runSchemaContracts } from './schema-contracts.js';
 
-async function run() {
+test('core contracts', async () => {
   await runCoreContracts();
-  runSchemaContracts(assert);
-  console.log('All contract tests passed.');
-}
+});
 
-run();
+test('schema contracts', () => {
+  runSchemaContracts(assert);
+});

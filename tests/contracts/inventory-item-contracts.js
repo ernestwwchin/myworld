@@ -1,5 +1,6 @@
 import assert from 'node:assert';
-import { fs, path, root, loadYaml, loadConfigExports, toHostObject } from './helpers.js';
+import { fs, path, root, loadYaml, toHostObject } from './helpers.js';
+import { dnd } from '../../src/config.ts';
 
 function testInventoryContracts() {
   const configSrc = fs.readFileSync(path.join(root, 'src', 'config.ts'), 'utf8');
@@ -12,7 +13,6 @@ function testInventoryContracts() {
   assert.ok(invSrc.includes('dropItem('));
 
   const tables = loadYaml('data/00_core/loot-tables.yaml');
-  const { dnd } = loadConfigExports();
   for (const table of Object.values(tables)) {
     if (!Array.isArray(table.pool)) continue;
     for (const item of table.pool) {

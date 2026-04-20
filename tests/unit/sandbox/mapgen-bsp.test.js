@@ -1,27 +1,9 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import vm from 'node:vm';
-import { readText } from '../_shared/io.js';
-
-function loadMapGenInVm() {
-  const configCode = readText('js/config.js');
-  const mapgenCode = readText('js/mapgen.js');
-  const sandbox = { console, Math, Infinity, Number, Array, Set, String, Uint8Array, JSON, Object };
-  sandbox.window = sandbox;
-  vm.createContext(sandbox);
-  vm.runInContext(configCode, sandbox);
-  vm.runInContext(mapgenCode, sandbox);
-  vm.runInContext('globalThis.__MapGen = MapGen; globalThis.__TILE = TILE;', sandbox);
-  return { MapGen: sandbox.__MapGen, TILE: sandbox.__TILE };
-}
-
-
-// ─────────────────────────────────────────────────────
-// BSP generator — structural tests
-// ─────────────────────────────────────────────────────
+import { MapGen } from '../../../src/mapgen.ts';
+import { TILE } from '../../../src/config.ts';
 
 test('BSP: generate() dispatches to bsp for type "bsp"', () => {
-  const { MapGen, TILE } = loadMapGenInVm();
   const result = MapGen.generate({ type: 'bsp', cols: 40, rows: 30, seed: 42 }, TILE);
   assert.ok(result.grid, 'should return a grid');
   assert.ok(result.playerStart, 'should return playerStart');
@@ -29,21 +11,18 @@ test('BSP: generate() dispatches to bsp for type "bsp"', () => {
 });
 
 test('BSP: generate() dispatches to bsp for type "rooms"', () => {
-  const { MapGen, TILE } = loadMapGenInVm();
   const result = MapGen.generate({ type: 'rooms', cols: 40, rows: 30, seed: 42 }, TILE);
   assert.ok(result.grid);
   assert.ok(result.rooms);
 });
 
 test('BSP: grid dimensions match requested cols/rows', () => {
-  const { MapGen, TILE } = loadMapGenInVm();
   const result = MapGen.bsp({ cols: 50, rows: 35, seed: 123 }, TILE);
   assert.equal(result.grid.length, 35, 'rows should match');
   assert.equal(result.grid[0].length, 50, 'cols should match');
 });
 
 test('BSP: grid borders are all walls', () => {
-  const { MapGen, TILE } = loadMapGenInVm();
   const result = MapGen.bsp({ cols: 40, rows: 30, seed: 42 }, TILE);
   const { grid } = result;
   const rows = grid.length;
@@ -59,28 +38,24 @@ test('BSP: grid borders are all walls', () => {
 });
 
 test('BSP: playerStart is on a floor tile', () => {
-  const { MapGen, TILE } = loadMapGenInVm();
   const result = MapGen.bsp({ cols: 40, rows: 30, seed: 42 }, TILE);
   const { grid, playerStart } = result;
   assert.equal(grid[playerStart.y][playerStart.x], TILE.FLOOR, 'playerStart must be on floor');
 });
 
 test('BSP: at least one stair tile exists', () => {
-  const { MapGen, TILE } = loadMapGenInVm();
   const result = MapGen.bsp({ cols: 40, rows: 30, seed: 42 }, TILE);
   const hasStairs = result.grid.some(row => row.includes(TILE.STAIRS));
   assert.ok(hasStairs, 'BSP map should contain at least one stair tile');
 });
 
 test('BSP: rooms array contains at least 2 rooms', () => {
-  const { MapGen, TILE } = loadMapGenInVm();
   const result = MapGen.bsp({ cols: 40, rows: 30, seed: 42 }, TILE);
   assert.ok(Array.isArray(result.rooms), 'rooms should be an array');
   assert.ok(result.rooms.length >= 2, 'BSP should produce at least 2 rooms');
 });
 
-test('BSP: each room has x/y/w/h fields', () => {
-  const { MapGen, TILE } = loadMapGenInVm();
+test('BSP: each room has x1/y1/w/h fields', () => {
   const result = MapGen.bsp({ cols: 40, rows: 30, seed: 42 }, TILE);
   for (const room of result.rooms) {
     assert.ok(typeof room.x1 === 'number', 'room.x1 must be a number');
@@ -91,7 +66,6 @@ test('BSP: each room has x/y/w/h fields', () => {
 });
 
 test('BSP: deterministic with same seed', () => {
-  const { MapGen, TILE } = loadMapGenInVm();
   const r1 = MapGen.bsp({ cols: 40, rows: 30, seed: 99 }, TILE);
   const r2 = MapGen.bsp({ cols: 40, rows: 30, seed: 99 }, TILE);
   assert.deepEqual(r1.grid, r2.grid, 'same seed must produce same grid');
@@ -99,7 +73,6 @@ test('BSP: deterministic with same seed', () => {
 });
 
 test('BSP: different seeds produce different grids', () => {
-  const { MapGen, TILE } = loadMapGenInVm();
   const r1 = MapGen.bsp({ cols: 40, rows: 30, seed: 1 }, TILE);
   const r2 = MapGen.bsp({ cols: 40, rows: 30, seed: 2 }, TILE);
   const same = r1.grid.every((row, y) => row.every((cell, x) => cell === r2.grid[y][x]));
@@ -107,7 +80,6 @@ test('BSP: different seeds produce different grids', () => {
 });
 
 test('BSP: playerStart is within grid bounds', () => {
-  const { MapGen, TILE } = loadMapGenInVm();
   const result = MapGen.bsp({ cols: 40, rows: 30, seed: 42 }, TILE);
   const { grid, playerStart } = result;
   assert.ok(playerStart.x >= 0 && playerStart.x < grid[0].length, 'playerStart.x in bounds');
@@ -115,7 +87,6 @@ test('BSP: playerStart is within grid bounds', () => {
 });
 
 test('BSP: stair tile is on a reachable floor tile', () => {
-  const { MapGen, TILE } = loadMapGenInVm();
   const result = MapGen.bsp({ cols: 40, rows: 30, seed: 42 }, TILE);
   const { grid } = result;
   let stairTile = null;
@@ -128,7 +99,6 @@ test('BSP: stair tile is on a reachable floor tile', () => {
 });
 
 test('BSP: every room is interior to the grid', () => {
-  const { MapGen, TILE } = loadMapGenInVm();
   const result = MapGen.bsp({ cols: 40, rows: 30, seed: 42 }, TILE);
   for (const room of result.rooms) {
     assert.ok(room.x1 > 0 && room.x2 < 40, 'room x-range must be interior');
@@ -137,12 +107,11 @@ test('BSP: every room is interior to the grid', () => {
 });
 
 test('BSP: floors inside rooms are FLOOR tiles', () => {
-  const { MapGen, TILE } = loadMapGenInVm();
   const result = MapGen.bsp({ cols: 40, rows: 30, seed: 42 }, TILE);
   const { grid, rooms } = result;
   for (const room of rooms.slice(0, 3)) {
-    for (let y = room.y + 1; y < room.y + room.h - 1; y++) {
-      for (let x = room.x + 1; x < room.x + room.w - 1; x++) {
+    for (let y = room.y1 + 1; y < room.y2; y++) {
+      for (let x = room.x1 + 1; x < room.x2; x++) {
         const tile = grid[y][x];
         assert.ok(tile === TILE.FLOOR || tile === TILE.STAIRS, `room interior tile at (${x},${y}) should be floor or stairs`);
       }

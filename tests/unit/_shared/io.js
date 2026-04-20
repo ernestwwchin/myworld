@@ -14,10 +14,6 @@ export function repoPath(...segments) {
   return path.join(repoRoot, rel);
 }
 
-export function readText(relPath) {
-  return fs.readFileSync(path.join(repoRoot, relPath), 'utf8');
-}
-
 export function loadYaml(relPath) {
   return yaml.load(fs.readFileSync(repoPath(relPath), 'utf8'));
 }

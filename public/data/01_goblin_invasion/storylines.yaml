@@ -1,0 +1,33 @@
+storylines:
+  - id: goblin_vanguard
+    weight: 10
+    title: "The Goblin Vanguard"
+    description: "The goblins didn't just attack the town randomly; they are being driven by an unseen force. Investigate the invasion and eliminate their leadership."
+    acts:
+      - actIndex: 1
+        title: "The Breached Mines"
+        description: "The outer rim of the goblin territory. They are hastily setting up barricades."
+        biome: "mines"
+        mapModifiers:
+          generator_type: "bsp"
+          extra_loops: false
+          density: "medium"
+          features: ["barricades"]
+      - actIndex: 2
+        title: "The Deep Warrens"
+        description: "The sprawling, chaotic city of the goblins. The population here is dense and dangerous."
+        biome: "cave"
+        mapModifiers:
+          generator_type: "cellular_automata"
+          water_density: "medium"
+          density: "high"
+          features: ["egg_clusters"]
+      - actIndex: 3
+        title: "The Warlord's Keep"
+        description: "A heavily fortified structure deep underground. The command center of the invasion."
+        biome: "keep"
+        mapModifiers:
+          generator_type: "bsp"
+          extra_loops: true
+          density: "high"
+          features: ["braziers", "blood_floors"]

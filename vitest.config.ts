@@ -8,6 +8,6 @@ export default defineConfig({
   test: {
     globals: false,
     environment: 'node',
-    include: ['tests/unit/**/*.test.{ts,js}'],
+    include: ['tests/unit/**/*.test.{ts,js}', 'tests/contracts/**/*.test.{ts,js}'],
   },
 });
