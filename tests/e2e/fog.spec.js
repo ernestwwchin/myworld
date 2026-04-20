@@ -1,5 +1,5 @@
-const { test, expect } = require('@playwright/test');
-const { waitForScene, tapTile, waitUntilIdle } = require('./helpers');
+import { test, expect } from '@playwright/test';
+import { waitForScene, tapTile, waitUntilIdle } from './helpers.js';
 
 test('fog visibility updates and visited memory persists', async ({ page }) => {
   await page.goto('/?map=ts_fog', { waitUntil: 'networkidle' });

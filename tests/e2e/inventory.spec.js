@@ -1,5 +1,5 @@
-const { test, expect } = require('@playwright/test');
-const { waitForScene, tapTile } = require('./helpers');
+import { test, expect } from '@playwright/test';
+import { waitForScene, tapTile } from './helpers.js';
 
 test.describe('Inventory interactions', () => {
   test('pickup item from chest', async ({ page }) => {

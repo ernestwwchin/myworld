@@ -14,8 +14,8 @@
  *   2. Calling applyMap for a large map (gw_b1f, 56×36)
  *   3. Calling updateFogOfWar() on the old scene with stale fogVisited
  */
-const { test, expect } = require('@playwright/test');
-const { waitForScene, seededUrl } = require('./helpers');
+import { test, expect } from '@playwright/test';
+import { waitForScene, seededUrl } from './helpers.js';
 
 test('floor transition: updateFogOfWar with stale fogVisited does not crash', async ({ page }) => {
   // 1. Load a SMALL test map (ts_autorun_f1 is 11×9)

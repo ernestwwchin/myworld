@@ -1,5 +1,5 @@
-const { test, expect } = require('@playwright/test');
-const { waitForScene, getState, tapTile, dismissDiceIfNeeded } = require('./helpers');
+import { test, expect } from '@playwright/test';
+import { waitForScene, getState, tapTile, dismissDiceIfNeeded } from './helpers.js';
 
 test.describe.configure({ timeout: 90000 });
 

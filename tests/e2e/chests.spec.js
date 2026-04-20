@@ -1,5 +1,5 @@
-const { test, expect } = require('@playwright/test');
-const { waitForScene, seededUrl } = require('./helpers');
+import { test, expect } from '@playwright/test';
+import { waitForScene, seededUrl } from './helpers.js';
 
 // Seed used for all deterministic chest tests.
 const CHEST_SEED = 42;

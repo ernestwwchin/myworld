@@ -1,5 +1,5 @@
-const { test, expect } = require('@playwright/test');
-const { waitForScene, getState, waitUntilIdle, tapTile, dismissDiceIfNeeded } = require('./helpers');
+import { test, expect } from '@playwright/test';
+import { waitForScene, getState, waitUntilIdle, tapTile, dismissDiceIfNeeded } from './helpers.js';
 
 test('combat reset restores post-action anchor', async ({ page }) => {
   await page.goto('/?map=ts_combat_reset', { waitUntil: 'networkidle' });

@@ -1,5 +1,5 @@
-const { test, expect } = require('@playwright/test');
-const { waitForScene, getState, tapTile, waitUntilIdle, seededUrl } = require('./helpers');
+import { test, expect } from '@playwright/test';
+import { waitForScene, getState, tapTile, waitUntilIdle, seededUrl } from './helpers.js';
 
 test('fresh town start can enter the Goblin Warren through the portal', async ({ page }) => {
   await page.goto(seededUrl('/', 424242), { waitUntil: 'networkidle' });

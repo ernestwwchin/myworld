@@ -67,16 +67,9 @@ async function dismissDiceIfNeeded(page) {
   }
 }
 
-module.exports = {
-  waitForScene,
-  getState,
-  waitUntilIdle,
-  tapTile,
-  dismissDiceIfNeeded,
-  // Convenience: build a URL with a fixed seed so all randomness is deterministic.
-  // Usage: page.goto(seededUrl('/?map=ts_combat_entry', 42))
-  seededUrl(base, seed) {
-    const sep = base.includes('?') ? '&' : '?';
-    return `${base}${sep}seed=${seed >>> 0}`;
-  },
-};
+export function seededUrl(base, seed) {
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}seed=${seed >>> 0}`;
+}
+
+export { waitForScene, getState, waitUntilIdle, tapTile, dismissDiceIfNeeded };

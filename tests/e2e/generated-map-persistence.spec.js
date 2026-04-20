@@ -1,5 +1,5 @@
-const { test, expect } = require('@playwright/test');
-const { waitForScene } = require('./helpers');
+import { test, expect } from '@playwright/test';
+import { waitForScene } from './helpers.js';
 
 test('generated floor keeps layout and valid spawn after save + refresh', async ({ page }) => {
   await page.goto('/?map=gw_b1f&ignoreSave=1', { waitUntil: 'networkidle' });

@@ -1,5 +1,5 @@
-const { test, expect } = require('@playwright/test');
-const { waitForScene, getState, tapTile, waitUntilIdle, seededUrl } = require('./helpers');
+import { test, expect } from '@playwright/test';
+import { waitForScene, getState, tapTile, waitUntilIdle, seededUrl } from './helpers.js';
 
 test('run progression smoke: town portal -> auto floor -> extract to town', async ({ page }) => {
   await page.goto(seededUrl('/', 314159), { waitUntil: 'networkidle' });

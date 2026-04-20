@@ -1,5 +1,5 @@
-const { test, expect } = require('@playwright/test');
-const { waitForScene, getState, waitUntilIdle } = require('./helpers');
+import { test, expect } from '@playwright/test';
+import { waitForScene, getState, waitUntilIdle } from './helpers.js';
 
 test('move highlights visible on player turn', async ({ page }) => {
   await page.goto('/?map=ts_combat_entry', { waitUntil: 'networkidle' });

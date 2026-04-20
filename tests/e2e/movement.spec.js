@@ -1,5 +1,5 @@
-const { test, expect } = require('@playwright/test');
-const { waitForScene, getState, tapTile } = require('./helpers');
+import { test, expect } from '@playwright/test';
+import { waitForScene, getState, tapTile } from './helpers.js';
 
 test('floor transition moves to the next stage', async ({ page }) => {
   await page.goto('/?map=ts_floor_transition_a', { waitUntil: 'networkidle' });

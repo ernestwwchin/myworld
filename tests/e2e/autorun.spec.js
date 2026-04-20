@@ -9,8 +9,8 @@
  *
  * Uses a hand-crafted map so the layout is deterministic and simple.
  */
-const { test, expect } = require('@playwright/test');
-const { waitForScene, getState, dismissDiceIfNeeded } = require('./helpers');
+import { test, expect } from '@playwright/test';
+import { waitForScene, getState, dismissDiceIfNeeded } from './helpers.js';
 
 test.describe.configure({ timeout: 120000 });
 
