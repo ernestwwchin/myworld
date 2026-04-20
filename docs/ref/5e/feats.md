@@ -224,7 +224,7 @@ observant:
 ## Implementation Notes
 
 Feats are essentially **passives with conditions**. In the engine they would:
-1. Live in `data/core/feats.yaml`
+1. Live in `public/data/00_core/feats.yaml`
 2. Be selected at ASI levels (player chooses feat OR +2 stats)
 3. Each feat registers hooks via the existing ability hook system
 4. Feats with resources (Lucky) use a per-rest counter

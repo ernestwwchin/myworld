@@ -1,15 +1,15 @@
-const assert = require('assert');
-const { fs, path, root, loadYaml, loadConfigExports, toHostObject } = require('./helpers');
+import assert from 'node:assert';
+import { fs, path, root, loadYaml, loadConfigExports, toHostObject } from './helpers.js';
 
 function testInventoryContracts() {
-  const configSrc = fs.readFileSync(path.join(root, 'js', 'config.js'), 'utf8');
+  const configSrc = fs.readFileSync(path.join(root, 'src', 'config.ts'), 'utf8');
   assert.ok(configSrc.includes('gold: 0'));
   assert.ok(configSrc.includes('inventory: []'));
 
-  const invSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'inventory-system.js'), 'utf8');
-  assert.ok(invSrc.includes('useItem(item)'));
-  assert.ok(invSrc.includes('equipItem(item)'));
-  assert.ok(invSrc.includes('dropItem(item)'));
+  const invSrc = fs.readFileSync(path.join(root, 'src', 'systems', 'inventory-system.ts'), 'utf8');
+  assert.ok(invSrc.includes('useItem('));
+  assert.ok(invSrc.includes('equipItem('));
+  assert.ok(invSrc.includes('dropItem('));
 
   const tables = loadYaml('data/00_core/loot-tables.yaml');
   const { dnd } = loadConfigExports();
@@ -26,8 +26,8 @@ function testInventoryContracts() {
 }
 
 function testItemDefinitionContracts() {
-  const configSrc = fs.readFileSync(path.join(root, 'js', 'config.js'), 'utf8');
-  assert.ok(configSrc.includes('const ITEM_DEFS'));
+  const configSrc = fs.readFileSync(path.join(root, 'src', 'config.ts'), 'utf8');
+  assert.ok(configSrc.includes('ITEM_DEFS'));
 
   const items = loadYaml('data/00_core/items.yaml');
   assert.ok(items?.items && typeof items.items === 'object');
@@ -37,18 +37,14 @@ function testItemDefinitionContracts() {
     assert.ok(item.onUse, `item '${id}' missing onUse`);
   }
 
-  const modloaderSrc = fs.readFileSync(path.join(root, 'js', 'modloader.js'), 'utf8');
-  assert.ok(modloaderSrc.includes('applyItems(modData)'));
+  const modloaderSrc = fs.readFileSync(path.join(root, 'src', 'modloader.ts'), 'utf8');
+  assert.ok(modloaderSrc.includes('applyItems(modData)') || modloaderSrc.includes('applyItems(data)') || modloaderSrc.includes('applyItems('));
 
-   const invSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'inventory-system.js'), 'utf8');
+  const invSrc = fs.readFileSync(path.join(root, 'src', 'systems', 'inventory-system.ts'), 'utf8');
   assert.ok(invSrc.includes('ITEM_DEFS[item.id]'));
 }
 
-function runInventoryItemContracts() {
+export function runInventoryItemContracts() {
   testInventoryContracts();
   testItemDefinitionContracts();
 }
-
-module.exports = {
-  runInventoryItemContracts,
-};

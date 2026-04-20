@@ -33,6 +33,8 @@ import { CombatRangesMixin } from '@/modes/combat-ranges';
 import { ModeCombatMixin } from '@/modes/mode-combat';
 import { ModeExploreMixin } from '@/modes/mode-explore';
 
+import { ActionButtonsMixin } from '@/ui/action-buttons';
+
 interface GameUI {
   showCombatEnemyPopup(enemy: unknown): void;
   showEnemyStatPopup(enemy: unknown): void;
@@ -890,4 +892,5 @@ Object.assign(
   CombatAIMixin,
   ModeExploreMixin,
   ModeCombatMixin,
+  ActionButtonsMixin,
 );

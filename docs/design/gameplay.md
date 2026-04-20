@@ -30,6 +30,14 @@ Town (prep) → Portal → Dungeon floors → Extraction/Death → Town (resolve
 | Alert | Sight range → group scripting → room-based chain reaction |
 | End | All enemies dead (victory) or successful Flee |
 
+## Factions & AI Alignments
+
+To support dynamic scenarios (like the Black Market or Rescue quests), entities belong to specific alignments that dictate their behavior:
+
+- **Hostile (Enemies)**: The standard dungeon monster. If they have line-of-sight to the player, they immediately turn red and engage in combat. (e.g., Goblins, Skeletons, Bosses).
+- **Neutral (NPCs / Wildlife)**: They will not attack the player and usually wander aimlessly or stand at their posts. However, if the player attacks them or commits a crime (like stealing from the Black Market), they will immediately switch to Hostile.
+- **Friendly (Allies)**: They will never attack the player. If combat breaks out near them, they might either flee to safety or actively help the player attack Hostile targets. (e.g., Town Merchants, Rescued Escort targets).
+
 ## D&D 5e Rules
 
 - Ability scores: STR, DEX, CON, INT, WIS, CHA
@@ -38,6 +46,19 @@ Town (prep) → Portal → Dungeon floors → Extraction/Death → Town (resolve
 - Skill proficiencies
 - Status effects: sleep, poison, hidden
 - Starting class: Fighter (others planned: Wizard, Cleric, Ranger)
+
+## Universal Race & Class System
+
+To create deep, tactical variety, **entities (both Hostile and Friendly) are built using the exact same framework as the Player.** 
+
+Instead of fighting a generic "Bandit" with arbitrary stats, you might encounter a **"Tiefling Rogue"** or an **"Orc Barbarian"**.
+- **Races**: Determine base ability score modifiers, movement speed, and innate traits (e.g., Elves having Darkvision or resistance to sleep).
+- **Classes**: Dictate the entity's action economy, spell slots, and available abilities. A Level 3 Hostile Wizard has access to the exact same spell list and resource constraints as a Level 3 Player Wizard.
+
+This system ensures that:
+1. Combat remains perfectly balanced and predictable according to 5e rules.
+2. The map generator can spawn diverse, thematic encounter groups (e.g., an "Orc Warband" containing 3 Fighters, 1 Cleric, and 1 Ranger).
+3. Rescued NPCs can immediately join your party or help in combat using fully functional, standardized kits.
 
 See [`../ref/5e/`](../ref/5e/README.md) for full rules reference.
 

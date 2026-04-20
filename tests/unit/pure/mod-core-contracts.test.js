@@ -1,6 +1,6 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { loadYaml } = require('../_shared/io');
+import { test } from 'vitest';
+import assert from 'node:assert/strict';
+import { loadYaml } from '../_shared/io.js';
 
 test('core mod metadata includes required yaml modules', () => {
   const coreMeta = loadYaml('data/00_core/meta.yaml');

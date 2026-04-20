@@ -1,5 +1,6 @@
-const assert = require('assert');
-const { loadYaml, loadConfigExports, toHostObject, loadStageInSandbox } = require('./helpers');
+import assert from 'node:assert';
+import vm from 'node:vm';
+import { loadYaml, loadConfigExports, toHostObject, loadStageInSandbox } from './helpers.js';
 
 function testDiceNotationParsing(dnd) {
   assert.deepStrictEqual(toHostObject(dnd.normalizeDamageSpec('1d8+3')), { dice: [[1, 8]], bonus: 3 });
@@ -72,25 +73,25 @@ function testCoreTestAllStagesStructure() {
 function testMapScenarios(dnd) {
   const m = loadStageInSandbox('ts_movement');
   const p = m.stage.playerStart;
-  assert.ok(require('vm').runInContext(`bfs(${p.x}, ${p.y}, 5, 5, wallBlk).length`, m.sandbox) > 0);
-  assert.strictEqual(require('vm').runInContext(`bfs(${p.x}, ${p.y}, 0, 0, wallBlk).length`, m.sandbox), 0);
+  assert.ok(vm.runInContext(`bfs(${p.x}, ${p.y}, 5, 5, wallBlk).length`, m.sandbox) > 0);
+  assert.strictEqual(vm.runInContext(`bfs(${p.x}, ${p.y}, 0, 0, wallBlk).length`, m.sandbox), 0);
 
   const c = loadStageInSandbox('ts_combat_entry');
   const cp = c.stage.playerStart;
   const ce = c.stage.encounters[0];
-  assert.strictEqual(require('vm').runInContext(`hasLOS(${cp.x}, ${cp.y}, ${ce.x}, ${ce.y})`, c.sandbox), true);
-  const inFov = require('vm').runInContext(`inFOV({tx:${ce.x}, ty:${ce.y}, facing:${ce.facing}, fov:120}, ${cp.x}, ${cp.y})`, c.sandbox);
+  assert.strictEqual(vm.runInContext(`hasLOS(${cp.x}, ${cp.y}, ${ce.x}, ${ce.y})`, c.sandbox), true);
+  const inFov = vm.runInContext(`inFOV({tx:${ce.x}, ty:${ce.y}, facing:${ce.facing}, fov:120}, ${cp.x}, ${cp.y})`, c.sandbox);
   assert.strictEqual(inFov, true);
 
   const ma = loadStageInSandbox('ts_melee_attack');
   const mp = ma.stage.playerStart;
   const me = ma.stage.encounters[0];
-  assert.strictEqual(require('vm').runInContext(`bfs(${mp.x}, ${mp.y}, ${me.x}, ${me.y}, wallBlk).length`, ma.sandbox), 1);
+  assert.strictEqual(vm.runInContext(`bfs(${mp.x}, ${mp.y}, ${me.x}, ${me.y}, wallBlk).length`, ma.sandbox), 1);
 
   const ea = loadStageInSandbox('ts_enemy_attack');
   const ep = ea.stage.playerStart;
   const ee = ea.stage.encounters[0];
-  const pathLen = require('vm').runInContext(`bfs(${ee.x}, ${ee.y}, ${ep.x}, ${ep.y}, wallBlk).length`, ea.sandbox);
+  const pathLen = vm.runInContext(`bfs(${ee.x}, ${ee.y}, ${ep.x}, ${ep.y}, wallBlk).length`, ea.sandbox);
   assert.ok(pathLen > 0 && pathLen <= 5);
 
   const stats = {
@@ -106,7 +107,7 @@ function testMapScenarios(dnd) {
   assert.strictEqual(dnd.profBonus(17), 6);
 }
 
-function runDndAndMapContracts() {
+export function runDndAndMapContracts() {
   const { dnd, MODE } = loadConfigExports();
   testDiceNotationParsing(dnd);
   testDamageRolling(dnd);
@@ -116,7 +117,3 @@ function runDndAndMapContracts() {
   testCoreTestAllStagesStructure();
   testMapScenarios(dnd);
 }
-
-module.exports = {
-  runDndAndMapContracts,
-};

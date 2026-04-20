@@ -10,48 +10,46 @@ status: active
 
 | Layer | Choice | Notes |
 |---|---|---|
-| **Runtime** | Phaser 3.60 | Canvas rendering, input, camera, tweens |
-| **Language** | Vanilla JavaScript (ES6+) | Zero-build — no bundler, no TypeScript |
-| **Architecture** | Prototype-based modules | `Object.assign(GameScene.prototype, module)` |
-| **Data** | YAML (js-yaml) | All game content defined in YAML files |
-| **Server** | Node.js + Express | Serves static files + YAML API |
+| **Runtime** | Phaser 3.90 | Canvas rendering, input, camera, tweens |
+| **Language** | TypeScript (strict) | Compiled by Vite |
+| **Build** | Vite + Rolldown | `npm run build` → `dist/` |
+| **Architecture** | Prototype-based mixins | `Object.assign(GameScene.prototype, mixin)` |
+| **Data** | YAML (js-yaml) | All game content defined in YAML files under `public/data/` |
 | **Rendering** | Pixel art, no antialiasing | `pixelArt: true, antialias: false` |
 | **RNG** | Mulberry32 seeded PRNG | 3 independent streams: logic, vfx, map |
-| **Testing** | Node unit tests + Playwright e2e | CI runs on every PR |
+| **Testing** | Vitest unit + Playwright e2e | CI runs on every PR |
 | **CI/CD** | GitHub Actions | Auto-test + PR preview deployments |
 | **IaC** | OpenTofu (Terraform) | AWS infra for nonprod/prod |
 
 ## Key Design Decisions
 
-- **No bundler**: Zero build step. Edit and refresh. Simpler for solo dev.
-- **YAML data**: All maps, enemies, items, rules are YAML — moddable without touching JS
+- **Vite build**: TypeScript → `dist/` via `npm run build`. Dev server with HMR via `npm start`.
+- **YAML data**: All maps, enemies, items, rules are YAML — moddable without touching TS
 - **Seeded RNG**: Deterministic runs — same seed = same dungeon every time
-- **Prototype modules**: `game.js` + extracted systems mixed into GameScene via `Object.assign`
+- **Prototype mixins**: `src/game.ts` + extracted systems mixed into GameScene via `Object.assign`
 - **Event hooks**: Modding API exposes hook system for extensibility without forking
 
 ## Systems Architecture
 
 ```
-js/
-├── game.js                    # Main GameScene (1700+ lines, core logic)
-├── main.js                    # Boot: load mods → init Phaser
-├── config.js                  # Tile types, combat/fog/light rules, constants
+src/
+├── game.ts                    # Main GameScene + mixin assembly
+├── main.ts                    # Boot: rng → mods → Phaser
+├── config.ts                  # Tile types, combat/fog/light rules, constants, mapState
 ├── systems/
-│   ├── fog-system.js          # Fog of war + visibility
-│   ├── sight-system.js        # Sight overlays + detection
-│   ├── combat-system.js       # Combat mechanics
-│   ├── combat-init-system.js  # Combat initialization + initiative
-│   ├── camera-system.js       # Pan, zoom, pinch (touch-ready)
-│   ├── explore-tb-system.js   # Turn-based exploration
-│   ├── floor-item-handler.js  # Loot drops + pickup
-│   ├── inventory-system.js    # Inventory management
-│   ├── ability-system.js      # Ability score system
-│   └── map-generator.js       # (planned) BSP procedural map
+│   ├── fog-system.ts          # Fog of war + visibility
+│   ├── sight-system.ts        # Sight overlays + detection
+│   ├── camera-system.ts       # Pan, zoom, pinch (touch-ready)
+│   ├── floor-item-handler.ts  # Loot drops + pickup
+│   ├── inventory-system.ts    # Inventory management
+│   ├── ability-system.ts      # Ability score system
+│   └── movement-system.ts     # Movement + stair transitions
 ├── ui/
-│   ├── core-ui.js             # UI components + events
-│   ├── side-panel.js          # Tabbed character panel
-│   ├── hotbar.js              # Action hotbar (3×10 grid)
-│   └── combat-log.js          # Combat log with filters
+│   ├── core-ui.ts             # UI components + events
+│   ├── side-panel.ts          # Tabbed character panel
+│   ├── hotbar.ts              # Action hotbar (3×10 grid)
+│   └── combat-log.ts          # Combat log with filters
+public/
 └── data/
     ├── 00_core/               # Base game content
     ├── 01_goblin_invasion/    # First campaign world

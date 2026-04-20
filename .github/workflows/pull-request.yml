@@ -25,12 +25,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm test
       - uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install --with-deps chromium
-      - run: npm test
       - run: npm run test:e2e
 
   check-tofu:
@@ -123,12 +123,14 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/myworld-nonprod-deploy
           aws-region: ap-southeast-1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
       - name: Sync to S3
-        run: |
-          aws s3 sync . s3://${BUCKET}/pr/${PR_NUM}/ \
-            --exclude "*" \
-            --include "index.html" --include "js/*" --include "assets/*" --include "data/*" \
-            --delete
+        run: aws s3 sync dist/ s3://${BUCKET}/pr/${PR_NUM}/ --delete
       - uses: actions/github-script@v7
         env:
           URL: https://myworld-pr-${{ github.event.pull_request.number }}.ernestwwchin.com

@@ -1,7 +1,7 @@
-const vm = require('node:vm');
-const { readText } = require('./io');
+import vm from 'node:vm';
+import { readText } from './io.js';
 
-function loadConfigExportsInVm() {
+export function loadConfigExportsInVm() {
   const configCode = readText('js/config.js');
   const sandbox = { console, Math };
   vm.createContext(sandbox);
@@ -9,11 +9,6 @@ function loadConfigExportsInVm() {
   return sandbox.__exports;
 }
 
-function toHostObject(value) {
+export function toHostObject(value) {
   return JSON.parse(JSON.stringify(value));
 }
-
-module.exports = {
-  loadConfigExportsInVm,
-  toHostObject,
-};

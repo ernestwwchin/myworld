@@ -1,6 +1,6 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { loadYaml, loadCoreTestMeta } = require('../_shared/io');
+import { test } from 'vitest';
+import assert from 'node:assert/strict';
+import { loadYaml, loadCoreTestMeta } from '../_shared/io.js';
 
 test('combat reset fixture is deterministic and movement lane is open', () => {
   const stage = loadYaml('data/00_core_test/stages/ts_combat_reset/stage.yaml');

@@ -403,7 +403,7 @@ ancient_tome:
 Define random loot drops per encounter or chest. Modders can customize these in stage YAML.
 
 ```yaml
-# data/core/loot.yaml (suggested)
+# public/data/00_core/loot.yaml (suggested)
 lootTables:
   starter_common:
     rolls: 1
@@ -461,7 +461,7 @@ creatures:
 ## Item Data Schema (Recommended)
 
 ```yaml
-# data/core/items.yaml (suggested new file)
+# public/data/00_core/items.yaml (suggested new file)
 items:
   potion_healing:
     name: "Potion of Healing"

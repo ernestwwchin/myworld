@@ -1,7 +1,7 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const vm = require('node:vm');
-const { readText } = require('../_shared/io');
+import { test } from 'vitest';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import { readText } from '../_shared/io.js';
 
 function loadModLoader() {
   const src = readText('js/modloader.js');

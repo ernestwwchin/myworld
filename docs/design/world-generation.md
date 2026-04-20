@@ -22,7 +22,7 @@ Stage YAML uses a `generator:` block instead of `grid:` for random floors.
 
 ## Stage Descriptor System
 
-- Each stage has a `stage.yaml` in `data/stages/<id>/`
+- Each stage has a `stage.yaml` in `public/data/stages/<id>/`
 - `nextStage: auto` resolves deterministically from run seed + world + depth
 - Depth-band descriptors define what generator/stage comes next
 

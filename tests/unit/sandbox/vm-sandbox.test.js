@@ -1,6 +1,6 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { loadConfigExportsInVm, toHostObject } = require('../_shared/vm');
+import { test } from 'vitest';
+import assert from 'node:assert/strict';
+import { loadConfigExportsInVm, toHostObject } from '../_shared/vm.js';
 
 test('sandbox can load config exports from VM context', () => {
   const cfg = loadConfigExportsInVm();

@@ -1,5 +1,5 @@
-const assert = require('assert');
-const { fs, path, root, loadYaml } = require('./helpers');
+import assert from 'node:assert';
+import { fs, path, root, loadYaml } from './helpers.js';
 
 function testModContracts() {
   const coreMeta = loadYaml('data/00_core/meta.yaml');
@@ -20,22 +20,21 @@ function testModContracts() {
   assert.ok(meta.stages.includes(meta.startMap));
 
   const stage = loadYaml('data/01_goblin_invasion/stages/gw_b1f/stage.yaml');
-  // gw_b1f now uses a procedural generator instead of a static grid
   assert.ok(stage.generator && stage.generator.type, 'gw_b1f must have a generator config');
   assert.ok(Array.isArray(stage.encounters));
 }
 
 function testEventContracts() {
-  const flagsSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'flags.js'), 'utf8');
+  const flagsSrc = fs.readFileSync(path.join(root, 'src', 'systems', 'flags.ts'), 'utf8');
   assert.ok(flagsSrc.includes('registerMod('));
   assert.ok(flagsSrc.includes('applyOverrides('));
 
-  const eventSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'event-runner.js'), 'utf8');
+  const eventSrc = fs.readFileSync(path.join(root, 'src', 'systems', 'event-runner.ts'), 'utf8');
   for (const action of ['move', 'wait', 'waitIdle', 'attack', 'flee', 'hide', 'spawn', 'say', 'setFlag', 'branch', 'goto', 'assert', 'dialog']) {
     assert.ok(eventSrc.includes(`'${action}'`), `event-runner missing action handler: ${action}`);
   }
 
-  const dialogSrc = fs.readFileSync(path.join(root, 'js', 'systems', 'dialog-runner.js'), 'utf8');
+  const dialogSrc = fs.readFileSync(path.join(root, 'src', 'systems', 'dialog-runner.ts'), 'utf8');
   assert.ok(dialogSrc.includes('skillCheck'));
 
   const meta = loadYaml('data/00_core_test/meta.yaml');
@@ -52,7 +51,6 @@ function testGoblinInvasionFlagsAndPatrol() {
   assert.ok(meta.flags.goblin_captain_dead);
   assert.ok(meta.flags.goblins_killed);
 
-  // Patrol encounters live in the hand-crafted scripted map
   const stage = loadYaml('data/01_goblin_invasion/stages/gw_scripted_b1f/stage.yaml');
   const patrolEncs = stage.encounters.filter((enc) => enc.ai && enc.ai.patrolPath);
   assert.ok(patrolEncs.length > 0, 'gw_scripted_b1f must have patrol encounters');
@@ -62,12 +60,8 @@ function testGoblinInvasionFlagsAndPatrol() {
   }
 }
 
-function runModEventContracts() {
+export function runModEventContracts() {
   testModContracts();
   testEventContracts();
   testGoblinInvasionFlagsAndPatrol();
 }
-
-module.exports = {
-  runModEventContracts,
-};

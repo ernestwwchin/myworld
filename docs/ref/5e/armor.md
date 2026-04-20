@@ -359,7 +359,7 @@ shield:
 ## Armor Data Schema (Recommended)
 
 ```yaml
-# data/core/armor.yaml
+# public/data/00_core/armor.yaml
 armor:
   leather:
     name: Leather Armor

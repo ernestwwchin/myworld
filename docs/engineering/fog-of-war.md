@@ -15,7 +15,7 @@ This project uses a hybrid fog-of-war renderer that balances smooth visuals and 
 ## Pipeline
 
 1. Compute tile visibility with LOS
-- Method: `computeVisibleTiles()` in [js/systems/fog-system.js](../js/systems/fog-system.js).
+- Method: `computeVisibleTiles()` in [src/systems/fog-system.ts](../src/systems/fog-system.ts).
 - Uses `hasLOS()` on tile centers inside the fog radius.
 - Writes visibility into reusable `this.fogVisible`.
 
@@ -57,6 +57,6 @@ This project uses a hybrid fog-of-war renderer that balances smooth visuals and 
 
 ## File Ownership
 
-- Fog rendering and visibility: [js/systems/fog-system.js](../js/systems/fog-system.js)
-- Enemy sight logic: [js/systems/sight-system.js](../js/systems/sight-system.js)
-- Shared light-level query (`tileLightLevel`): [js/systems/light-system.js](../js/systems/light-system.js)
+- Fog rendering and visibility: [src/systems/fog-system.ts](../src/systems/fog-system.ts)
+- Enemy sight logic: [src/systems/sight-system.ts](../src/systems/sight-system.ts)
+- Shared light-level query (`tileLightLevel`): [src/systems/light-system.ts](../src/systems/light-system.ts)

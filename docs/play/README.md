@@ -12,7 +12,7 @@ Start in the town hub. Pick up quests, descend through dungeon floors, defeat th
 
 ## Controls
 
-> **TODO:** Verify in-game and fill in. Best source is `js/systems/input-system.js` and `js/modes/`.
+> **TODO:** Verify in-game and fill in. Best source is `src/systems/input-system.ts` and `src/modes/`.
 
 | Action | Input |
 |---|---|

@@ -1,5 +1,5 @@
 ---
-applyTo: "data/**/*.yaml,docs/modding/README.md,js/modloader.js,js/systems/event-runner.js,js/modes/mode-combat.js,tests/**/*.js"
+applyTo: "public/data/**/*.yaml,docs/modding/README.md,src/modloader.ts,src/systems/event-runner.ts,src/modes/mode-combat.ts,tests/**/*.{js,ts}"
 ---
 
 ## BG3-Oriented Mod Design Guidance

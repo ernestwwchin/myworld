@@ -8,9 +8,6 @@ export default defineConfig({
   test: {
     globals: false,
     environment: 'node',
-    environmentMatchGlobs: [
-      ['tests/unit/sandbox/**/*.test.ts', 'jsdom'],
-    ],
-    include: ['tests/unit/**/*.test.ts'],
+    include: ['tests/unit/**/*.test.{ts,js}'],
   },
 });

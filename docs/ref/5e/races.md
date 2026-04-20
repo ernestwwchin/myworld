@@ -220,13 +220,13 @@ tiefling:
 ## Implementation Notes
 
 Races would:
-1. Live in `data/core/races.yaml`
+1. Live in `public/data/00_core/races.yaml`
 2. Apply ability bonuses during character creation / player.yaml loading
 3. Traits register as passives via the hook system
 4. Player YAML adds a `race` field:
 
 ```yaml
-# data/player.yaml
+# public/data/player.yaml
 player:
   name: Adventurer
   race: half_orc        # ← new field

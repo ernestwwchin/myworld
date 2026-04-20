@@ -24,10 +24,9 @@ npm start
 ## Project Structure
 
 - [index.html](index.html): Main game page and UI shell.
-- [test.html](test.html): Browser-based test runner page.
-- [server.js](server.js): Express server entrypoint.
-- [js/](js/): Runtime game logic (scene, UI, helpers, loader).
-- [data/](data/): YAML-driven mods. Folders are loaded in numeric-prefix order (`00_core` → `01_goblin_invasion` → …).
+- [test.html](test.html): Browser-based autoplay test runner.
+- [src/](src/): TypeScript source (game logic, systems, UI, modes).
+- [public/data/](public/data/): YAML-driven mods. Folders are loaded in numeric-prefix order (`00_core` → `01_goblin_invasion` → …).
 - [tests/](tests/): Contracts, unit (pure + sandbox), and Playwright e2e suites.
 
 ## Documentation
@@ -102,11 +101,9 @@ See [tofu/BOOTSTRAP.md](tofu/BOOTSTRAP.md) for initial setup instructions.
 export AWS_PROFILE="<your-aws-profile>"
 export TF_VAR_account_id="<your-account-id>"
 
-# Deploy game files to nonprod
-aws s3 sync . s3://myworld-nonprod-game-${TF_VAR_account_id}/ \
-  --exclude "*" \
-  --include "index.html" --include "js/*" --include "assets/*" --include "data/*" \
-  --delete
+# Build then deploy game files to nonprod
+npm run build
+aws s3 sync dist/ s3://myworld-nonprod-game-${TF_VAR_account_id}/ --delete
 
 # Run tofu for a specific environment
 cd tofu/nonprod
@@ -121,4 +118,4 @@ All rights reserved. This source code is provided for viewing purposes only. You
 
 ## Notes
 
-Current server configuration in [server.js](server.js) serves [index.html](index.html) from the repository root at route `/`, so the current file placement is correct.
+Development server: `npm start` (Vite, port 3000). Production build: `npm run build` → `dist/`. The `base: './'` in `vite.config.ts` ensures PR preview URLs resolve assets correctly under subpaths.

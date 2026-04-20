@@ -29,9 +29,9 @@ export default defineConfig({
         test: resolve(__dirname, 'test.html'),
       },
       output: {
-        manualChunks: {
-          phaser: ['phaser'],
-          yaml: ['js-yaml'],
+        manualChunks(id: string) {
+          if (id.includes('node_modules/phaser')) return 'phaser';
+          if (id.includes('node_modules/js-yaml')) return 'yaml';
         },
       },
     },

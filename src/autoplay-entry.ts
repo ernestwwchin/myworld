@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import './rng';
-import { S, mapState } from '@/config';
+import { S, mapState, PLAYER_STATS } from '@/config';
 import { GameScene } from '@/game';
 import { ModLoader } from '@/modloader';
 import '@/ui/combat-log';
@@ -9,11 +9,27 @@ import '@/ui/side-panel';
 import '@/ui/core-ui';
 import '@/ui/hotbar';
 import '@/demoplay';
+import { scenarios } from '@/autoplay';
 
-(async function boot() {
+(window as unknown as Record<string, unknown>).AutoPlayScenarios = scenarios;
+
+void (async function boot() {
+  const params = new URLSearchParams(window.location.search);
+  const mapOverride = params.get('map');
+
   try {
     await ModLoader.init();
-    // Sync mapState after mod may have changed MAP
+    if (mapOverride) {
+      const md = (ModLoader as unknown as Record<string, unknown>)._modData as Record<string, unknown> | undefined;
+      const maps = md?.maps as Record<string, unknown> | undefined;
+      if (maps?.[mapOverride]) {
+        (ModLoader as unknown as { applyMap(d: unknown, m: string): void }).applyMap(md, mapOverride);
+        (ModLoader as unknown as { applyCreatures(d: unknown, m: string): void }).applyCreatures(md, mapOverride);
+        const mapDef = maps[mapOverride] as Record<string, unknown> | undefined;
+        const p = mapDef?.playerStart;
+        if (p) (PLAYER_STATS as Record<string, unknown>).startTile = p;
+      }
+    }
     const w = window as unknown as Record<string, unknown>;
     const MAP = w.MAP as unknown[][] | undefined;
     if (Array.isArray(MAP) && MAP.length > 0) {
@@ -21,8 +37,7 @@ import '@/demoplay';
       mapState.cols = (MAP[0] as unknown[]).length;
     }
   } catch (e: unknown) {
-    const err = e as { message?: string; stack?: string };
-    console.error('[ModLoader] Failed, using built-in defaults:', err.message || e, err.stack || '');
+    console.warn('[Test] ModLoader failed:', (e as Error).message || e);
   }
 
   const GAME_W = mapState.cols * S || 640;
@@ -35,38 +50,27 @@ import '@/demoplay';
     backgroundColor: '#0a0a0f',
     parent: 'gc',
     scene: GameScene,
-    scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.NO_CENTER },
-    input: {
-      activePointers: 2,
-      mouse: { preventDefaultDown: true, preventDefaultUp: true, preventDefaultMove: false },
-    },
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    input: { activePointers: 2 },
     render: { pixelArt: true, antialias: false },
   });
   (window as unknown as Record<string, unknown>).game = game;
-
-  const gcEl = document.getElementById('gc');
-  if (gcEl) gcEl.addEventListener('contextmenu', (e) => e.preventDefault());
 
   function syncUIOverlay(): void {
     const canvas = document.querySelector('#gc canvas');
     const overlay = document.getElementById('ui-overlay');
     if (!canvas || !overlay) return;
+    const rect = canvas.getBoundingClientRect();
     const gc = document.getElementById('gc');
     if (!gc) return;
     const gcRect = gc.getBoundingClientRect();
-    overlay.style.width = gcRect.width + 'px';
-    overlay.style.height = gcRect.height + 'px';
-    overlay.style.left = '0px';
-    overlay.style.top = '0px';
+    overlay.style.width = rect.width + 'px';
+    overlay.style.height = rect.height + 'px';
+    overlay.style.left = (rect.left - gcRect.left) + 'px';
+    overlay.style.top = (rect.top - gcRect.top) + 'px';
   }
   (window as unknown as Record<string, unknown>).syncUIOverlay = syncUIOverlay;
   window.addEventListener('resize', syncUIOverlay);
   game.scale.on('resize', () => setTimeout(syncUIOverlay, 50));
   setTimeout(syncUIOverlay, 100);
-
-  const w = window as unknown as Record<string, unknown>;
-  if (w.CombatLog && typeof (w.CombatLog as { init?: () => void }).init === 'function') {
-    (w.CombatLog as { init: () => void; log: (msg: string, cat: string) => void }).init();
-    (w.CombatLog as { init: () => void; log: (msg: string, cat: string) => void }).log('Explore the dungeon!', 'system');
-  }
 })();

@@ -29,6 +29,7 @@ export interface GeneratorCfg {
   stairs?: boolean;
   chests?: boolean | number;
   doors?: boolean;
+  modifiers?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
@@ -423,7 +424,11 @@ function randomType(cfg: GeneratorCfg, tile: TileConstants): GenResult {
 
 export const MapGen = {
   generate(cfg: GeneratorCfg, tile: TileConstants): GenResult {
-    const type = String(cfg.type || 'cellular_automata').toLowerCase();
+    let type = String(cfg.type || 'cellular_automata').toLowerCase();
+    if (cfg.modifiers && typeof cfg.modifiers.generator_type === 'string') {
+      type = cfg.modifiers.generator_type.toLowerCase();
+    }
+    
     if (type === 'cellular_automata' || type === 'cave') return cellularAutomata(cfg, tile);
     if (type === 'bsp' || type === 'rooms') return bsp(cfg, tile);
     if (type === 'random' || type === 'mixed') return randomType(cfg, tile);

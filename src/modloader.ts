@@ -63,6 +63,8 @@ interface RunState {
   plannedStages: string[];
   lastOutcome?: string;
   lastSummary?: string;
+  storylineId?: string | null;
+  actIndex?: number;
 }
 
 interface ModData {
@@ -77,6 +79,7 @@ interface ModData {
   lootTables: Dict;
   items: Dict;
   worlds?: Dict;
+  storylines?: any[];
   _stageEvents?: unknown[];
   _stageAutoplay?: unknown[];
   _stageDialogs?: Dict;
@@ -712,6 +715,25 @@ export const ModLoader = {
     state.history = [this._activeMap].filter(Boolean) as string[];
     state.plannedStages = [...seq];
     state.depth = this._getRunDepth();
+    state.storylineId = null;
+    state.actIndex = 1;
+
+    const storylines = Array.isArray(this._modData?.storylines) ? this._modData.storylines : [];
+    if (storylines.length > 0) {
+      const hash = this._stableHashString(`storyline|${state.seed}`);
+      const weighted = storylines.map((s: any) => ({ id: s.id, weight: Number(s.weight || 1) }));
+      const totalWeight = weighted.reduce((sum, s) => sum + s.weight, 0);
+      const bucket = hash % totalWeight;
+      let cursor = 0;
+      for (const s of weighted) {
+        cursor += s.weight;
+        if (bucket < cursor) {
+          state.storylineId = s.id;
+          console.log(`[ModLoader] Seed ${state.seed} resolved storyline: ${s.id}`);
+          break;
+        }
+      }
+    }
 
     this.transitionToStage(target, scene);
   },
@@ -975,6 +997,13 @@ export const ModLoader = {
         const it = (await this.loadYaml(`data/${modId}/items.yaml`)) as any;
         if (it?.items && typeof it.items === 'object') Object.assign(modData.items, it.items);
       } catch { /* no items.yaml — ok */ }
+
+      try {
+        const sl = (await this.loadYaml(`data/${modId}/storylines.yaml`)) as any;
+        if (sl?.storylines && Array.isArray(sl.storylines)) {
+          modData.storylines = (modData.storylines || []).concat(sl.storylines);
+        }
+      } catch { /* no storylines.yaml — ok */ }
 
       for (const stageId of (meta.stages || [])) {
         this._stageRegistry[stageId] = `data/${modId}/stages/${stageId}/stage.yaml`;

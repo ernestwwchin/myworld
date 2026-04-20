@@ -8,24 +8,27 @@ Patterns for extracting and organizing game systems. Read when refactoring or cr
 
 ## Module extraction pattern
 
-Every system module follows this structure:
+Every system module is a mixin exported from its own file:
 
-```javascript
-const GameScene[Name]System = {
-  publicMethod() {
+```typescript
+export const GameScene[Name]System = {
+  publicMethod(this: GameScene) {
     // Uses `this` to access GameScene state
   },
 
-  _privateHelper() {
+  _privateHelper(this: GameScene) {
     // Prefix with underscore
   }
 };
 
-Object.assign(GameScene.prototype, GameScene[Name]System);
+// At bottom of file, augment the GameScene interface:
+declare module '@/game' {
+  interface GameScene extends typeof GameScene[Name]System {}
+}
 ```
 
-- File: `js/systems/[name]-system.js`
-- Loaded via `<script>` tag in `index.html` after `game.js`
+- File: `src/systems/[name]-system.ts`
+- Assembled in `src/game.ts` via `Object.assign(GameScene.prototype, ...)`
 - Methods access scene state through `this` (bound at call time)
 
 ## System integration points
@@ -46,28 +49,28 @@ Three standalone objects (not GameScene mixins):
 
 | Object | File | Pattern |
 |--------|------|---------|
-| `Flags` | `js/flags.js` | Global singleton, no scene ref |
-| `EventRunner` | `js/systems/event-runner.js` | Singleton, receives scene via `init(scene)` |
-| `DialogRunner` | `js/systems/dialog-runner.js` | Singleton, receives scene via `init(scene)` |
+| `Flags` | `src/systems/flags.ts` | Global singleton, no scene ref |
+| `EventRunner` | `src/systems/event-runner.ts` | Singleton, receives scene via `init(scene)` |
+| `DialogRunner` | `src/systems/dialog-runner.ts` | Singleton, receives scene via `init(scene)` |
 
-These load **before** `game.js` (Flags must exist for ModLoader). Wired in `create()`:
+Wired in `create()`:
 
-```javascript
+```typescript
 EventRunner.init(this, ModLoader._modData?._stageEvents || []);
 DialogRunner.init(this, ModLoader._modData?._stageDialogs || {});
 ```
 
 Movement system fires triggers:
 
-```javascript
-if (typeof EventRunner !== 'undefined') EventRunner.onPlayerTile(next.x, next.y);
+```typescript
+EventRunner.onPlayerTile(next.x, next.y);
 ```
 
 ## Adding a new module
 
-1. Create `js/systems/[name]-system.js` with the pattern above.
-2. Add `<script>` tag in `index.html` (after `game.js`, before UI scripts).
-3. Remove extracted methods from `game.js`; leave a brief comment pointing to the new module if useful.
+1. Create `src/systems/[name]-system.ts` with the mixin pattern above.
+2. Import and add to `Object.assign(GameScene.prototype, ...)` in `src/game.ts`.
+3. Remove extracted methods from `game.ts`; add a `declare module '@/game'` augmentation block.
 4. Add a sandbox unit test under `tests/unit/sandbox/[name]-system.test.js` (see [testing.md](testing.md)).
 5. Run `npm test` to confirm contracts and unit suites still pass.
 
@@ -81,7 +84,7 @@ if (typeof EventRunner !== 'undefined') EventRunner.onPlayerTile(next.x, next.y)
 
 ## Phaser event patterns
 
-```javascript
+```typescript
 // Emit
 this.emit('player_moved', { from: oldPos, to: newPos });
 this.emit('combat_started', { enemies: engagedEnemies });

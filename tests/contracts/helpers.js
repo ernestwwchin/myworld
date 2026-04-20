@@ -1,16 +1,21 @@
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
-const yaml = require('js-yaml');
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
+import yaml from 'js-yaml';
 
 const root = process.cwd();
 
-function loadYaml(relPath) {
-  const full = path.join(root, relPath);
-  return yaml.load(fs.readFileSync(full, 'utf8'));
+function resolvePath(relPath) {
+  // data/ was moved to public/data/ during TS migration
+  if (relPath.startsWith('data/')) return path.join(root, 'public', relPath);
+  return path.join(root, relPath);
 }
 
-function loadConfigExports() {
+export function loadYaml(relPath) {
+  return yaml.load(fs.readFileSync(resolvePath(relPath), 'utf8'));
+}
+
+export function loadConfigExports() {
   const configPath = path.join(root, 'js', 'config.js');
   const code = fs.readFileSync(configPath, 'utf8');
   const sandbox = { console, Math };
@@ -20,11 +25,11 @@ function loadConfigExports() {
   return sandbox.__testExports;
 }
 
-function toHostObject(obj) {
+export function toHostObject(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
-function loadStageInSandbox(stageId) {
+export function loadStageInSandbox(stageId) {
   const rules = loadYaml('data/00_core/rules.yaml');
   const stage = loadYaml(`data/00_core_test/stages/${stageId}/stage.yaml`);
   const syms = rules.tileSymbols || { '#': 1, '.': 0, 'D': 3, 'C': 4, 'S': 5, '~': 6, 'G': 7 };
@@ -48,12 +53,4 @@ function loadStageInSandbox(stageId) {
   return { sandbox, stage, grid, ROWS, COLS };
 }
 
-module.exports = {
-  fs,
-  path,
-  root,
-  loadYaml,
-  loadConfigExports,
-  toHostObject,
-  loadStageInSandbox,
-};
+export { fs, path, root };

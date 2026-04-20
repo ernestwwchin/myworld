@@ -7,7 +7,7 @@ tags: [myworld, docs]
 ## Overview
 
 The game uses a hybrid sprite approach:
-- **Procedural sprites** (current, `js/sprites.js`) as fallback for any missing art
+- **Procedural sprites** (current, `src/sprites.ts`) as fallback for any missing art
 - **External art packs** for higher quality visuals — loaded via Phaser's asset pipeline
 
 All sprites display at **48×48px** regardless of source resolution (via Phaser `setDisplaySize(S, S)`).

@@ -52,7 +52,7 @@ How to create mods for MyWorld RPG. Covers YAML data mods, JavaScript hooks, and
 ## Mod Folder Structure
 
 ```
-data/
+public/data/
   02_mymod/
     meta.yaml          # Required: mod metadata + file list + flags
     creatures.yaml     # Optional: new/override creatures
@@ -114,7 +114,7 @@ The last mod declaring `startMap` sets the opening stage.
 ### Add a Creature
 
 ```yaml
-# data/mymod/creatures.yaml
+# public/data/mymod/creatures.yaml
 creatures:
   dire_wolf:
     name: Dire Wolf
@@ -134,7 +134,7 @@ creatures:
 ### Add a Weapon
 
 ```yaml
-# data/mymod/weapons.yaml
+# public/data/mymod/weapons.yaml
 weapons:
   bite:
     name: Bite
@@ -148,7 +148,7 @@ weapons:
 ### Add a Stage
 
 ```yaml
-# data/stages/mymod_dungeon/stage.yaml
+# public/data/stages/mymod_dungeon/stage.yaml
 name: "Wolf Den"
 floor: B1F
 globalLight: dark
@@ -179,7 +179,7 @@ lights:
 Override rules without changing code:
 
 ```yaml
-# data/mymod/rules.yaml
+# public/data/mymod/rules.yaml
 combat:
   playerMovePerTurn: 6       # Default: 5
   dashMoveBonus: 5            # Default: 4
@@ -392,14 +392,14 @@ thorns_aura:
 
 | Category | Convention | Example |
 |----------|-----------|---------|
-| Mod folder | `snake_case` | `data/my_expansion/` |
+| Mod folder | `snake_case` | `public/data/my_expansion/` |
 | YAML keys (IDs) | `snake_case` | `dire_wolf`, `vampiric_strike` |
 | Display names | Title Case | `"Dire Wolf"`, `"Vampiric Strike"` |
 | Hook names | `snake_case` with `on_` prefix | `on_attack_hit`, `on_combat_start` |
 | Status IDs | `snake_case` | `poisoned`, `burning`, `slowed` |
 | Damage types | lowercase | `fire`, `radiant`, `necrotic`, `slashing` |
 | Stat abbreviations | lowercase 3-letter | `str`, `dex`, `con`, `int`, `wis`, `cha` |
-| Stage folders | `snake_case` | `data/stages/wolf_den/` |
+| Stage folders | `snake_case` | `public/data/stages/wolf_den/` |
 
 ---
 
@@ -424,7 +424,7 @@ Everything else uses structured YAML objects.
 1. `core` always loads first.
 2. Mods load in array order from `modsettings.yaml`.
 3. Later mods override earlier ones (last wins).
-4. Stage YAML (`data/stages/`) overrides map definitions from mods.
+4. Stage YAML (`public/data/stages/`) overrides map definitions from mods.
 
 ```yaml
 # modsettings.yaml

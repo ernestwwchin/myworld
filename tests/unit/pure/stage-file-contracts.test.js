@@ -1,6 +1,6 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { repoPath, loadYaml, exists, loadCoreTestMeta } = require('../_shared/io');
+import { test } from 'vitest';
+import assert from 'node:assert/strict';
+import { repoPath, loadYaml, exists, loadCoreTestMeta } from '../_shared/io.js';
 
 test('core test stages must include stage.yaml and events.yaml', () => {
   const meta = loadCoreTestMeta();

@@ -1,34 +1,31 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const yaml = require('js-yaml');
+import fs from 'node:fs';
+import path from 'node:path';
+import yaml from 'js-yaml';
+import { fileURLToPath } from 'node:url';
 
-const repoRoot = path.resolve(__dirname, '../../..');
+export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
-function repoPath(...segments) {
-  return path.join(repoRoot, ...segments);
+export function repoPath(...segments) {
+  const rel = path.join(...segments);
+  // data/ was moved to public/data/ during TS migration
+  if (rel.startsWith('data' + path.sep) || rel.startsWith('data/')) {
+    return path.join(repoRoot, 'public', rel);
+  }
+  return path.join(repoRoot, rel);
 }
 
-function readText(relPath) {
-  return fs.readFileSync(repoPath(relPath), 'utf8');
+export function readText(relPath) {
+  return fs.readFileSync(path.join(repoRoot, relPath), 'utf8');
 }
 
-function loadYaml(relPath) {
-  return yaml.load(readText(relPath));
+export function loadYaml(relPath) {
+  return yaml.load(fs.readFileSync(repoPath(relPath), 'utf8'));
 }
 
-function exists(relPath) {
+export function exists(relPath) {
   return fs.existsSync(repoPath(relPath));
 }
 
-function loadCoreTestMeta() {
+export function loadCoreTestMeta() {
   return loadYaml('data/00_core_test/meta.yaml');
 }
-
-module.exports = {
-  repoRoot,
-  repoPath,
-  readText,
-  loadYaml,
-  exists,
-  loadCoreTestMeta,
-};

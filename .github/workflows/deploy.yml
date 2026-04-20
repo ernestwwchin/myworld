@@ -20,15 +20,17 @@ jobs:
       BUCKET: myworld-nonprod-game-${{ vars.AWS_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/myworld-nonprod-deploy
           aws-region: ap-southeast-1
-      - run: |
-          aws s3 sync . s3://${BUCKET}/ \
-            --exclude "*" \
-            --include "index.html" --include "js/*" --include "assets/*" --include "data/*" \
-            --delete
+      - run: aws s3 sync dist/ s3://${BUCKET}/ --delete
       - run: |
           DIST_ID=$(aws cloudfront list-distributions \
             --query "DistributionList.Items[?Comment=='myworld nonprod'].Id" --output text)
@@ -43,15 +45,17 @@ jobs:
       BUCKET: myworld-prod-game-${{ vars.AWS_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/myworld-prod-deploy
           aws-region: ap-southeast-1
-      - run: |
-          aws s3 sync . s3://${BUCKET}/ \
-            --exclude "*" \
-            --include "index.html" --include "js/*" --include "assets/*" --include "data/*" \
-            --delete
+      - run: aws s3 sync dist/ s3://${BUCKET}/ --delete
       - run: |
           DIST_ID=$(aws cloudfront list-distributions \
             --query "DistributionList.Items[?Comment=='myworld prod'].Id" --output text)

@@ -227,8 +227,8 @@ curl -s -X POST http://localhost:3000/_debug/exec \
 | File | Role |
 |------|------|
 | `server.js` (lines 118–260) | SSE channel, exec endpoint, response collection, console log buffer, eval shortcut |
-| `js/systems/debug-logger.js` (lines 109–297) | SSE client, command executor (`_execDebugCmd`) |
-| `js/game.js` (line 200) | `initDebugBridge()` call in `create()` |
+| `src/systems/debug-logger.ts` (lines 109–297) | SSE client, command executor (`_execDebugCmd`) |
+| `src/game.ts` (line 200) | `initDebugBridge()` call in `create()` |
 | `index.html` (inline script) | Console interceptor — forwards all log/warn/error/info to server |
 
 ---

@@ -1,13 +1,13 @@
-const fs = require('fs');
-const path = require('path');
-const yaml = require('js-yaml');
-const { z } = require('zod');
+import fs from 'node:fs';
+import path from 'node:path';
+import yaml from 'js-yaml';
+import { z } from 'zod';
 
 const root = process.cwd();
 
 function loadYaml(relPath) {
-  const full = path.join(root, relPath);
-  return yaml.load(fs.readFileSync(full, 'utf8'));
+  const resolved = relPath.startsWith('data/') ? path.join(root, 'public', relPath) : path.join(root, relPath);
+  return yaml.load(fs.readFileSync(resolved, 'utf8'));
 }
 
 const EncounterSchema = z.object({
@@ -33,7 +33,7 @@ const EventsSchema = z.object({
   events: z.array(z.any()).optional(),
 });
 
-function runSchemaContracts(assert) {
+export function runSchemaContracts(assert) {
   const meta = loadYaml('data/00_core_test/meta.yaml');
   const declared = new Set(meta.stages || []);
 
@@ -57,7 +57,3 @@ function runSchemaContracts(assert) {
     }
   }
 }
-
-module.exports = {
-  runSchemaContracts,
-};

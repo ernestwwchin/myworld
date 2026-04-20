@@ -32,7 +32,7 @@ Everything not on that path is deferred. See "Post-v1 candidates" below.
 Sprint goals, ordered. Each one ends in a thing the player notices.
 
 ### 1. Map generation good enough for 10 floors
-- [x] CA generator wired (`js/mapgen.js`)
+- [x] CA generator wired (`src/mapgen.ts`)
 - [x] BSP room+corridor algorithm (better readability than CA for combat)
 - [x] Per-floor difficulty: room count/size scales with depth
 - [x] Auto-place player start + stairs + at least one chest

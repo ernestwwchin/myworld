@@ -1,15 +1,11 @@
-const { runDndAndMapContracts } = require('./dnd-and-map-contracts');
-const { runModEventContracts } = require('./mod-event-contracts');
-const { runUiSystemContracts } = require('./ui-system-contracts');
-const { runInventoryItemContracts } = require('./inventory-item-contracts');
+import { runDndAndMapContracts } from './dnd-and-map-contracts.js';
+import { runModEventContracts } from './mod-event-contracts.js';
+import { runUiSystemContracts } from './ui-system-contracts.js';
+import { runInventoryItemContracts } from './inventory-item-contracts.js';
 
-function runCoreContracts() {
+export function runCoreContracts() {
   runDndAndMapContracts();
   runModEventContracts();
   runUiSystemContracts();
   runInventoryItemContracts();
 }
-
-module.exports = {
-  runCoreContracts,
-};
