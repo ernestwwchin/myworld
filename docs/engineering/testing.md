@@ -12,7 +12,7 @@ How tests are organized and patterns for writing new ones. Read when adding test
 |---|---|---|
 | Contracts | `tests/contracts/` | Schema/structural assertions on YAML, mod metadata, registry resolution. Custom runner: `node tests/contracts/run-contracts.mjs`. |
 | Unit / pure | `tests/unit/pure/` | Pure helper logic — no game globals required. Run via vitest. |
-| Unit / sandbox | `tests/unit/sandbox/` | Loads browser-only JS files (e.g. `js/modloader.js`) into a `vm.createContext` sandbox. Use this for any browser-dependent code. Run via vitest. |
+| Unit / sandbox | `tests/unit/sandbox/` | Imports directly from `src/` like unit/pure, but mutates singleton state (e.g. `ModLoader._modData`) and uses `beforeEach` resets. Run via vitest. |
 | E2E | `tests/e2e/` | Playwright against `vite preview` on port 3100. Shared boot/teardown in `tests/e2e/helpers.js`. |
 
 ## Commands
@@ -33,27 +33,24 @@ If Playwright reports a missing browser: `npx playwright install chromium`.
 
 ## Sandbox test pattern
 
-For browser-only files, load into a vm sandbox (vitest + ESM):
+For tests that mutate singleton state, import directly and reset in `beforeEach`:
 
 ```javascript
-import { test } from 'vitest';
+import { test, beforeEach } from 'vitest';
 import assert from 'node:assert/strict';
-import vm from 'node:vm';
-import { readText } from '../_shared/io.js';
+import { ModLoader } from '../../../src/modloader.ts';
+import { PLAYER_STATS } from '../../../src/config.ts';
 
-function loadModLoader() {
-  const src = readText('js/modloader.js');
-  const sandbox = {
-    console, Math, JSON, Date,
-    PLAYER_STATS: { inventory: [], gold: 0 },
-  };
-  vm.createContext(sandbox);
-  vm.runInContext(`${src}\nthis.__ModLoader = ModLoader;`, sandbox);
-  return sandbox.__ModLoader;
-}
+beforeEach(() => {
+  ModLoader._modData = null;
+  ModLoader._runState = null;
+  ModLoader._activeMap = null;
+  PLAYER_STATS.inventory = [];
+  PLAYER_STATS.gold = 0;
+});
 
 test('descriptive name', () => {
-  const mod = loadModLoader();
+  ModLoader._modData = { /* ... */ };
   // ... arrange / act / assert
 });
 ```

@@ -54,7 +54,7 @@ Two modes: `MODE.EXPLORE` and `MODE.COMBAT`. Combat entry uses BG3-style "engage
 ### Test architecture
 - **Contracts** (`tests/contracts/`) — schema/structural assertions run by a custom runner (`run-contracts.mjs`). Validates YAML shapes, mod metadata, registry resolution, and enforces absence of removed-feature TODOs.
 - **Unit/pure** (`tests/unit/pure/`) — no game globals; pure helper logic. Run under vitest.
-- **Unit/sandbox** (`tests/unit/sandbox/`) — loads `js/modloader.js` (and similar files) into a `vm.createContext` sandbox to test methods without a browser. Use this pattern when adding tests for any browser-only file.
+- **Unit/sandbox** (`tests/unit/sandbox/`) — imports directly from `src/` (same as unit/pure). Use this for tests that mutate singleton state (e.g. `ModLoader._modData`) and need explicit reset in `beforeEach`.
 - **E2E** (`tests/e2e/`) — Playwright, runs against `vite preview` on port 3100. `helpers.js` provides shared boot/teardown.
 
 ### Globals to watch
