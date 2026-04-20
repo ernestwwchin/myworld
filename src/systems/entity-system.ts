@@ -2,29 +2,11 @@ import { S, TILE, MAP, DOOR_RULES, mapState } from '@/config';
 import { bfs } from '@/helpers';
 import { tileDist } from '@/systems/world-position-system';
 import { getTileTex } from '@/sprites';
+import { DoorEntity } from '@/entities/door-entity';
+import { ChestEntity } from '@/entities/chest-entity';
+import { InteractableEntity } from '@/entities/interactable-entity';
 import type { GameScene } from '@/game';
-
-interface GameEntity {
-  id: string;
-  x: number;
-  y: number;
-  kind: string;
-  sprite?: Phaser.GameObjects.Image;
-  open?: boolean;
-  getTexture(): string | null;
-  getLabel(): string;
-  needsAdjacency(): boolean;
-  blocksMovement(scene: GameScene): boolean;
-  getMenuOptions(scene: GameScene): Array<{ enabled: boolean; icon: string; label: string; action: string }>;
-  interact(scene: GameScene, action: string): { ok?: boolean } | null | undefined;
-  getType?: () => string;
-}
-
-type EntityCtor = new (raw: Record<string, unknown>) => GameEntity;
-
-declare const DoorEntity: EntityCtor;
-declare const ChestEntity: EntityCtor;
-declare const InteractableEntity: EntityCtor;
+import type { GameEntity } from '@/types/entities';
 
 interface ActionDef {
   enabled: boolean;

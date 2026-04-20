@@ -204,7 +204,7 @@ export const MovementSystemMixin = {
         } catch (_e) {
           console.warn('[EventRunner] tile trigger error:', _e);
         }
-        if (typeof this.checkFloorItemPickup === 'function') this.checkFloorItemPickup();
+        this.checkFloorItemPickup();
         const tileVal = MAP[next.y]?.[next.x];
         if (tileVal === TILE.STAIRS) {
           const meta = (window as unknown as { _MAP_META?: { nextStage?: string } })._MAP_META;
@@ -362,7 +362,7 @@ declare module '@/game' {
     playActorIdle(actor: Phaser.GameObjects.Sprite, type: string): void;
     playActorMove(actor: Phaser.GameObjects.Sprite, type: string, far: boolean): void;
     showMoveRange(): void;
-    checkFloorItemPickup?: () => void;
+    checkFloorItemPickup(): void;
     _finalWorldPos: FinalPos;
     _pathLineGfx: Phaser.GameObjects.Graphics | null;
     _holdMoveActive: boolean;
