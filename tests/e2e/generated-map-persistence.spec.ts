@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForScene } from './helpers.ts';
 
 test('generated floor keeps layout and valid spawn after save + refresh', async ({ page }) => {
   await page.goto('/?map=gw_b1f&ignoreSave=1', { waitUntil: 'networkidle' });

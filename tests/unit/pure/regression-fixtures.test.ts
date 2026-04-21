@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { loadYaml, loadCoreTestMeta } from '../_shared/io.js';
+import { loadYaml, loadCoreTestMeta } from '../_shared/io.ts';
 
 test('combat reset fixture is deterministic and movement lane is open', () => {
   const stage = loadYaml('data/00_core_test/stages/ts_combat_reset/stage.yaml');

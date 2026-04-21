@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene, seededUrl } from './helpers.js';
+import { waitForScene, seededUrl } from './helpers.ts';
 
 // Seed used for all deterministic chest tests.
 const CHEST_SEED = 42;

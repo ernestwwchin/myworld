@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { fs, path, root, loadYaml } from './helpers.js';
+import { fs, path, root, loadYaml } from './helpers.ts';
 
 function testSystemArchitectureContracts() {
   const combatSrc = fs.readFileSync(path.join(root, 'src', 'modes', 'mode-combat.ts'), 'utf8');

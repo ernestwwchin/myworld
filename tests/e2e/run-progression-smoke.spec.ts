@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene, getState, tapTile, waitUntilIdle, seededUrl } from './helpers.js';
+import { waitForScene, getState, tapTile, waitUntilIdle, seededUrl } from './helpers.ts';
 
 test('run progression smoke: town portal -> auto floor -> extract to town', async ({ page }) => {
   await page.goto(seededUrl('/', 314159), { waitUntil: 'networkidle' });

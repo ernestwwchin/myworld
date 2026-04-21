@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene, getState, tapTile } from './helpers.js';
+import { waitForScene, getState, tapTile } from './helpers.ts';
 
 test('floor transition moves to the next stage', async ({ page }) => {
   await page.goto('/?map=ts_floor_transition_a', { waitUntil: 'networkidle' });

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene, tapTile } from './helpers.js';
+import { waitForScene, tapTile } from './helpers.ts';
 
 test.describe('Inventory interactions', () => {
   test('pickup item from chest', async ({ page }) => {

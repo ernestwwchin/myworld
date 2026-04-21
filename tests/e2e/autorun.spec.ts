@@ -10,7 +10,7 @@
  * Uses a hand-crafted map so the layout is deterministic and simple.
  */
 import { test, expect } from '@playwright/test';
-import { waitForScene, getState, dismissDiceIfNeeded } from './helpers.js';
+import { waitForScene, getState, dismissDiceIfNeeded } from './helpers.ts';
 
 test.describe.configure({ timeout: 120000 });
 

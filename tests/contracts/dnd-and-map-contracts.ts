@@ -1,7 +1,7 @@
 import assert from 'node:assert';
 import { dnd, MODE } from '../../src/config.ts';
 import { bfs, wallBlk, hasLOS, inFOV } from '../../src/helpers.ts';
-import { loadYaml, toHostObject, loadStageInSandbox } from './helpers.js';
+import { loadYaml, toHostObject, loadStageInSandbox } from './helpers.ts';
 
 function testDiceNotationParsing() {
   assert.deepStrictEqual(toHostObject(dnd.normalizeDamageSpec('1d8+3')), { dice: [[1, 8]], bonus: 3 });

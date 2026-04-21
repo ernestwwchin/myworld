@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene, getState, dismissDiceIfNeeded } from './helpers.js';
+import { waitForScene, getState, dismissDiceIfNeeded } from './helpers.ts';
 
 test('enemy turn damage and flee exit in one flow', async ({ page }) => {
   await page.goto('/?map=ts_enemy_attack', { waitUntil: 'networkidle' });

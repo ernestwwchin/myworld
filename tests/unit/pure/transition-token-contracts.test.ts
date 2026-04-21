@@ -2,7 +2,7 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { repoRoot, loadYaml } from '../_shared/io.js';
+import { repoRoot, loadYaml } from '../_shared/io.ts';
 
 const root = repoRoot;
 

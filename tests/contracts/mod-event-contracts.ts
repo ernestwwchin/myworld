@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { fs, path, root, loadYaml } from './helpers.js';
+import { fs, path, root, loadYaml } from './helpers.ts';
 
 function testModContracts() {
   const coreMeta = loadYaml('data/00_core/meta.yaml');

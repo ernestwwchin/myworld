@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene, getState, tapTile, dismissDiceIfNeeded } from './helpers.js';
+import { waitForScene, getState, tapTile, dismissDiceIfNeeded } from './helpers.ts';
 
 test.describe.configure({ timeout: 90000 });
 

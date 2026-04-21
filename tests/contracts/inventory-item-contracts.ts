@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { fs, path, root, loadYaml, toHostObject } from './helpers.js';
+import { fs, path, root, loadYaml, toHostObject } from './helpers.ts';
 import { dnd } from '../../src/config.ts';
 
 function testInventoryContracts() {

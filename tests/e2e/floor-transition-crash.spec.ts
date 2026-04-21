@@ -15,7 +15,7 @@
  *   3. Calling updateFogOfWar() on the old scene with stale fogVisited
  */
 import { test, expect } from '@playwright/test';
-import { waitForScene, seededUrl } from './helpers.js';
+import { waitForScene, seededUrl } from './helpers.ts';
 
 test('floor transition: updateFogOfWar with stale fogVisited does not crash', async ({ page }) => {
   // 1. Load a SMALL test map (ts_autorun_f1 is 11×9)

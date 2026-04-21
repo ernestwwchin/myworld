@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene, getState, waitUntilIdle } from './helpers.js';
+import { waitForScene, getState, waitUntilIdle } from './helpers.ts';
 
 test('move highlights visible on player turn', async ({ page }) => {
   await page.goto('/?map=ts_combat_entry', { waitUntil: 'networkidle' });

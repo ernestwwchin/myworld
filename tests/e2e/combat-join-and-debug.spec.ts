@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForScene } from './helpers.ts';
 
 test('combat start logs one join-reasons line', async ({ page }) => {
   await page.goto('/?map=ts_combat_join_reasons', { waitUntil: 'networkidle' });

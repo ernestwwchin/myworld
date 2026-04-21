@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene, getState, tapTile, waitUntilIdle, seededUrl } from './helpers.js';
+import { waitForScene, getState, tapTile, waitUntilIdle, seededUrl } from './helpers.ts';
 
 test('fresh town start can enter the Goblin Warren through the portal', async ({ page }) => {
   await page.goto(seededUrl('/', 424242), { waitUntil: 'networkidle' });

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene, tapTile, waitUntilIdle } from './helpers.js';
+import { waitForScene, tapTile, waitUntilIdle } from './helpers.ts';
 
 test('fog visibility updates and visited memory persists', async ({ page }) => {
   await page.goto('/?map=ts_fog', { waitUntil: 'networkidle' });

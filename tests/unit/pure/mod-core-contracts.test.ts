@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { loadYaml } from '../_shared/io.js';
+import { loadYaml } from '../_shared/io.ts';
 
 test('core mod metadata includes required yaml modules', () => {
   const coreMeta = loadYaml('data/00_core/meta.yaml');

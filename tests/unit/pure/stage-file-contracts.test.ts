@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { repoPath, loadYaml, exists, loadCoreTestMeta } from '../_shared/io.js';
+import { repoPath, loadYaml, exists, loadCoreTestMeta } from '../_shared/io.ts';
 
 test('core test stages must include stage.yaml and events.yaml', () => {
   const meta = loadCoreTestMeta();
