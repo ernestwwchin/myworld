@@ -9,10 +9,10 @@ Source: design discussion
 ## Core Decisions
 
 - **4 classes** (minimum to showcase all ability scores)
-- **Start solo**, recruit party members through story (RPG-style)
+- **Solo player** + summon system (replaces party)
 - **Hard equipment restrictions** per class
 - **Cooldown-based abilities** (not per-rest)
-- **4-person party** at full strength
+- **Summons** fill tactical roles (tank, DPS, support) — any class can summon
 - **Persistent slow XP leveling** (kill-based, lose XP progress on death, never de-level)
 - **Select skill on level-up** (choose from 2-3 options, game remembers last selection)
 - **Stats are permanent** (grow from boss milestones only)
@@ -145,18 +145,27 @@ Total: ~5-6 stat points across the full game. Never lost.
 
 ---
 
-## Party Recruitment
+## Summon System (Replaces Party)
 
-```
-Game start:     Pick your class (1 character, solo)
-World 1 mid:    Recruit party member #2 (story event / town NPC)
-World 1 end:    Recruit party member #3
-World 2 early:  Recruit party member #4 (full party)
-```
+**Solo player + summons.** No party recruitment. NPCs are quest-givers/shopkeepers.
 
-- Recruited members join at appropriate level
-- One of each class (no duplicates)
-- Early game is solo — teaches mechanics before party complexity
+- Summons are an **item/system mechanic**, not class-locked
+- Any class can summon (via Summon Stones, quest rewards, equipment abilities)
+- Max **2 active summons** at a time
+- Summons act on **AI with stance orders**: Aggressive / Defensive / Follow / Stay
+- Summons scale with player level (not independently leveled)
+- On death: consumable summons gone, bound summons on cooldown
+
+### Class Summon Perks (small, not required)
+
+| Class | Summon Perk |
+|---|---|
+| Fighter | Summons get +1 AC when adjacent to you (Commander) |
+| Rogue | Summons grant flanking bonus (+2 to-hit from opposite side) |
+| Cleric | Can heal summons (others can't) |
+| Wizard | Summon duration +50% for consumable summons |
+
+**Full summon system design TBD** — sources, types, progression, AI behavior to be designed in dedicated session.
 
 ---
 
@@ -250,4 +259,5 @@ Skills are chosen on level-up from a growing pool. Pool starts small, grows from
 - How many skill choices per level-up (2 or 3)?
 - Total skill pool size per class by endgame?
 - Can you respec skill choices at town?
-- Party member personality/story?
+- Summon system deep design (sources, types, progression, AI behavior)
+- Summon slot progression (start 1, unlock 2 when?)
