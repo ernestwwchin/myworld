@@ -1,0 +1,15 @@
+docs/engineering/testing.md
+docs/engineering/ai-behavior.md
+docs/engineering/fog-of-war.md
+docs/engineering/sprites.md
+docs/engineering/depth-layers.md
+docs/engineering/README.md
+docs/engineering/architecture.md
+docs/engineering/ui-design-bg3.md
+docs/play/combat.md
+docs/play/README.md
+tests/e2e/README.md
+js/ui/README.md
+public/assets/CREDITS.md
+public/assets/README.md
+tofu/BOOTSTRAP.md

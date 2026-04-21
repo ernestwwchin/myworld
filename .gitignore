@@ -28,3 +28,7 @@ scratch/
 .obsidian/plugins/*/main.js
 .obsidian/plugins/*/styles.css
 .obsidian/plugins/*/data.json
+
+# commit graph outputs, ignore the extraction cache and regenerable obsidian vault
+graphify-out/cache/
+graphify-out/obsidian/
