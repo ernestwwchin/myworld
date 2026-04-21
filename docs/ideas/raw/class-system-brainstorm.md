@@ -9,13 +9,15 @@ Source: design discussion
 ## Core Decisions
 
 - **4 classes** (minimum to showcase all ability scores)
-- **Solo player** + summon system (replaces party)
+- **Solo player + companions** (named humanoid NPCs with classes — see companion-system-brainstorm.md)
 - **Hard equipment restrictions** per class
 - **Cooldown-based abilities** (not per-rest)
-- **Summons** fill tactical roles (tank, DPS, support) — any class can summon
+- **CHA = companion stat** (leadership: scales companion stats, unlocks 3rd slot at CHA 14+)
 - **Persistent slow XP leveling** (kill-based, lose XP progress on death, never de-level)
 - **Select skill on level-up** (choose from 2-3 options, game remembers last selection)
-- **Stats are permanent** (grow from boss milestones only)
+- **BG3-style 27-point buy** at character creation (replaces fixed starting arrays)
+- **Milestone stat bonuses** (+2 at W1/W3/W5 bosses, permanent, non-respecable, separate layer)
+- **Respec at town** (200g stats+skills, 500g class change — milestones never respeced)
 - **Level cap: 10** (reached over many worlds, slow pace)
 - **No multiclass, no advanced class** — skill pool grows via unlocks, build variety from choices
 
@@ -86,31 +88,70 @@ If you're level 4, Sneak Attack is 2d6. At level 8, it's 4d6. But you always HAV
 
 ---
 
-## Stats (Permanent)
+## Stats (BG3-Style Point-Buy + Milestones)
 
-Fixed starting array by class. Grow ONLY from permanent milestones.
+### Character Creation: 27-Point Buy
 
-### Starting Stats
+Standard 5e point-buy rules. All stats start at 8, spend 27 points.
 
-| Class | STR | DEX | CON | INT | WIS | CHA |
-|---|---|---|---|---|---|---|
-| Fighter | 16 | 10 | 14 | 8 | 10 | 8 |
-| Rogue | 10 | 16 | 12 | 14 | 10 | 8 |
-| Cleric | 12 | 10 | 14 | 8 | 16 | 10 |
-| Wizard | 8 | 14 | 10 | 16 | 12 | 8 |
-
-### Stat Growth (Milestones only)
-
-| Milestone | Reward |
+| Score | Point Cost |
 |---|---|
-| World 1 boss | +1 to primary stat |
-| World 2 boss | +1 to secondary stat |
-| World 3 boss | +1 to primary stat |
-| World 4 boss | +1 to any stat |
-| World 5 boss | +1 to primary stat |
-| Rare dungeon event | +1 to random stat (very rare) |
+| 8 | 0 |
+| 9 | 1 |
+| 10 | 2 |
+| 11 | 3 |
+| 12 | 4 |
+| 13 | 5 |
+| 14 | 7 |
+| 15 | 9 |
 
-Total: ~5-6 stat points across the full game. Never lost.
+Range: 8-15 at creation. No stat above 15 before milestones.
+
+### Suggested Arrays Per Class
+
+| Class | STR | DEX | CON | INT | WIS | CHA | Focus |
+|---|---|---|---|---|---|---|---|
+| Fighter | 15 | 10 | 14 | 8 | 10 | 10 | STR + CON |
+| Ranger | 10 | 15 | 12 | 8 | 14 | 8 | DEX + WIS |
+| Cleric | 12 | 10 | 14 | 8 | 15 | 8 | WIS + CON |
+| Wizard | 8 | 14 | 10 | 15 | 12 | 8 | INT + DEX |
+
+Players can deviate — a CHA 14 Fighter "Warlord" with 3 companion slots is a valid build.
+
+### Milestone Bonuses (Separate from Point-Buy)
+
++2 to a stat of your choice at each milestone. **Permanent, non-respecable.**
+
+| Milestone | When | Bonus |
+|---|---|---|
+| 1st | W1 boss killed | +2 to any stat |
+| 2nd | W3 boss killed | +2 to any stat |
+| 3rd | W5 boss killed | +2 to any stat |
+
+Total: +6 stats across the full game. Milestones are a SEPARATE LAYER always applied on top of point-buy. Choose wisely — they're forever.
+
+### Respec at Town
+
+| Respec Type | Cost | What Changes |
+|---|---|---|
+| Stat + Skill respec | 200g | Redistribute 27 points + re-pick skill choices. Same class. |
+| Class change | 500g | Change class entirely. Incompatible gear unequipped. Stats redistributed. |
+
+Milestones are NEVER respeced — permanent layer always applied on top.
+
+### CHA: The Companion Stat
+
+CHA serves double duty: social checks + companion scaling.
+
+| CHA | Companion bonus | Slots | Shop discount |
+|---|---|---|---|
+| 8 (-1) | -1 to damage, -2 HP | 2 | +10% prices |
+| 10 (0) | ±0 | 2 | Normal |
+| 12 (+1) | +1 damage, +2 HP | 2 | -5% |
+| 14 (+2) | +2 damage, +4 HP | **3** | -10% |
+| 16 (+3) | +3 damage, +6 HP | 3 | -15% |
+
+Every class pays the same cost for CHA. A CHA 14 Fighter is a "Warlord" commander. A CHA 8 Wizard is a solo glass cannon.
 
 ---
 
@@ -119,7 +160,7 @@ Total: ~5-6 stat points across the full game. Never lost.
 | Class | Primary | Secondary | Hit Die | Identity |
 |---|---|---|---|---|
 | **Fighter** | STR | CON | d10 | I hit things and don't die |
-| **Rogue** | DEX | INT | d8 | I position and deal big single-target burst |
+| **Ranger** | DEX | WIS | d8 | I shoot from range, scout, and handle traps |
 | **Cleric** | WIS | CON | d8 | I heal and support while being durable |
 | **Wizard** | INT | DEX | d6 | I cast powerful spells but I'm fragile |
 
@@ -130,7 +171,7 @@ Total: ~5-6 stat points across the full game. Never lost.
 | Class | Weapons | Armor | Shield |
 |---|---|---|---|
 | **Fighter** | All weapons | All armor (light/medium/heavy) | Yes |
-| **Rogue** | Light + finesse only (dagger, vibro knife, phase blade, longsword, beam saber) | Light only | No |
+| **Ranger** | Light + finesse + ranged (dagger, shortsword, longbow, shortbow, crossbow) | Light + Medium | No |
 | **Cleric** | Blunt + staff only (mace, thunder maul, pulsar hammer, quarterstaff, ether rod, void staff) | Medium + Heavy | Yes |
 | **Wizard** | Staff only (quarterstaff, ether rod, void staff) | None | No |
 
@@ -139,33 +180,58 @@ Total: ~5-6 stat points across the full game. Never lost.
 | Class | Deep equipment pieces | Notes |
 |---|---|---|
 | Fighter | Weapon + Shield/Off-hand + Armor (3) | Most flexible, any build |
-| Rogue | Weapon + Off-hand weapon + Light Armor (3) | Dual wield natural fit |
+| Ranger | Weapon (ranged) + Off-hand/Melee + Light-Med Armor (3) | Ranged focus, dual wield option |
 | Cleric | Weapon + Shield + Armor (3) | Tanky support |
 | Wizard | Staff only (1) | Cheap to build, compensates with spells |
 
 ---
 
-## Summon System (Replaces Party)
+## Companion System (Replaces Party)
 
-**Solo player + summons.** No party recruitment. NPCs are quest-givers/shopkeepers.
+**Solo player + humanoid NPC companions.** Full design in `companion-system-brainstorm.md`.
 
-- Summons are an **item/system mechanic**, not class-locked
-- Any class can summon (via Summon Stones, quest rewards, equipment abilities)
-- Max **2 active summons** at a time
-- Summons act on **AI with stance orders**: Aggressive / Defensive / Follow / Stay
-- Summons scale with player level (not independently leveled)
-- On death: consumable summons gone, bound summons on cooldown
+Key points:
+- Companions are **named humanoid NPCs** with classes (same 4 classes as player)
+- **Direct control** in combat (you play their turn) — MVP
+- **AI + auto mode** togglable per companion — post-MVP
+- **CHA scales companion stats** and unlocks 3rd slot at CHA 14+
+- Max **2 active** (3 at CHA 14+)
+- Scale with player level + tier (later-world companions have higher base)
+- KO'd = out for rest of run, return at town
+- Player KO'd = 3-turn rescue window (companions can save you)
+- Equipment: own auto-scaling gear + 1 companion accessory you give
+- Explore passives: Fighter bash, Ranger scout/lockpick, Cleric detect, Wizard identify
 
-### Class Summon Perks (small, not required)
+### Class Aura Buffs (Party)
 
-| Class | Summon Perk |
+| Class | Aura | Effect |
+|---|---|---|
+| Fighter | Battle Presence | Party +1 AC |
+| Cleric | Blessed Aura | Party +10% healing received |
+| Ranger | Keen Eyes | Party +1 sight range, +10% trap detection |
+| Wizard | Arcane Ward | Party +1 save vs magic |
+
+Auras don't stack with duplicates. Diverse party = more auras.
+
+### Party Size Bonus
+
+| Size | Bonus |
 |---|---|
-| Fighter | Summons get +1 AC when adjacent to you (Commander) |
-| Rogue | Summons grant flanking bonus (+2 to-hit from opposite side) |
-| Cleric | Can heal summons (others can't) |
-| Wizard | Summon duration +50% for consumable summons |
+| Solo (0) | Lone Wolf: +15% damage, +2 AC |
+| 1 companion | +5% XP |
+| 2 companions | +5% XP, +5% gold |
+| 3 companions | +5% XP, +5% gold, +5% drop rate |
 
-**Full summon system design TBD** — sources, types, progression, AI behavior to be designed in dedicated session.
+### Conjured Summons (Post-MVP, Wizard/Cleric Only)
+
+| Class | Summon | Stat | Duration | Role |
+|---|---|---|---|---|
+| Wizard | Conjure Skeleton | INT | 5 turns | Melee DPS |
+| Wizard | Conjure Elemental | INT | 4 turns | AoE damage |
+| Cleric | Spirit Guardian | WIS | 4 turns | Support |
+| Cleric | Angelic Protector | WIS | 3 turns | Tank |
+
+Does NOT use companion slots. Max 1 conjured at a time. AI-controlled.
 
 ---
 
@@ -200,17 +266,17 @@ Skills are chosen on level-up from a growing pool. Pool starts small, grows from
 | Intercept | Reaction (6 CD) | Take hit for adjacent ally |
 | Fortitude | Passive | +20 max HP |
 
-### Rogue
+### Ranger
 
 | Ability | Type | Effect |
 |---|---|---|
-| Sneak Attack | Passive (scales) | +Xd6 when advantage or ally adjacent |
-| Cunning Action | Active (2 CD) | Bonus: Dash, Disengage, or Hide |
-| Uncanny Dodge | Reaction (4 CD) | Halve one attack's damage |
+| Hunter's Mark | Active (3 CD) | Mark target, +1d6 damage on hits for 3 turns |
+| Aimed Shot | Active (4 CD) | +3 to-hit, +1d8 damage (ranged only) |
+| Disengage | Active (2 CD) | Move without provoking opportunity attacks |
 | Evasion | Passive | DEX saves: pass = 0, fail = half |
-| Shadow Step | Active (5 CD) | Teleport behind target |
-| Assassination | Active (10 CD) | Auto-crit from stealth |
-| Poison Blade | Active (4 CD) | Next hit applies poison (3 turns) |
+| Volley | Active (6 CD) | AoE ranged attack, all enemies in 3-tile area |
+| Trap Sense | Passive | Detect traps within 2 tiles |
+| Snare | Active (5 CD) | Place trap on tile, immobilizes enemy 2 turns |
 | Vanish | Active (8 CD) | Become invisible 2 turns |
 
 ### Cleric
@@ -258,6 +324,6 @@ Skills are chosen on level-up from a growing pool. Pool starts small, grows from
 - Exact XP curve per level?
 - How many skill choices per level-up (2 or 3)?
 - Total skill pool size per class by endgame?
-- Can you respec skill choices at town?
-- Summon system deep design (sources, types, progression, AI behavior)
-- Summon slot progression (start 1, unlock 2 when?)
+- Ranger ability list — finalize (currently sketch)
+- Exact companion ability interactions with player abilities (combos)?
+- How does respec interact with unlocked skill pool?
