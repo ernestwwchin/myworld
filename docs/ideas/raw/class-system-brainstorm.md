@@ -11,7 +11,7 @@ Source: design discussion
 - **4 classes** (minimum to showcase all ability scores)
 - **Solo player + companions** (named humanoid NPCs with classes — see companion-system-brainstorm.md)
 - **Hard equipment restrictions** per class
-- **Cooldown-based abilities** (not per-rest)
+- **Per-encounter abilities + per-rest spells** (BG3 model — see ability-system-brainstorm.md)
 - **CHA = companion stat** (leadership: scales companion stats, unlocks 3rd slot at CHA 14+)
 - **Persistent slow XP leveling** (kill-based, lose XP progress on death, never de-level)
 - **Select skill on level-up** (choose from 2-3 options, game remembers last selection)
@@ -236,75 +236,109 @@ Does NOT use companion slots. Max 1 conjured at a time. AI-controlled.
 
 ---
 
-## Ability Resource Model: Cooldowns
+## Ability Resource Model: Per-Encounter + Per-Rest
 
-No spell slots. No per-rest resources. All class abilities use turn-based cooldowns.
+Full system design in `ability-system-brainstorm.md`.
 
-| Ability type | Cooldown | Example |
+| Resource | Reset | Examples |
 |---|---|---|
-| Basic | 2-3 turns | Shield Bash, Quick Strike |
-| Standard | 4-6 turns | Sneak Attack, Heal, Fireball |
-| Ultimate | 8-12 turns | Action Surge, Mass Heal, Meteor |
+| Per-encounter charges | After combat ends | Maneuvers, Second Wind, Action Surge, weapon abilities |
+| Per-rest spell slots | At town/waypoint rest | All spells (Fireball, Cure Wounds, Haste) |
+| Unlimited cantrips | Never consumed | Strike, Fire Bolt, Sacred Flame |
+
+### Spell Slots Per Class
+
+| Class | Level 1 | Level 2 | Level 3 |
+|---|---|---|---|
+| Fighter | 2 | 0 | 0 |
+| Ranger | 3 | 2 | 0 |
+| Cleric | 4 | 3 | 2 |
+| Wizard | 4 | 3 | 2 |
 
 ---
 
-## Class Abilities (Sketch)
+## Class Abilities (Summary)
 
+Full ability definitions (with YAML format) in `ability-system-brainstorm.md`.
 Skills are chosen on level-up from a growing pool. Pool starts small, grows from boss kills and unlocks.
 
-### Fighter
+### Fighter — Maneuvers + Class Actives
 
-| Ability | Type | Effect |
-|---|---|---|
-| Extra Attack | Passive | Attack twice per turn |
-| Second Wind | Active (6 CD) | Heal self 1d10 + level |
-| Improved Critical | Passive | Crit on 19-20 |
-| Action Surge | Active (10 CD) | Extra action this turn |
-| Shield Bash | Active (4 CD) | Stun target 1 turn |
-| Cleave | Active (5 CD) | Hit all adjacent enemies |
-| Shield Wall | Active (6 CD) | +3 AC for 2 turns |
-| Taunt | Active (4 CD) | Force enemy to attack you |
-| Intercept | Reaction (6 CD) | Take hit for adjacent ally |
-| Fortitude | Passive | +20 max HP |
+| Ability | Type | Charges | Effect |
+|---|---|---|---|
+| Strike | Cantrip | ∞ | Basic weapon attack |
+| Shove | Cantrip | ∞ | Push target 1 tile |
+| Trip Attack | Maneuver | 2/enc | Weapon + superiority die. STR save or prone. |
+| Precision Attack | Maneuver | 2/enc | Add superiority die to attack roll |
+| Menacing Attack | Maneuver | 2/enc | Weapon + superiority die. WIS save or frightened. |
+| Pushing Attack | Maneuver | 2/enc | Weapon + superiority die. Push 2 tiles. |
+| Second Wind | Class Active | 1/enc | Heal 1d10 + level |
+| Action Surge | Class Active | 1/enc | Extra action this turn |
+| Extra Attack | Passive | — | Attack twice per Attack action |
+| Improved Critical | Passive | — | Crit on 19-20 |
+| Fighting Style: Defense | Passive | — | +1 AC while armored |
+| Parry | Reaction | 1/round | Reduce damage by DEX mod + superiority die |
+| Riposte | Reaction | 1/round | Free attack on miss + superiority die |
+| Thunderous Smite | Spell (L1) | slot | +2d6 thunder + push 2 tiles |
+| Shield | Spell (L1) | slot | +5 AC, reaction |
 
-### Ranger
+### Ranger — Class Actives + Spells
 
-| Ability | Type | Effect |
-|---|---|---|
-| Hunter's Mark | Active (3 CD) | Mark target, +1d6 damage on hits for 3 turns |
-| Aimed Shot | Active (4 CD) | +3 to-hit, +1d8 damage (ranged only) |
-| Disengage | Active (2 CD) | Move without provoking opportunity attacks |
-| Evasion | Passive | DEX saves: pass = 0, fail = half |
-| Volley | Active (6 CD) | AoE ranged attack, all enemies in 3-tile area |
-| Trap Sense | Passive | Detect traps within 2 tiles |
-| Snare | Active (5 CD) | Place trap on tile, immobilizes enemy 2 turns |
-| Vanish | Active (8 CD) | Become invisible 2 turns |
+| Ability | Type | Charges | Effect |
+|---|---|---|---|
+| Quick Shot | Cantrip | ∞ | Basic ranged attack |
+| Careful Step | Cantrip | ∞ | Move 2 tiles, ignore traps |
+| Mark Target | Class Active | 1/enc | +2 to hit vs marked, 3 turns |
+| Camouflage | Class Active | 1/enc | Hidden, next attack has advantage |
+| Colossus Slayer | Passive | — | +1d8 vs wounded (1/turn) |
+| Fighting Style: Archery | Passive | — | +2 ranged attack rolls |
+| Evasion | Passive | — | DEX save: pass = 0, fail = half |
+| Uncanny Dodge | Reaction | 1/round | Halve incoming damage |
+| Hunter's Mark | Spell (L1) | slot | +1d6 to marked target, concentration |
+| Ensnaring Strike | Spell (L1) | slot | STR save or restrained 2 turns |
+| Cure Wounds | Spell (L1) | slot | Heal 1d8 + WIS |
+| Spike Growth | Spell (L2) | slot | Zone: 2d4 per tile, concentration |
 
-### Cleric
+### Cleric — Class Actives + Spells
 
-| Ability | Type | Effect |
-|---|---|---|
-| Heal | Active (4 CD) | Heal target 2d8 + WIS mod |
-| Shield of Faith | Active (6 CD) | +2 AC to target for 3 turns |
-| Turn Undead | Active (8 CD) | AoE fear undead |
-| Mass Heal | Active (12 CD) | Heal all allies 1d8 + WIS |
-| Smite | Active (4 CD) | +2d8 radiant damage on hit |
-| Bless | Active (6 CD) | Party +1d4 to attacks/saves for 3 turns |
-| Divine Armor | Passive | +1 AC permanently |
-| Revive | Active (rest of combat) | Bring fallen ally to 1 HP |
+| Ability | Type | Charges | Effect |
+|---|---|---|---|
+| Sacred Flame | Cantrip | ∞ | 1d8 radiant, DEX save half |
+| Guidance | Cantrip | ∞ | +1d4 to ally's next roll |
+| Turn Undead | Class Active | 1/enc | WIS save or frightened, 3-tile AOE |
+| Preserve Life | Class Active | 1/enc | Heal allies below 50%, pool = 5×level |
+| Disciple of Life | Passive | — | Healing spells +2+spell_level |
+| Blessed Healer | Passive | — | Heal others → heal self 2+spell_level |
+| Divine Strike | Passive | — | Weapon attacks +1d8 radiant (1/turn) |
+| Warding Flare | Reaction | 1/round | Impose disadvantage on attacker |
+| Cure Wounds | Spell (L1) | slot | Heal 1d8 + WIS, +1d8/upcast |
+| Healing Word | Spell (L1) | slot | Heal 1d4 + WIS at range, bonus action |
+| Bless | Spell (L1) | slot | 3 allies +1d4 attacks/saves, concentration |
+| Shield of Faith | Spell (L1) | slot | +2 AC, concentration |
+| Spiritual Weapon | Spell (L2) | slot | Summon, 1d8+WIS, 5 turns |
+| Spirit Guardians | Spell (L3) | slot | 3d8 radiant aura, concentration |
+| Divine Intervention | Per-rest | 1 | Full heal + cleanse all allies (level 10) |
 
-### Wizard
+### Wizard — Spell Modifiers + Spells
 
-| Ability | Type | Effect |
-|---|---|---|
-| Magic Missile | Active (2 CD) | 3 darts, 1d4+1 each, auto-hit |
-| Fireball | Active (6 CD) | AoE, scales with level |
-| Shield | Reaction (3 CD) | +5 AC until next turn |
-| Frost Nova | Active (4 CD) | AoE slow all adjacent |
-| Chain Lightning | Active (6 CD) | Bounces 3 targets |
-| Teleport | Active (5 CD) | Move to any visible tile |
-| Blizzard | Active (8 CD) | Large AoE, 3-turn slow zone |
-| Meteor | Active (12 CD) | Massive AoE, scales with level |
+| Ability | Type | Charges | Effect |
+|---|---|---|---|
+| Fire Bolt | Cantrip | ∞ | 1d10 fire |
+| Ray of Frost | Cantrip | ∞ | 1d8 cold + slow |
+| Twin Cast | Spell Modifier | 1/enc | Next single-target spell hits 2 targets |
+| Empower Spell | Spell Modifier | 2/enc | Reroll damage, keep higher |
+| Quicken Spell | Spell Modifier | 1/enc | Next spell free action |
+| Sculpt Spells | Passive | — | Allies auto-save on your AOE |
+| Potent Cantrip | Passive | — | Cantrips deal half on save |
+| Empowered Evocation | Passive | — | +INT mod to spell damage |
+| Magic Missile | Spell (L1) | slot | 3 darts, 1d4+1, auto-hit |
+| Shield | Spell (L1) | slot | +5 AC, reaction |
+| Sleep | Spell (L1) | slot | 5d8 HP worth fall asleep |
+| Fireball | Spell (L2) | slot | 8d6 fire, AOE radius 3, DEX save half |
+| Misty Step | Spell (L2) | slot | Teleport 6 tiles, bonus action |
+| Lightning Bolt | Spell (L3) | slot | 8d6 lightning, line, DEX save half |
+| Counterspell | Spell (L3) | slot | Negate enemy spell, reaction |
+| Haste | Spell (L3) | slot | +2 AC, double speed, extra action, concentration |
 
 ---
 
@@ -325,6 +359,11 @@ Skills are chosen on level-up from a growing pool. Pool starts small, grows from
 - Exact XP curve per level?
 - How many skill choices per level-up (2 or 3)?
 - Total skill pool size per class by endgame?
-- Ranger ability list — finalize (currently sketch)
 - Exact companion ability interactions with player abilities (combos)?
 - How does respec interact with unlocked skill pool?
+
+## Resolved Questions
+
+- ~~Cooldown-based or per-rest?~~ → **Per-encounter charges + per-rest spell slots** (BG3 model)
+- ~~Ranger ability list finalized?~~ → **Yes** — see ability-system-brainstorm.md for full list
+- ~~How do reactions work?~~ → **Each fires once per round**, 5 timing windows

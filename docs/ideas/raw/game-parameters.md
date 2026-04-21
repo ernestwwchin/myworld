@@ -130,47 +130,67 @@ Total: +6 across full game. Applied as separate layer on top of point-buy. Hard 
 | Cleric | Mace, Thunder Maul, Pulsar Hammer, Quarterstaff, Ether Rod, Void Staff (blunt+staff) | Medium, Heavy | Yes |
 | Wizard | Quarterstaff, Ether Rod, Void Staff (staff only) | None | No |
 
-### Class Abilities (MVP)
+### Class Abilities (Updated)
 
-**Fighter:**
+Full ability system design in `ability-system-brainstorm.md`. Resource model: per-encounter charges + per-rest spell slots (NOT cooldowns).
 
-| Ability | Cooldown | Effect |
+**Spell Slots Per Class:**
+
+| Class | Level 1 | Level 2 | Level 3 |
+|---|---|---|---|
+| Fighter | 2 | 0 | 0 |
+| Ranger | 3 | 2 | 0 |
+| Cleric | 4 | 3 | 2 |
+| Wizard | 4 | 3 | 2 |
+
+**Fighter — Maneuvers (2-4/enc) + Class Actives (1/enc):**
+
+| Ability | Type | Effect |
 |---|---|---|
-| Second Wind | 5 turns | Heal 1d10 + level |
-| Shield Bash | 3 turns | 1d6 + push 1 tile + stun 1 turn (requires shield) |
-| Cleave | 4 turns | Attack all adjacent enemies |
-| Extra Attack | Passive | 2 attacks per turn (unlock at level 5) |
-| Taunt | 3 turns | Force target to attack you for 2 turns |
+| Strike / Shove | Cantrips | Basic attack / push 1 tile |
+| Trip Attack | Maneuver (2/enc) | Weapon + superiority die, STR save or prone |
+| Precision Attack | Maneuver (2/enc) | Add superiority die to attack roll |
+| Second Wind | Class Active (1/enc) | Heal 1d10 + level |
+| Action Surge | Class Active (1/enc) | Extra action this turn |
+| Parry / Riposte | Reactions | Reduce damage / counter-attack on miss |
+| Extra Attack | Passive | 2 attacks per Attack action (level 5) |
+| Thunderous Smite / Shield | Spells (L1) | Per-rest, use spell slots |
 
-**Ranger:**
+**Ranger — Class Actives + Spells:**
 
-| Ability | Cooldown | Effect |
+| Ability | Type | Effect |
 |---|---|---|
-| Aimed Shot | 3 turns | +5 to hit, +1d8 damage (ranged only) |
-| Disengage | 2 turns | Move without provoking opportunity attacks |
-| Trap Sense | Passive | +5 trap detection, can disarm |
-| Hunter's Mark | 4 turns | +1d6 damage to marked target for 3 turns |
-| Volley | 5 turns | Attack all enemies in 3×3 area (ranged) |
+| Quick Shot / Careful Step | Cantrips | Basic ranged / move 2 ignore traps |
+| Mark Target | Class Active (1/enc) | +2 to hit vs marked, 3 turns |
+| Camouflage | Class Active (1/enc) | Hidden, advantage on next attack |
+| Colossus Slayer | Passive | +1d8 vs wounded (1/turn) |
+| Evasion | Passive | DEX save: pass = 0, fail = half |
+| Hunter's Mark / Cure Wounds | Spells (L1) | Per-rest spell slots |
+| Spike Growth | Spell (L2) | 2d4 per tile zone, concentration |
 
-**Cleric:**
+**Cleric — Class Actives + Spells:**
 
-| Ability | Cooldown | Effect |
+| Ability | Type | Effect |
 |---|---|---|
-| Heal | 2 turns | Heal target 2d8 + WIS mod |
-| Shield of Faith | 4 turns | Target gets +2 AC for 3 turns |
-| Turn Undead | 4 turns | Undead in 3-tile radius flee for 2 turns |
-| Revivify | 1/run | Revive KO'd companion at 50% HP (adjacent) |
-| Spiritual Weapon | 5 turns | Summon weapon, attacks for 3 turns (1d8+WIS) |
+| Sacred Flame / Guidance | Cantrips | 1d8 radiant / +1d4 ally roll |
+| Turn Undead | Class Active (1/enc) | WIS save or frightened, 3-tile AOE |
+| Preserve Life | Class Active (1/enc) | Heal allies below 50%, pool = 5×level |
+| Disciple of Life | Passive | Healing spells +2+spell_level |
+| Cure Wounds / Bless / Shield of Faith | Spells (L1) | Per-rest spell slots |
+| Spiritual Weapon | Spell (L2) | Summon, 1d8+WIS, 5 turns |
+| Spirit Guardians | Spell (L3) | 3d8 radiant aura, concentration |
 
-**Wizard:**
+**Wizard — Spell Modifiers + Spells:**
 
-| Ability | Cooldown | Effect |
+| Ability | Type | Effect |
 |---|---|---|
-| Fireball | 4 turns | 4d6 fire, 3×3 area, DEX save half |
-| Frost Nova | 3 turns | 2d6 cold + frozen 1 turn, all adjacent |
-| Shield | 3 turns | +5 AC until next turn (reaction) |
-| Magic Missile | 2 turns | 3×(1d4+1) force, auto-hit |
-| Teleport | 5 turns | Move to any visible tile within 8 |
+| Fire Bolt / Ray of Frost | Cantrips | 1d10 fire / 1d8 cold + slow |
+| Twin Cast | Spell Modifier (1/enc) | Single-target spell hits 2 targets |
+| Quicken Spell | Spell Modifier (1/enc) | Next spell free action |
+| Sculpt Spells | Passive | Allies auto-save on your AOE |
+| Magic Missile / Shield / Sleep | Spells (L1) | Per-rest spell slots |
+| Fireball / Misty Step | Spells (L2) | Per-rest spell slots |
+| Lightning Bolt / Haste / Counterspell | Spells (L3) | Per-rest spell slots |
 
 ### Explore Passives (Companion + Player)
 
@@ -246,7 +266,9 @@ Turn order: Player → Companions (in slot order) → Enemies (by initiative)
 | Movement | 4 tiles (base) |
 | Action | 1 (attack, ability, use item, interact) |
 | Bonus Action | 1 (off-hand attack if dual wielding, some abilities) |
-| Reaction | 1 (opportunity attack, Shield spell) |
+| Reaction | 1 each per round (each reaction fires once — not one total) |
+
+Reactions: each learned reaction can fire once per round. See `ability-system-brainstorm.md` for 5 timing windows.
 
 ### Off-Hand Attack (Dual Wield)
 
