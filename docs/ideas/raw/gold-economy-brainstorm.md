@@ -104,7 +104,7 @@ W1 boss killed:
 | Service | Cost | Notes |
 |---|---|---|
 | Repair equipment | 50-200g | If durability system added (post-MVP) |
-| Upgrade enhancement (+N) | 100g × current +N | +1→+2 = 200g, +2→+3 = 300g |
+| Upgrade ★ refinement | 50-1000g per ★ level | See equipment system for full ★ cost table |
 | Add ability slot | 500g | Requires Blacksmith Lv 3 |
 | Reforge (reroll ★) | 300g | Risky — could go up or down |
 

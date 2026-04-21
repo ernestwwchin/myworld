@@ -882,7 +882,7 @@ modifiers:
 
 | Class | Advantage |
 |---|---|
-| Rogue | +5 detection, can disarm with Thieves' Tools |
+| Ranger | +5 detection, can disarm with Thieves' Tools |
 | Wizard | Detect Rune Traps at range, dispel with INT check |
 | Fighter | Resist trap damage (CON save for half) |
 | Cleric | Detect Mimics (WIS bonus), cure poison |

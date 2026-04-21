@@ -215,13 +215,15 @@ Town NPCs offer permanent upgrades bought with gold. Whole party benefits.
 
 ### Total Gold Sink (Town Upgrades)
 
-| NPC | Total cost |
-|---|---|
-| Blacksmith (★ refinement) | ~50,000 |
-| Alchemist | 8,700 |
-| Scribe | 8,700 |
-| Armorer | 8,700 |
-| **Total** | **~76,000+** |
+**Note:** Blacksmith ★ refinement is per-item usage cost (not a town upgrade tier). Companions use auto-scaling gear, so only player's 3 deep pieces need ★ investment. Tiers 4-5 for Alchemist/Scribe/Armorer are post-MVP. See gold-economy-brainstorm.md for MVP town upgrade budget.
+
+| NPC | Total cost (all 5 tiers) | MVP (tiers 1-3) |
+|---|---|---|
+| Blacksmith (★ refinement usage) | ~12,000-15,000g | ~12,000-15,000g |
+| Alchemist | 8,700g | 1,700g |
+| Scribe | 8,700g | 1,700g |
+| Armorer | 8,700g | 1,700g |
+| **Total** | **~38,100-41,100g** | **~17,100-20,100g** |
 
 ---
 
@@ -230,7 +232,7 @@ Town NPCs offer permanent upgrades bought with gold. Whole party benefits.
 | Class | Passive | Flavor |
 |---|---|---|
 | Fighter | Can throw while adjacent (no disengage needed) | Martial |
-| Rogue | Free potion ID on pickup (WIS check) | Alchemist nose |
+| Ranger | Free potion ID on pickup (WIS check) | Wilderness instinct |
 | Cleric | Holy Water always blessed in Cleric's hands | Holy |
 | Wizard | Free hint about scroll type on pickup | Scholar |
 

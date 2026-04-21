@@ -33,7 +33,7 @@ Very rare. Each one is a milestone moment.
 |---|---|---|---|
 | Ancient Forge | Weapon ★+3 refinement | ~1 per world | |
 | Rusted Trap | Weapon ★-2 refinement | ~1 per world | Grindable back at Blacksmith |
-| Stat Shrine | +1 to one ability score | 1 per world, choose stat | Soft cap at 20 |
+| Stat Shrine | +1 to one ability score | 1 per world, choose stat | Hard cap at 20 |
 | Heart Crystal | +1 permanent max HP | Uncommon | No limit |
 | Skill Book | Learn new weapon property/proficiency | Very rare | |
 | Scar of Flame | Permanent fire resistance | Once per element | |

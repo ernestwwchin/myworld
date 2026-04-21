@@ -24,8 +24,8 @@ STR 18-20: 14 slots
 
 ### Stacking Rules
 
-- Same potion type: stack to 3 per slot
-- Same scroll type: stack to 3 per slot
+- Same potion type: stack to 5 per slot (upgradeable via Alchemist)
+- Same scroll type: stack to 5 per slot (upgradeable via Scribe)
 - Weapons: no stack (1 each)
 - Equipment: no stack (1 each)
 - Synthesis Hammers: stack to 3
@@ -171,7 +171,7 @@ Questions to answer:
 5. ✅ Inventory lost on death
 6. ✅ Stash is safe
 7. ✅ Synthesis Hammer is the bottleneck resource (not slots)
-8. ❓ Extraction method — TBD
-9. ❓ Gold economy balance — TBD
-10. ❓ Leveling — TBD
-11. ❓ Floor structure — TBD
+8. ✅ Extraction — extract at waypoint (see run-structure-brainstorm.md)
+9. ✅ Gold economy — see gold-economy-brainstorm.md
+10. ✅ Leveling — persistent slow XP, level cap 10 (see class-system-brainstorm.md)
+11. ✅ Run structure — D2-style zones (see run-structure-brainstorm.md)

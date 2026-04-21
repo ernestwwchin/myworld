@@ -143,18 +143,19 @@ Bosses are hand-designed, one per world (+ optional mid-bosses).
 
 | Boss | World | HP | AC | Special |
 |---|---|---|---|---|
-| Goblin King | W1 | 80 | 16 | Summons goblins, enrages at 25% |
-| Shadow Lord | W2 | 150 | 18 | Teleports, curses weapons |
-| Crystal Titan | W3 | 250 | 19 | AoE slam, shielded phases |
-| Void Dragon | W4 | 400 | 20 | Breath weapon, flight, multi-phase |
-| Final Boss | W5 | 600 | 21 | TBD |
+| Goblin Warlord | W1 | 150 | 16 | Multi-phase, summons goblins, berserk at 30% |
+| Shadow Lord | W2 | 300 | 18 | Teleports, curses weapons |
+| Crystal Titan | W3 | 500 | 19 | AoE slam, shielded phases |
+| Void Dragon | W4 | 750 | 20 | Breath weapon, flight, multi-phase |
+| Final Boss | W5 | 1000 | 21 | TBD |
 
 Bosses guarantee drops:
 - 1 Synthesis Hammer
 - 1 Slot Chisel
-- 1 unique weapon OR high-★ gear
-- Gold (large)
-- Stat milestone (+1 to stat)
+- 1 weapon (from boss weapon table)
+- 1 boss material (for companion upgrades)
+- Gold (200-500g, scales by world)
+- Stat milestone: +2 to any stat (W1, W3, W5 bosses only)
 
 ---
 

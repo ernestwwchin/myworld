@@ -149,11 +149,11 @@ Damage = base_die + (player_level / 4) + ★_bonus + CHA_mod
 
 | Companion | Tier | HP | Damage | Viable? |
 |---|---|---|---|---|
-| Wolf Spirit (W1) | T1 | 84 | ~12 | Usable but weaker (~47%) |
-| Shadow Hound (W2) | T2 | 112 | ~13.5 | Solid (~62%) |
-| Shadow Panther (W3) | T3 | 142 | ~14.5 | Strong (~79%) |
-| Abyssal Beast (W4) | T4 | 150 | ~16.5 | Very strong (~83%) |
-| Void Stalker (W5) | T5 | 180 | ~17.5 | Best stats (100%) |
+| Kira (W1 Fighter) | T1 | 84 | ~12 | Usable but weaker (~47%) |
+| W2 Dwarf Cleric | T2 | 112 | ~13.5 | Solid (~62%) |
+| W3 Elf Ranger | T3 | 142 | ~14.5 | Strong (~79%) |
+| W4 Undead Knight | T4 | 150 | ~16.5 | Very strong (~83%) |
+| W5 Void Mage | T5 | 180 | ~17.5 | Best stats (100%) |
 
 W1 companions are ~47% power at endgame — viable for normal fights, weak for bosses. Investment (★, rare traits) and unique abilities keep them relevant.
 

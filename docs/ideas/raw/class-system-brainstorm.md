@@ -106,6 +106,7 @@ Standard 5e point-buy rules. All stats start at 8, spend 27 points.
 | 15 | 9 |
 
 Range: 8-15 at creation. No stat above 15 before milestones.
+Hard cap: 20 (5e standard). Milestones and shrines cannot push any stat above 20.
 
 ### Suggested Arrays Per Class
 

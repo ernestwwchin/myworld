@@ -169,7 +169,7 @@ Using dice (not flat) keeps it D&D-native, exciting (variance), and self-balanci
 | ★6-10 | 200-400 |
 | ★11-15 | 500-1000 |
 
-Total ★0→★15 ≈ 3,500-5,000 gold per piece. With 4 characters × 3 pieces = ~50,000 gold across all worlds.
+Total ★0→★15 ≈ 3,500-5,000 gold per piece. Player has 3 deep pieces (weapon + armor + shield/off-hand) = ~12,000-15,000 gold total. Companions use auto-scaling gear (no ★ investment needed).
 
 ---
 
@@ -259,7 +259,7 @@ Merge direction matters: better base (fewer slots) vs keep slots (weaker base).
 
 | Attribute | Transfers? |
 |---|---|
-| +N enhancement | Yes, fully (A's +N + B's +N) |
+| +N enhancement | Yes (A's +N + B's +N, capped at +3) |
 | Abilities | Yes, fill A's empty slots. Overflow = player picks, rest LOST. |
 | Slots | No. A keeps its own slot count. |
 | Base weapon type | No. A keeps its own base. |
@@ -397,12 +397,12 @@ Shields are full deep equipment — same rules as weapons (★, slots, synthesis
 
 | Family | Shield | Base AC Bonus | Starting Slots | Max Slots |
 |---|---|---|---|---|
-| Light Shield (no penalty) | Buckler | +1 | 2 | 5 |
-| | Force Buckler | +1 | 3 | 5 |
-| | Phase Guard | +1 | 4 | 5 |
-| Heavy Shield (stealth penalty) | Kite Shield | +2 | 2 | 5 |
-| | Tower Shield | +2 | 3 | 5 |
-| | Aegis Barrier | +2 | 4 | 5 |
+| Light Shield (no penalty) | Buckler | +1 | 1 | 3 |
+| | Force Buckler | +1 | 2 | 3 |
+| | Phase Guard | +1 | 3 | 3 |
+| Heavy Shield (stealth penalty) | Kite Shield | +2 | 1 | 3 |
+| | Tower Shield | +2 | 2 | 3 |
+| | Aegis Barrier | +2 | 3 | 3 |
 
 Unidentified: "a Light Shield ?", "a Heavy Shield ?"
 
