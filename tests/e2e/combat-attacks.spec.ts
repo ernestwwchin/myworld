@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { waitForScene, getState, tapTile, dismissDiceIfNeeded } from './helpers.ts';
 
 test.describe.configure({ timeout: 90000 });
 
-async function enterSingleEnemyCombat(page) {
+async function enterSingleEnemyCombat(page: Page) {
   await page.evaluate(() => {
     const scene = window.game.scene.getScene('GameScene');
     const enemy = scene.enemies.find((e) => e.alive);
@@ -21,7 +22,7 @@ async function enterSingleEnemyCombat(page) {
   }, { timeout: 45000 });
 }
 
-async function attackWithForcedD20(page, d20Value, dmgValue) {
+async function attackWithForcedD20(page: Page, d20Value: number, dmgValue?: number) {
   await page.evaluate(({ rollValue, dmg }) => {
     const scene = window.game.scene.getScene('GameScene');
     const enemy = scene.enemies.find((e) => e.alive);

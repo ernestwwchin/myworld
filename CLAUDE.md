@@ -9,14 +9,14 @@ npm start                         # dev server at http://localhost:3000 (Vite, H
 npm run build                     # production bundle → dist/
 npm run typecheck                 # tsc --noEmit (0 errors on clean branch)
 npm test                          # typecheck + contracts + unit (fast, no browser)
-npm run test:contracts            # vitest run tests/contracts/run-contracts.test.js
+npm run test:contracts            # vitest run tests/contracts/run-contracts.test.ts
 npm run test:unit                 # vitest run
 npm run test:e2e                  # build + Playwright against vite preview on port 3100
 npm run test:e2e:headed           # headed + single worker (debugging)
 
 # Run a single test
-npx vitest run tests/unit/sandbox/modloader-auto-transition.test.js
-npx playwright test tests/e2e/combat-attacks.spec.js --config tests/e2e/playwright.config.ts
+npx vitest run tests/unit/sandbox/modloader-auto-transition.test.ts
+npx playwright test tests/e2e/combat-attacks.spec.ts --config tests/e2e/playwright.config.ts
 ```
 
 If Playwright reports a missing browser, run `npx playwright install chromium`.
@@ -52,10 +52,10 @@ Two modes: `MODE.EXPLORE` and `MODE.COMBAT`. Combat entry uses BG3-style "engage
 `PLAYER_STATS.inventory` is the **carried** run inventory. `PLAYER_STATS.stash` is **persistent town storage**. Extraction (per `resolution.extract.bankCarriedToStash`) moves carried → stash; death applies `goldLossPct` and `carriedItemLoss` per world config. Town interactables (`stash`/`stash_deposit_all`/`stash_withdraw_all`/`shop`/`quests`) are wired in `src/entities/interactable-entity.ts` — `shop` and `quests` are currently stubs returning "Coming soon".
 
 ### Test architecture
-- **Contracts** (`tests/contracts/`) — schema/structural assertions run via vitest (`run-contracts.test.js`). Validates YAML shapes, mod metadata, registry resolution, and enforces absence of removed-feature TODOs.
+- **Contracts** (`tests/contracts/`) — schema/structural assertions run via vitest (`run-contracts.test.ts`). Validates YAML shapes, mod metadata, registry resolution, and enforces absence of removed-feature TODOs.
 - **Unit/pure** (`tests/unit/pure/`) — no game globals; pure helper logic. Run under vitest.
 - **Unit/sandbox** (`tests/unit/sandbox/`) — imports directly from `src/` (same as unit/pure). Use this for tests that mutate singleton state (e.g. `ModLoader._modData`) and need explicit reset in `beforeEach`.
-- **E2E** (`tests/e2e/`) — Playwright, runs against `vite preview` on port 3100. `helpers.js` provides shared boot/teardown.
+- **E2E** (`tests/e2e/`) — Playwright, runs against `vite preview` on port 3100. `helpers.ts` provides shared boot/teardown.
 
 ### Globals to watch
 After Phaser destroys a sprite, **null out the reference and guard subsequent access with `.active`** — this was the root cause of post-kill freeze bugs (see `docs/BUGS.md` archive). The same lesson applies to fog/sight overlays, which must be cleared on combat enter/exit.
@@ -88,9 +88,9 @@ Subsystem directories — the names are short; their responsibilities are not. U
 - `public/data/00_core/` — base rules, creatures, weapons, classes, abilities, statuses, items, loot tables, sprites. Always loaded first.
 - `public/data/00_core_test/` — disabled-by-default test mod with the `ts_*` stages used by `tests/e2e/` and contract tests.
 - `public/data/01_goblin_invasion/` — first content mod (town hub + Goblin Warren run). Uses `worlds.yaml` for run progression and `creatures.yaml` for mod-specific enemies.
-- `tests/contracts/helpers.js` — shared contract assertions; reuse before writing new ones.
-- `tests/unit/_shared/io.js` — file-loading helper used by sandbox tests (`readText`, `loadYaml`).
-- `tests/e2e/helpers.js` — Playwright boot/teardown helpers.
+- `tests/contracts/helpers.ts` — shared contract assertions; reuse before writing new ones.
+- `tests/unit/_shared/io.ts` — file-loading helper used by sandbox tests (`readText`, `loadYaml`).
+- `tests/e2e/helpers.ts` — Playwright boot/teardown helpers.
 
 ## Key documentation
 

@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 const root = process.cwd();
 
-function loadYaml(relPath) {
+function loadYaml(relPath: string): unknown {
   const resolved = relPath.startsWith('data/') ? path.join(root, 'public', relPath) : path.join(root, relPath);
   return yaml.load(fs.readFileSync(resolved, 'utf8'));
 }
@@ -33,7 +33,7 @@ const EventsSchema = z.object({
   events: z.array(z.any()).optional(),
 });
 
-export function runSchemaContracts(assert) {
+export function runSchemaContracts(assert: typeof import('node:assert/strict')) {
   const meta = loadYaml('data/00_core_test/meta.yaml');
   const declared = new Set(meta.stages || []);
 

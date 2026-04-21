@@ -10,6 +10,7 @@
  * Uses a hand-crafted map so the layout is deterministic and simple.
  */
 import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { waitForScene, getState, dismissDiceIfNeeded } from './helpers.ts';
 
 test.describe.configure({ timeout: 120000 });
@@ -17,7 +18,7 @@ test.describe.configure({ timeout: 120000 });
 // ── Helpers ─────────────────────────────────────────────
 
 /** Wait until the player has stopped moving. */
-async function waitIdle(page, timeout = 10000) {
+async function waitIdle(page: Page, timeout = 10000) {
   await page.waitForFunction(() => {
     const scene = window.game?.scene?.getScene?.('GameScene');
     return scene && !scene.isMoving;
@@ -25,7 +26,7 @@ async function waitIdle(page, timeout = 10000) {
 }
 
 /** Wait for explore mode. */
-async function waitExplore(page, timeout = 30000) {
+async function waitExplore(page: Page, timeout = 30000) {
   await page.waitForFunction(() => {
     const scene = window.game?.scene?.getScene?.('GameScene');
     return scene?.mode === MODE.EXPLORE;
@@ -39,7 +40,7 @@ async function waitExplore(page, timeout = 30000) {
  *  - Forcing enterCombat + player turn + forced d20=19 attack
  *  - Repeating until all dead
  */
-async function killAllEnemies(page) {
+async function killAllEnemies(page: Page) {
   // Get alive enemy count
   let aliveCount = await page.evaluate(() => {
     const scene = window.game.scene.getScene('GameScene');
@@ -182,7 +183,7 @@ async function killAllEnemies(page) {
 }
 
 /** Move player to a specific tile via pathfinding. */
-async function moveToTile(page, tx, ty) {
+async function moveToTile(page: Page, tx: number, ty: number) {
   // Use setDestination for reliable pathfinding + step callbacks (triggers stairs etc.)
   await page.evaluate(({ x, y }) => {
     const scene = window.game.scene.getScene('GameScene');
@@ -193,7 +194,7 @@ async function moveToTile(page, tx, ty) {
 }
 
 /** Teleport player to a tile (instant, no animation/callbacks). */
-async function teleportPlayer(page, tx, ty) {
+async function teleportPlayer(page: Page, tx: number, ty: number) {
   await page.evaluate(({ x, y }) => {
     const scene = window.game.scene.getScene('GameScene');
     const S = window.S || 48;

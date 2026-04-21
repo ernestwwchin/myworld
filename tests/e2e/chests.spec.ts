@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { waitForScene, seededUrl } from './helpers.ts';
 
 // Seed used for all deterministic chest tests.
 const CHEST_SEED = 42;
 
 // Helper: get player gold and inventory from the scene
-function getPlayerState(page) {
+function getPlayerState(page: Page) {
   return page.evaluate(() => {
     const scene = window.game.scene.getScene('GameScene');
     return {
@@ -16,7 +17,7 @@ function getPlayerState(page) {
 }
 
 // Helper: move player to (tx,ty) instantly and open chest at (cx,cy)
-function openChest(page, tx, ty, cx, cy) {
+function openChest(page: Page, tx: number, ty: number, cx: number, cy: number) {
   return page.evaluate(({ tx, ty, cx, cy }) => {
     const scene = window.game.scene.getScene('GameScene');
     scene.playerTile = { x: tx, y: ty };

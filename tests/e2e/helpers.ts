@@ -1,6 +1,8 @@
+import type { Page } from '@playwright/test';
+
 const TILE_SIZE = 48;
 
-async function waitForScene(page, timeout = 10000) {
+async function waitForScene(page: Page, timeout = 10000) {
   await page.waitForFunction(
     () => {
       return typeof window.game !== 'undefined' && window.game?.scene?.getScene?.('GameScene')?.playerTile;
@@ -9,7 +11,7 @@ async function waitForScene(page, timeout = 10000) {
   );
 }
 
-async function getState(page) {
+async function getState(page: Page) {
   return page.evaluate(() => {
     if (!window.game?.scene?.getScene) {
       throw new Error('Game scene not initialized. Make sure the game is fully loaded.');
@@ -39,14 +41,14 @@ async function getState(page) {
   });
 }
 
-async function waitUntilIdle(page) {
+async function waitUntilIdle(page: Page) {
   await page.waitForFunction(() => {
     const scene = window.game?.scene?.getScene?.('GameScene');
     return scene && !scene.isMoving;
   });
 }
 
-async function tapTile(page, x, y) {
+async function tapTile(page: Page, x: number, y: number) {
   await page.evaluate(({ x, y, tileSize }) => {
     const scene = window.game?.scene?.getScene?.('GameScene');
     if (!scene) throw new Error('Scene not available for tap');
@@ -54,7 +56,7 @@ async function tapTile(page, x, y) {
   }, { x, y, tileSize: TILE_SIZE });
 }
 
-async function dismissDiceIfNeeded(page) {
+async function dismissDiceIfNeeded(page: Page) {
   const hasDice = await page.evaluate(() => {
     const scene = window.game?.scene?.getScene?.('GameScene');
     return !!scene?.diceWaiting;
@@ -67,7 +69,7 @@ async function dismissDiceIfNeeded(page) {
   }
 }
 
-export function seededUrl(base, seed) {
+export function seededUrl(base: string, seed: number): string {
   const sep = base.includes('?') ? '&' : '?';
   return `${base}${sep}seed=${seed >>> 0}`;
 }

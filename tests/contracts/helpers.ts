@@ -4,21 +4,21 @@ import yaml from 'js-yaml';
 
 const root = process.cwd();
 
-function resolvePath(relPath) {
+function resolvePath(relPath: string): string {
   // data/ was moved to public/data/ during TS migration
   if (relPath.startsWith('data/')) return path.join(root, 'public', relPath);
   return path.join(root, relPath);
 }
 
-export function loadYaml(relPath) {
+export function loadYaml(relPath: string): unknown {
   return yaml.load(fs.readFileSync(resolvePath(relPath), 'utf8'));
 }
 
-export function toHostObject(obj) {
+export function toHostObject<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
 }
 
-export async function loadStageInSandbox(stageId) {
+export async function loadStageInSandbox(stageId: string) {
   const { MAP, mapState, TILE } = await import('../../src/config.ts');
 
   const rules = loadYaml('data/00_core/rules.yaml');
