@@ -770,7 +770,14 @@ export class GameScene extends Phaser.Scene {
     if (this.mode === MODE.COMBAT) {
       if (!this.isPlayerTurn()) return;
       if (this.playerAP <= 0) { this.showStatus('Action already used this turn.'); return; }
-      if (!this.combatGroup.includes(enemy)) { this.showStatus('That enemy is not in this fight.'); return; }
+      if (!this.combatGroup.includes(enemy)) {
+        (this.combatGroup as unknown[]).push(enemy);
+        (enemy as Record<string, unknown>).inCombat = true;
+        this.turnOrder = this.rollInitiativeOrder(this.combatGroup as unknown as Array<{ alive: boolean; id?: string }>);
+        this.showStatus(`${(enemy as Record<string, unknown>).displayName || 'Enemy'} joined the battle!`);
+        this.updateFogOfWar();
+        return;
+      }
 
       let abilityId: string;
       if (this.pendingAction === 'attack') {
@@ -800,6 +807,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.isExploreMode()) {
+      if (this.isMoving) this.cancelCurrentMove();
       if (typeof this.tryEngageEnemyFromExplore === 'function') {
         this.tryEngageEnemyFromExplore(enemy);
       } else {

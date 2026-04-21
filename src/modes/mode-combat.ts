@@ -279,7 +279,7 @@ export const ModeCombatMixin = {
   tryEngageEnemyFromExplore(this: GameScene, enemy: Enemy): void {
     if (!enemy || !enemy.alive) return;
     if (!this.isExploreMode()) return;
-    if (this.isMoving) return;
+    if (this.isMoving) this.cancelCurrentMove();
 
     const ps = this.pStats as PStats;
     if (tileDist(this.playerTile.x, this.playerTile.y, enemy.tx, enemy.ty) <= (ps.atkRange || 1) + 0.01) {
@@ -602,7 +602,11 @@ export const ModeCombatMixin = {
     if (enemy && (this.combatGroup as unknown as Enemy[]).includes(enemy)) return;
 
     if (enemy && !(this.combatGroup as unknown as Enemy[]).includes(enemy)) {
-      this.showStatus('That enemy is not in this fight.');
+      (this.combatGroup as unknown as Enemy[]).push(enemy);
+      enemy.inCombat = true;
+      this.turnOrder = this.rollInitiativeOrder(this.combatGroup as unknown as Enemy[]);
+      this.showStatus(`${enemy.displayName || 'Enemy'} joined the battle!`);
+      this.updateFogOfWar();
       return;
     }
 

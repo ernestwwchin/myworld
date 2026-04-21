@@ -187,7 +187,7 @@ export const EntitySystemMixin = {
     }
   },
 
-  _entityKey(_this: GameScene, x: number, y: number): string {
+  _entityKey(x: number, y: number): string {
     return `${x},${y}`;
   },
 

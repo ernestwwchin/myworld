@@ -242,6 +242,7 @@ export const MovementSystemMixin = {
           this.movePath = [];
           this.clearPathDots();
           this._movingToAttack = false;
+          this._checkForNewEnemiesAfterMove();
           return;
         }
         const wasExplore = this.isExploreMode();

@@ -97,7 +97,13 @@ export const InputSystemMixin = {
     const tx = Math.floor(ptr.worldX / S);
     const ty = Math.floor(ptr.worldY / S);
     if (tx < 0 || ty < 0 || tx >= mapState.cols || ty >= mapState.rows) return;
-    const enemy = this.enemies.find((e) => e.alive && e.tx === tx && e.ty === ty);
+    let enemy = this.enemies.find((e) => e.alive && e.tx === tx && e.ty === ty);
+    if (!enemy) {
+      // Fallback: match by sprite position (handles mid-tween patrolling enemies)
+      enemy = (this.enemies as Array<{ alive: boolean; img?: { x: number; y: number; active: boolean } }>)
+        .find((e) => e.alive && e.img && e.img.active &&
+          Math.abs(e.img.x - ptr.worldX) < S / 2 && Math.abs(e.img.y - ptr.worldY) < S / 2) as typeof enemy;
+    }
 
     if (enemy && typeof ptr.rightButtonDown === 'function' && ptr.rightButtonDown()) {
       this.showCombatEnemyPopup(enemy);
