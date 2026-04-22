@@ -1,0 +1,1 @@
+Run E2E tests with `npm run test:e2e` (build + Playwright against vite preview on port 3100) and report the results. If Playwright reports a missing browser, run `npx playwright install chromium` first.

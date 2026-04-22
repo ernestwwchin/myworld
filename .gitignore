@@ -10,6 +10,8 @@
 # AI agent config — local settings may contain infrastructure identifiers
 .claude/
 !.claude/settings.json
+!.claude/commands/
+!.claude/commands/*
 
 test-results/
 playwright-report/
