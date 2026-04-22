@@ -39,6 +39,24 @@ creatures:
     damage: "1d6+2"
     damage_type: cold
 
+# Creature inheritance — extends parent, overrides specific fields
+# Objects deep-merge (stats, ai, attack); scalars and arrays replace.
+creatures:
+  goblin_archer:
+    extends: goblin               # inherits all goblin fields
+    name: "Goblin Archer"
+    attack: { weaponId: shortbow, dice: "1d6", range: 6 }
+
+  goblin_warrior:
+    extends: goblin
+    name: "Goblin Warrior"
+    hp: 12
+    ac: 14
+    attack: { weaponId: longsword, dice: "1d8+1", range: 1 }
+
+# Circular extends detected and warned at load time.
+# Missing parent warned but child still loads as-is.
+
 # Override existing value — later mod wins
 weapons:
   longsword:
@@ -794,3 +812,399 @@ weapons:
           ability.swap_tag('fire', 'cold')
           ability.add_effect('slowed', target, 1)
 ```
+
+---
+
+## Mod API Reference (Engine Audit)
+
+### Implementation Status
+
+| Subsystem | Implemented | Key Gap |
+|---|---|---|
+| Creatures | 80% | `onHit`, `abilities`, `features`, `ai.profile` not wired |
+| Status Effects | 95% | `immunities`, `resistances` not wired |
+| Abilities | 70% | Hook system works; most effect types are stubs |
+| Loot Tables | 95% | `dropChance` not implemented |
+| Combat AI | 50% | Hardcoded pathfind→chase→attack. No profiles. |
+| Events | 90% | Good action coverage |
+| Stage Config | 100% | Fully working |
+| Items | 95% | `onUse` effects mostly work |
+| Rules | 100% | All tunable |
+| Damage System | 40% | No damage types, resistance, or formula engine |
+
+### Context Variables (for formulas and scripts)
+
+When writing formulas, conditions, or scripts, these variables are available:
+
+```
+── Source (the actor performing the action) ──────────────────
+source.hp             14          # current hit points
+source.maxHp          22          # maximum hit points
+source.level          3           # character level
+source.ac             16          # armor class
+source.str            15          # STR score
+source.strMod         2           # STR modifier = floor((str - 10) / 2)
+source.dex            10          # DEX score
+source.dexMod         0           # DEX modifier
+source.con            14          # CON score
+source.conMod         2           # CON modifier
+source.int            8           # INT score
+source.intMod         -1          # INT modifier
+source.wis            10          # WIS score
+source.wisMod         0           # WIS modifier
+source.cha            10          # CHA score
+source.chaMod         0           # CHA modifier
+source.proficiency    2           # proficiency bonus (2 at L1-4, 3 at L5-8, 4 at L9-10)
+source.weaponDice     "1d8+3"    # equipped weapon damage formula
+source.atkRange       1           # attack range in tiles
+source.speed          5           # movement tiles per turn
+source.class          "fighter"   # class id
+source.alive          true        # is alive
+
+── Target (the actor receiving the action) ───────────────────
+target.hp             7           # current hit points
+target.maxHp          7           # maximum hit points
+target.ac             12          # armor class
+target.str            8           # (same stat fields as source)
+target.strMod         -1
+target.alive          true
+target.type           "goblin"    # creature type id
+target.cr             "1/4"       # challenge rating
+
+── Combat Context ────────────────────────────────────────────
+combat.round          3           # current round number
+combat.turn           "source"    # whose turn (source/target/ally)
+distance              2.5         # Euclidean tile distance source↔target
+allies_adjacent       1           # allies adjacent to target (for flanking)
+
+── Dice / Roll Context (available in on_hit, on_miss) ───────
+roll.d20              17          # natural d20 result
+roll.total            19          # d20 + modifiers
+roll.isCrit           false       # natural 20
+roll.isMiss           false       # total < target.ac
+roll.damage           8           # damage dealt (after roll, before reduction)
+```
+
+### creatures.yaml — Full Field Reference
+
+```yaml
+creatures:
+  goblin_shaman:
+    # ── Identity ──
+    name: "Goblin Shaman"                    # display name
+    type: goblin                             # sprite/family type
+    icon: "🧙"                               # UI icon
+    cr: "1/2"                                # challenge rating (display)
+    extends: goblin                          # ⏳ PLANNED — inherit from parent creature
+
+    # ── Core Stats ── (all ✅ REAL)
+    hp: 12                                   # hit points
+    ac: 12                                   # armor class
+    speed: 2                                 # movement tiles per turn
+    sight: 5                                 # vision range in tiles
+    fov: 120                                 # field of view degrees
+    xp: 50                                   # XP reward on kill
+    level: 1                                 # level (affects proficiency)
+
+    # ── Ability Scores ── (all ✅ REAL)
+    stats: { str: 6, dex: 14, con: 10, int: 14, wis: 12, cha: 12 }
+
+    # ── Skills ── (✅ REAL — used for passive Perception)
+    skillProficiencies: [arcana, perception]
+
+    # ── Attack ── (✅ REAL)
+    attack:
+      weaponId: shortsword                   # references weapons.yaml for damage
+      dice: "1d6"                            # OR direct dice if no weaponId
+      range: 1                               # tiles (1 = melee, 6 = shortbow)
+
+    # ── Economy ── (✅ REAL)
+    gold: "3d6"                              # dice string, rolled on kill
+    lootTable: goblin_shaman_drop            # references loot-tables.yaml
+
+    # ── AI ── (⚠️ PARTIAL — stored but profiles not implemented)
+    ai:
+      profile: support                       # ⏳ PLANNED — basic/ranged/brute/support/boss
+      preferredRange: 4                      # ⏳ PLANNED — ideal distance for ranged
+      fleeRange: 2                           # ⏳ PLANNED — flee if enemy closer than this
+      searchTurns: 4                         # ✅ REAL — how long to search after losing sight
+      ambush: true                           # ⏳ PLANNED — start hidden, attack with advantage
+
+    # ── On-Hit Effects ── (⏳ PLANNED — not wired in engine)
+    onHit:
+      save: { ability: con, dc: 12 }        # target rolls CON save vs DC 12
+      fail:
+        status: poisoned                     # apply this status on failed save
+        duration: 3                          # turns
+
+    # ── Creature Abilities ── (⏳ PLANNED — not wired in engine)
+    abilities:
+      - id: heal_ally                        # ability id
+        trigger: "ally_below_50pct"          # when to use
+        cooldown: 3                          # turns between uses
+        heal: "2d6"                          # healing amount
+        range: 5                             # cast range in tiles
+      - id: fire_bolt
+        trigger: "default"                   # fallback action
+        cooldown: 2
+        dice: "1d8"                          # damage
+        range: 5                             # tiles
+        damageType: fire                     # ⏳ PLANNED — damage type
+
+    # ── Features ── (⏳ PLANNED — not wired for creatures)
+    features: [second_wind, leadership]
+
+    # ── Status Immunities ── (⏳ PLANNED)
+    immunities: [stun, fear, charm]
+
+    # ── Status Effects Applied at Spawn ── (✅ REAL)
+    effects:
+      - { id: enraged, duration: 999 }
+
+    # ── Boss Phases ── (⏳ PLANNED)
+    phases:
+      - name: "Phase 1"
+        hpThreshold: 60                      # transitions when HP% drops below
+        ac: 18                               # override stats for this phase
+        attack: { dice: "2d10+5", range: 1 }
+        multiAttack: 2                       # attacks per turn
+```
+
+### weapons.yaml — Full Field Reference
+
+```yaml
+weapons:
+  longsword:
+    name: Longsword                          # ✅ display name
+    category: martial_melee                  # ✅ weapon category
+    damageType: slashing                     # ✅ REAL (logged) but no mechanical effect yet
+    damageDice: "1d8+3"                      # ✅ damage formula
+    range: 1                                 # ✅ tiles (1 = melee)
+    properties: [versatile]                  # ✅ stored, used for display
+
+  shortbow:
+    name: Shortbow
+    category: simple_ranged
+    damageType: piercing
+    damageDice: "1d6"
+    range: 6                                 # 6 tiles (~12m)
+    properties: [ammunition, two_handed]
+```
+
+### statuses.yaml — Full Field Reference
+
+```yaml
+statuses:
+  poisoned:
+    name: "Poisoned"                         # ✅ display name
+    icon: "🤢"                               # ✅ UI icon
+    trigger: turn_start                      # ✅ when effect fires: turn_start | turn_end | time_tick
+    duration: 3                              # ✅ turns remaining
+    onTrigger:
+      damageDice: "1d4"                      # ✅ damage rolled each trigger
+      damageColor: 0x44ff44                  # ✅ float text color (green for poison)
+      skipTurn: false                        # ✅ if true, actor loses their turn
+      removeOnSave:                          # ✅ save to end early
+        stat: con                            # ability to roll
+        dc: 12                               # difficulty class
+```
+
+### items.yaml — Full Field Reference
+
+```yaml
+items:
+  potion_heal:
+    name: "Healing Potion"                   # ✅ display name
+    icon: "🧪"                               # ✅ UI icon
+    type: consumable                         # ✅ consumable | weapon | armor | gem | misc
+    description: "Restores 2d4+2 HP."        # ✅ tooltip text
+    onUse:
+      consumeOnUse: true                     # ✅ default true; false = reusable
+      effects:
+        - { type: heal, amount: "2d4+2" }                    # ✅ restore HP
+        - { type: removeStatus, statusId: poisoned }         # ✅ cure a status
+        - { type: applyStatus, statusId: haste, duration: 5, trigger: turn_end }  # ✅ apply status
+        - { type: modifyStat, stat: str, bonus: 4, duration: 10 }   # ✅ temp stat boost
+        - { type: log, message: "You feel stronger!" }       # ✅ combat log message
+        - { type: useAbility, abilityId: fireball }          # ✅ delegate to ability system
+```
+
+### loot-tables.yaml — Full Field Reference
+
+```yaml
+starter_common:
+  gold: [4, 14]                              # ✅ [min, max] gold range
+  rolls: 1                                   # ✅ how many items to pick from pool
+  allowDuplicates: true                      # ✅ can same item be picked twice
+  dropChance: 0.35                           # ⏳ PLANNED — % chance to drop at all
+  pool:
+    - id: potion_heal                        # ✅ item id (refs items.yaml)
+      name: "Healing Potion"                 # ✅ display name
+      weight: 34                             # ✅ relative probability
+      icon: "🧪"                             # ✅ UI icon
+      type: consumable                       # ✅ item type
+      heal: "2d4+2"                          # ✅ shorthand heal (legacy)
+      rolls: 1                               # ✅ quantity: number or [min, max]
+      value: 10                              # ✅ sell value in gold
+```
+
+### rules.yaml — Full Field Reference
+
+```yaml
+# All fields ✅ REAL — engine reads and applies these
+
+display:
+  tileSize: 32                               # pixel size of each tile
+
+combat:
+  roomAlertMaxDistance: 8                     # tiles — enemy group joining range
+  largeRoomTileThreshold: 90                 # tiles — detect large combat room
+  largeRoomJoinDistance: 6                    # tiles — group merge distance
+  fleeMinDistance: 6                          # tiles — distance to successfully flee
+  fleeRequiresNoLOS: true                    # must break line of sight to flee
+  playerMovePerTurn: 5                       # tiles — movement budget in combat
+  dashMoveBonus: 4                           # tiles — extra move from Dash
+  enemySightScale: 1.0                       # multiplier on enemy sight range
+  enemySpeedScale: 0.75                      # multiplier on enemy speed
+
+fog:
+  enabled: true                              # toggle fog of war
+  radius: 7                                  # tiles — player vision radius
+  unvisitedAlpha: 1.0                        # opacity of never-seen tiles (0-1)
+  exploredAlpha: 0.62                        # opacity of visited-but-not-visible tiles
+  exploredColor: 2439729                     # hex color of explored fog overlay
+
+light:
+  darkSightPenalty: 3                        # sight range reduction in dark
+  dimSightPenalty: 1                         # sight range reduction in dim
+  hiddenSightPenalty: 2                      # extra penalty when hidden
+  torchBrightStrength: 0.85                  # bright light intensity (0-1)
+  torchDimStrength: 0.55                     # dim light intensity (0-1)
+  torchRadiusScale: 1.2                      # multiplier on torch radius
+
+status:
+  exploreTickMs: 1000                        # ms between status ticks in explore mode
+  defaultPoisonDamageDice: [1, 4, 0]         # [count, sides, bonus] → "1d4+0"
+  sleepWakeDc: 12                            # DC to wake from sleep on damage
+```
+
+### stage.yaml — Full Field Reference
+
+```yaml
+name: "B1F — The Warren Depths"              # ✅ display name
+floor: B1F                                   # ✅ floor identifier
+globalLight: dark                            # ✅ bright | dim | dark
+nextStage: auto                              # ✅ stage_id | auto | boss | town | null
+
+# ── Fixed Grid ── (use this OR generator, not both)
+grid:                                        # ✅ 2D tile map
+  - "##########"                             # # = wall, . = floor, D = door
+  - "#........#"                             # S = stairs, C = chest
+  - "##########"
+playerStart: { x: 2, y: 1 }                 # ✅ starting tile
+
+# ── Procedural Generator ── (use this OR grid, not both)
+generator:
+  type: random                               # ✅ random (cellular automata) | bsp
+  cols: 56                                   # ✅ map width in tiles
+  rows: 36                                   # ✅ map height in tiles
+  depth: 1                                   # ✅ difficulty tier
+  fillPct: 48                                # ✅ % of cells initially filled (CA only)
+  steps: 5                                   # ✅ CA smoothing iterations
+  stairs: true                               # ✅ generate exit stairs
+
+# ── Encounters ── (✅ all fields REAL)
+encounters:
+  - creature: goblin                         # creature id from creatures.yaml
+    count: 5                                 # for generated maps (random placement)
+    x: 10                                    # for fixed grid maps (exact tile)
+    y: 5
+    facing: 180                              # degrees (0=up, 180=down)
+    group: "patrol_a"                        # group id (alert together)
+    lootTable: goblin_common                 # override creature's default loot table
+    gold: 15                                 # override creature's gold
+    ai: { searchTurns: 6 }                   # override AI params
+
+# ── Lights ── (✅ REAL)
+lights:
+  - { x: 5, y: 3, radius: 4, level: bright }
+
+# ── Doors ── (✅ REAL)
+doors:
+  - { x: 10, y: 5, locked: true, autoOpen: false }
+
+# ── Interactables ── (✅ REAL)
+interactables:
+  - { x: 15, y: 8, kind: chest, lootTable: starter_common }
+  - { x: 20, y: 3, kind: stash }
+  - { x: 22, y: 3, kind: shop }
+
+# ── Stage-Local Loot Tables ── (✅ REAL — merged with global)
+lootTables:
+  floor_special:
+    gold: [20, 40]
+    rolls: 1
+    pool:
+      - { id: unique_item, name: "Floor Key", weight: 100 }
+```
+
+### events.yaml — Available Actions
+
+```yaml
+events:
+  - id: ambush_event
+    trigger: { playerAt: { x: 10, y: 5 } }  # ✅ position trigger
+    conditions:                               # ✅ all condition types
+      - { flag: "ambush_done", equals: false }
+      - { mode: explore }
+      - { hp_above: 5 }
+      - { enemyAlive: "guard_1" }
+    actions:
+      # ── Movement & Combat ──
+      - { type: move, x: 12, y: 5 }          # ✅ move player to tile
+      - { type: attack, target: "guard_1" }   # ✅ attack enemy
+      - { type: enterCombat }                 # ✅ switch to combat mode
+      - { type: flee }                        # ✅ attempt flee
+      - { type: hide }                        # ✅ enter stealth
+
+      # ── Entity Interaction ──
+      - { type: openDoor, x: 10, y: 5 }      # ✅ open door at tile
+      - { type: lockDoor, x: 10, y: 5 }      # ✅ lock door
+      - { type: interact, x: 15, y: 8 }      # ✅ interact with entity
+
+      # ── Spawning ──
+      - { type: spawn, creature: goblin, x: 8, y: 3 }  # ✅ spawn enemy
+
+      # ── Flags ──
+      - { type: setFlag, flag: "ambush_done", value: true }     # ✅
+      - { type: incrementFlag, flag: "kill_count" }              # ✅
+      - { type: toggleFlag, flag: "lever_pulled" }               # ✅
+
+      # ── Dialog & Narrative ──
+      - { type: dialog, dialogId: "guard_speech" }  # ✅ start dialog tree
+      - { type: say, text: "Halt!" }                # ✅ show NPC text
+
+      # ── Timing ──
+      - { type: wait, ms: 500 }              # ✅ delay
+      - { type: waitMode, mode: explore }     # ✅ wait until mode changes
+
+      # ── Advanced ──
+      - { type: triggerEvent, eventId: "alarm" }  # ✅ chain to another event
+      - { type: custom, fn: "myGlobalFn" }        # ✅ call window[fn]()
+```
+
+### Engine Gaps (Must Build Before Modders Can Use)
+
+| Priority | Feature | Brainstorm Location | Engine Work Needed |
+|---|---|---|---|
+| **P0** | Creature `onHit` effects | enemy-scaling-brainstorm.md | Wire save→status in damage-system.ts |
+| **P0** | AI profiles (ranged, support, brute) | enemy-scaling-brainstorm.md | Refactor combat-ai.ts with profile dispatch |
+| **P0** | Creature `abilities` (spells/heals) | ability-system-brainstorm.md | Add creature ability resolution in combat turn |
+| **P0** | Creature `extends:` inheritance | mod-system-brainstorm.md | Add `_resolveCreature()` to modloader.ts |
+| **P1** | Damage types + resistance | game-parameters.md | Add damage type field to damage pipeline |
+| **P1** | `dropChance` on loot tables | game-parameters.md | Add roll check before loot resolution |
+| **P1** | Boss phases | boss-fight-brainstorm.md | Add phase transition engine |
+| **P1** | Legendary actions | boss-fight-brainstorm.md | Add between-turn action slots |
+| **P2** | Formula engine (`source.strMod + 2`) | mod-system-brainstorm.md | Expression parser for YAML values |
+| **P2** | Status immunities | enemy-scaling-brainstorm.md | Check immunities before applying |
+| **P2** | Ability effect types (spawn, counter) | ability-system-brainstorm.md | Implement remaining stub effects |

@@ -215,3 +215,281 @@ crystal_golem:
 - Challenge from enemy **composition** (3 goblins + shaman + brute), not individual AI
 - All abilities YAML-defined → moddable, no code needed
 - Enemies do NOT use items (potions, scrolls) — keeps it simple
+
+---
+
+## W1 Creature YAML Definitions (Implementation Reference)
+
+These are the concrete YAML blocks for coding. Stats match game-parameters.md.
+Uses `extends:` for goblin variants (see mod-system-brainstorm.md).
+
+### Core creatures (00_core/creatures.yaml)
+
+```yaml
+creatures:
+  goblin:
+    name: Goblin
+    type: goblin
+    icon: "👺"
+    cr: "1/4"
+    xp: 25
+    hp: 7
+    ac: 12
+    speed: 3
+    sight: 4
+    fov: 120
+    stats: { str: 8, dex: 14, con: 10, int: 10, wis: 8, cha: 8 }
+    skillProficiencies: [stealth]
+    attack: { weaponId: scimitar, dice: "1d6", range: 1 }
+    gold: "2d4"
+    ai: { profile: basic }
+    lootTable: goblin_common
+
+  wolf:
+    name: Wolf
+    type: wolf
+    icon: "🐺"
+    cr: "1/4"
+    xp: 30
+    hp: 11
+    ac: 12
+    speed: 4
+    sight: 5
+    fov: 180
+    stats: { str: 12, dex: 15, con: 12, int: 3, wis: 12, cha: 6 }
+    skillProficiencies: [perception]
+    attack: { dice: "1d6+1", range: 1 }
+    gold: 0
+    ai: { profile: brute }
+    lootTable: beast_drop
+    # On-hit: STR save DC 11 or knocked prone
+
+  spider:
+    name: Spider
+    type: spider
+    icon: "🕷️"
+    cr: "1/4"
+    xp: 40
+    hp: 8
+    ac: 13
+    speed: 2
+    sight: 3
+    fov: 360
+    stats: { str: 6, dex: 14, con: 8, int: 1, wis: 10, cha: 2 }
+    attack: { dice: "1d4+2", range: 1 }
+    gold: 0
+    ai: { profile: basic }
+    lootTable: beast_drop
+    onHit:
+      save: { ability: con, dc: 12 }
+      fail: { status: poisoned, duration: 3 }
+    # Poisoned: -1 to attack rolls
+
+  skeleton:
+    name: Skeleton
+    type: skeleton
+    icon: "💀"
+    cr: "1/4"
+    xp: 50
+    hp: 13
+    ac: 13
+    speed: 2
+    sight: 5
+    fov: 100
+    stats: { str: 10, dex: 14, con: 15, int: 6, wis: 8, cha: 5 }
+    attack: { weaponId: shortsword, dice: "1d6+2", range: 1 }
+    gold: "1d6"
+    ai: { profile: basic }
+    lootTable: goblin_common
+```
+
+### Goblin Invasion creatures (01_goblin_invasion/creatures.yaml)
+
+```yaml
+creatures:
+  # --- Tier 1 (B1F–B2F) ---
+
+  goblin_archer:
+    extends: goblin
+    name: Goblin Archer
+    xp: 35
+    hp: 8
+    ac: 13
+    attack: { weaponId: shortbow, dice: "1d6+1", range: 6 }
+    ai: { profile: ranged, preferredRange: 4, fleeRange: 2 }
+    # inherits lootTable: goblin_common from goblin
+
+  goblin_scout:
+    extends: goblin
+    name: Goblin Scout
+    xp: 35
+    hp: 10
+    speed: 4
+    ac: 13
+    attack: { dice: "1d6+1", range: 1 }
+    gold: "2d6"
+    skillProficiencies: [stealth, perception]
+    ai: { profile: basic, ambush: true }
+
+  # --- Tier 2 (B2F–B3F) ---
+
+  goblin_shaman:
+    extends: goblin
+    name: Goblin Shaman
+    icon: "🧙"
+    xp: 50
+    hp: 12
+    ac: 12
+    stats: { str: 6, dex: 14, con: 10, int: 14, wis: 12, cha: 12 }
+    skillProficiencies: [arcana, perception]
+    attack: { dice: "1d6", range: 1 }
+    gold: "3d6"
+    ai: { profile: support }
+    lootTable: goblin_shaman_drop
+    abilities:
+      - { id: heal_ally, trigger: "ally_below_50pct", cooldown: 3, heal: "2d6" }
+      - { id: fire_bolt, trigger: "default", cooldown: 2, dice: "1d8", range: 5, damageType: fire }
+
+  goblin_warrior:
+    extends: goblin
+    name: Goblin Warrior
+    xp: 50
+    hp: 15
+    ac: 14
+    stats: { str: 14, dex: 12, con: 14, int: 8, wis: 10, cha: 10 }
+    attack: { weaponId: longsword, dice: "1d8", range: 1 }
+    gold: "2d6"
+    lootTable: goblin_elite
+
+  goblin_trapper:
+    extends: goblin
+    name: Goblin Trapper
+    xp: 45
+    hp: 10
+    ac: 13
+    attack: { weaponId: shortbow, dice: "1d6+1", range: 6 }
+    gold: "2d6"
+    ai: { profile: ranged, preferredRange: 5, fleeRange: 2 }
+    lootTable: goblin_elite
+    # TODO: trap placement ability (post-MVP)
+
+  cave_spider:
+    extends: spider
+    name: Cave Spider
+    xp: 60
+    hp: 16
+    ac: 14
+    attack: { dice: "1d8+1", range: 1 }
+    onHit:
+      save: { ability: con, dc: 13 }
+      fail: { status: poisoned, duration: 3 }
+    # inherits lootTable: beast_drop from spider
+
+  # --- Tier 3 (B3F–B5F) ---
+
+  hobgoblin:
+    name: Hobgoblin
+    type: hobgoblin
+    icon: "⚔️"
+    cr: "1/2"
+    xp: 75
+    hp: 20
+    ac: 15
+    speed: 2
+    sight: 6
+    fov: 120
+    stats: { str: 14, dex: 12, con: 14, int: 10, wis: 10, cha: 10 }
+    skillProficiencies: [athletics, perception]
+    attack: { weaponId: longsword, dice: "1d8+2", range: 1 }
+    gold: "3d6"
+    ai: { profile: basic }
+    lootTable: hobgoblin_drop
+    features: [martial_advantage]
+    # Martial Advantage: +2d6 damage if ally adjacent to target
+
+  goblin_captain:
+    extends: goblin_warrior
+    name: Goblin Captain
+    icon: "👑"
+    cr: "1"
+    xp: 100
+    hp: 25
+    ac: 15
+    stats: { str: 14, dex: 12, con: 14, int: 10, wis: 10, cha: 12 }
+    skillProficiencies: [athletics, intimidation, perception]
+    attack: { weaponId: longsword, dice: "1d8+2", range: 1 }
+    gold: "4d6"
+    lootTable: hobgoblin_drop
+    features: [second_wind, leadership]
+    # Second Wind: heal self 1d10+level (once per combat)
+    # Leadership: allies within 3 tiles get +1 to hit
+
+  # --- Boss ---
+
+  goblin_warlord:
+    name: Goblin Warlord
+    type: goblin
+    icon: "💀👑"
+    cr: "5"
+    xp: 500
+    hp: 150
+    ac: 16
+    speed: 4
+    sight: 8
+    fov: 180
+    stats: { str: 18, dex: 12, con: 16, int: 12, wis: 14, cha: 14 }
+    skillProficiencies: [athletics, intimidation, perception]
+    attack: { weaponId: longsword, dice: "1d8+4", range: 1 }
+    gold: "10d10"
+    ai: { profile: boss }
+    immunities: [stun, fear, charm]
+    legendaryActions: 2
+    lootTable: goblin_warlord_boss
+    phases:
+      - name: "The Commander"
+        hpThreshold: 60   # Phase 1: 100%–60%
+        ac: 18             # shield up
+        attack: { weaponId: longsword, dice: "1d8+4", range: 1 }
+        abilities:
+          - { id: war_horn, trigger: "every_3_turns", summon: goblin, count: 2 }
+        legendary:
+          - { id: war_cry, cost: 1, effect: "allies +1 damage, 1 turn" }
+          - { id: dodge, cost: 1, effect: "+2 AC until next turn" }
+      - name: "No More Games"
+        hpThreshold: 30   # Phase 2: 60%–30%
+        ac: 14             # shield thrown
+        attack: { weaponId: greataxe, dice: "2d10+5", range: 1 }
+        multiAttack: 2
+        abilities:
+          - { id: kick_brazier, trigger: "phase_enter", fireTiles: 3, damage: "2d6" }
+          - { id: charge, trigger: "target_distance_gt_3", range: 4 }
+        legendary:
+          - { id: charge, cost: 2, effect: "move 4 + attack" }
+          - { id: battlecry, cost: 1, effect: "WIS DC 13 fear, 1 turn" }
+      - name: "Berserk"
+        hpThreshold: 0    # Phase 3: 30%–0%
+        speed: 6
+        attack: { weaponId: greataxe, dice: "2d10+7", range: 1 }
+        multiAttack: 2
+        abilities:
+          - { id: ground_slam, trigger: "2_plus_adjacent", aoe: 1, dice: "2d8", knockback: 1 }
+          - { id: relentless, trigger: "reduced_to_0", save: { ability: con, dc: 15 }, reviveHp: 1, uses: 1 }
+```
+
+### Floor Encounter Composition
+
+| Floor | Enemies | Total Count | Theme |
+|---|---|---|---|
+| B1F | Goblin ×5, Goblin Archer ×2, Wolf ×1 | 8 | Easy intro, learn basics |
+| B2F | Goblin ×4, Goblin Archer ×2, Goblin Scout ×2, Goblin Shaman ×1 | 9 | First caster, ambush scouts |
+| B3F | Goblin ×3, Goblin Warrior ×2, Goblin Shaman ×2, Spider ×2, Hobgoblin ×1 | 10 | Harder mix, poison |
+| B4F | Goblin Warrior ×2, Goblin Trapper ×2, Goblin Shaman ×2, Cave Spider ×2, Hobgoblin ×2, Goblin Captain ×1 | 11 | Toughest regular floor |
+| B5F | Goblin Warlord ×1, Hobgoblin ×2 (guards), + phase 1 summons | 3+ | Boss fight |
+
+### Encounter Pacing Notes
+
+- B1F: ~2-3 rooms with enemies, rest are empty/loot. Teaches movement + basic attack.
+- B2F: First ranged enemy (archer) teaches positioning. Shaman teaches focus-fire priority.
+- B3F: Spider poison forces resource decisions (cure or push through). Hobgoblin is a damage check.
+- B4F: Captain's Leadership buff makes grouped enemies dangerous. Trappers force movement.
+- B5F: Boss only. Pre-boss rest opportunity. Arena with pillars, braziers, side doors.

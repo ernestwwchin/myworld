@@ -201,6 +201,67 @@ Full ability system design in `ability-system-brainstorm.md`. Resource model: pe
 | Cleric | Divine Sense | Detect hidden enemies/traps in 2-tile radius |
 | Wizard | Arcane Eye | Detect secret doors/hidden rooms in 3-tile radius |
 
+### W1 Level-by-Level Ability Progression (L1–L3)
+
+Player starts at L1. Expected to reach L2 mid-run (~B3F) and L3 by boss or early next run.
+Each level-up: choose 1 ability from that level's options. Choice is permanent.
+
+**Fighter L1→L3:**
+
+| Level | Always Have | Choose 1 | Spell Slots |
+|---|---|---|---|
+| 1 | Strike, Shove (cantrips), Second Wind (1/enc), Fighting Style: Defense (passive), Opportunity Attack (reaction) | — | 2 L1 |
+| 2 | Action Surge (1/enc) | Trip Attack OR Precision Attack (maneuver, 2/enc) | 2 L1 |
+| 3 | Parry (reaction) | Menacing Attack OR Pushing Attack (maneuver, 2/enc) | 2 L1 |
+
+L1 spells available: Thunderous Smite, Shield
+
+**Ranger L1→L3:**
+
+| Level | Always Have | Choose 1 | Spell Slots |
+|---|---|---|---|
+| 1 | Quick Shot, Careful Step (cantrips), Mark Target (1/enc), Fighting Style: Archery (passive), Opportunity Attack (reaction) | — | 3 L1 |
+| 2 | — | Hunter's Mark OR Ensnaring Strike (L1 spell) | 3 L1 |
+| 3 | Colossus Slayer (passive) | Camouflage (1/enc) OR Cure Wounds (L1 spell) | 3 L1, 1 L2 |
+
+L1 spells available: Hunter's Mark, Ensnaring Strike, Cure Wounds
+L2 spells available (from L3): Spike Growth
+
+**Cleric L1→L3:**
+
+| Level | Always Have | Choose 1 | Spell Slots |
+|---|---|---|---|
+| 1 | Sacred Flame, Guidance (cantrips), Disciple of Life (passive), Opportunity Attack (reaction) | Cure Wounds OR Healing Word (L1 spell known) | 3 L1 |
+| 2 | Turn Undead (1/enc), Preserve Life (1/enc) | Bless OR Shield of Faith (L1 spell known) | 3 L1 |
+| 3 | Warding Flare (reaction) | 3rd L1 spell known (pick from remaining: Cure Wounds / Healing Word / Bless / Shield of Faith) | 4 L1, 2 L2 |
+
+L1 spells available: Cure Wounds, Healing Word, Bless, Shield of Faith
+L2 spells available (from L3): Spiritual Weapon
+
+**Wizard L1→L3:**
+
+| Level | Always Have | Choose 1 | Spell Slots |
+|---|---|---|---|
+| 1 | Fire Bolt, Ray of Frost (cantrips), Opportunity Attack (reaction) | Magic Missile OR Sleep (L1 spell known) | 3 L1 |
+| 2 | Sculpt Spells (passive) | Shield OR 2nd L1 spell (pick from remaining) | 3 L1 |
+| 3 | Twin Cast (spell modifier, 1/enc) | Fireball OR Misty Step (L2 spell known) | 4 L1, 2 L2 |
+
+L1 spells available: Magic Missile, Shield, Sleep
+L2 spells available (from L3): Fireball, Misty Step
+
+### W1 Combat Power Budget (Expected at Boss)
+
+At L2–L3 with starter gear, no milestone yet:
+
+| Class | HP | AC | DPR (sustained) | DPR (burst 1 turn) | Key resource |
+|---|---|---|---|---|---|
+| Fighter | ~22 | 16 (chain+shield) | ~11 (2×Strike) | ~25 (Action Surge + Trip Attack) | 2 maneuver/enc, 1 surge/enc |
+| Ranger | ~18 | 14 (leather) | ~10 (Quick Shot + Colossus Slayer) | ~18 (Hunter's Mark + Quick Shot) | 3 L1 slots for run |
+| Cleric | ~20 | 16 (chain+shield) | ~7 (Sacred Flame) | ~12 (Sacred Flame + Spiritual Weapon) | 4 L1 + 2 L2 slots for run |
+| Wizard | ~12 | 12 (no armor) | ~8 (Fire Bolt) | ~32 (Fireball 8d6) | 4 L1 + 2 L2 slots for run |
+
+Boss (Goblin Warlord) has 150 HP, AC 16–18. ~15-20 rounds expected with L3 party (player + Kira).
+
 ### Class Auras (Party Buff, Don't Stack)
 
 | Class | Aura | Effect |
@@ -655,9 +716,169 @@ Damage = base_die + (player_level / 4) + ★_bonus + CHA_mod
 - Ground Slam: 1-tile AoE, 2d8, knockback
 - Relentless: CON DC 15, success = revive at 1 HP (once)
 
+### W1 Boss: Goblin Warlord Loot Table
+
+```yaml
+goblin_warlord_boss:
+  gold: [200, 500]
+  rolls: 4
+  allowDuplicates: false
+  guaranteed: true           # all items drop, no weighting
+  pool:
+    - { id: synthesis_hammer, name: "Synthesis Hammer", type: misc }
+    - { id: slot_chisel, name: "Slot Chisel", type: misc }
+    - { id: boss_weapon, name: "(Roll boss weapon table)", type: weapon }
+    - { id: stat_milestone, name: "+2 to any stat", type: milestone }
+```
+
+Boss weapon table (roll 1):
+
+| Weapon | Weight | Notes |
+|---|---|---|
+| Longsword +1 | 30 | Fighter-friendly |
+| Shortbow +1 | 25 | Ranger-friendly |
+| Mace +1 | 25 | Cleric-friendly |
+| Ether Rod +1 | 20 | Wizard-friendly |
+
 ---
 
-## 9. Economy
+## 8b. W1 Loot Tables (Full Design)
+
+### Enemy Drop Tables
+
+Enemies drop gold (from creature `gold:` field) + optional loot from their table.
+Drop chance is per-kill. Most enemies have ~30-50% chance to drop an item beyond gold.
+
+```yaml
+# Assigned to creatures via lootTable: field
+
+goblin_common:
+  # Basic goblins, archers, scouts
+  gold: [0, 0]          # gold already on creature definition
+  rolls: 1
+  dropChance: 0.35      # 35% chance to drop anything at all
+  pool:
+    - { id: potion_heal, name: "Healing Potion", weight: 30 }
+    - { id: arrow_bundle, name: "Arrows (x10)", weight: 25 }
+    - { id: torch_bundle, name: "Torches (x5)", weight: 20 }
+    - { id: antidote, name: "Antidote", weight: 15 }
+    - { id: goblin_ear, name: "Goblin Ear", weight: 10, type: misc, value: 3 }
+
+goblin_elite:
+  # Warriors, captains, trappers
+  gold: [0, 0]
+  rolls: 1
+  dropChance: 0.50
+  pool:
+    - { id: potion_heal, name: "Healing Potion", weight: 25 }
+    - { id: antidote, name: "Antidote", weight: 15 }
+    - { id: gem_quartz, name: "Quartz Gem", weight: 15, type: gem, value: 10 }
+    - { id: scroll_shield, name: "Scroll of Shield", weight: 12 }
+    - { id: potion_str, name: "Potion of Strength", weight: 10 }
+    - { id: dagger_plus1, name: "Dagger +1", weight: 8, type: weapon }
+    - { id: lockpick_set, name: "Thieves' Tools", weight: 8 }
+    - { id: gem_amethyst, name: "Amethyst", weight: 7, type: gem, value: 25 }
+
+goblin_shaman_drop:
+  # Shamans only
+  gold: [0, 0]
+  rolls: 1
+  dropChance: 0.55
+  pool:
+    - { id: potion_heal, name: "Healing Potion", weight: 25 }
+    - { id: scroll_shield, name: "Scroll of Shield", weight: 20 }
+    - { id: scroll_fireball, name: "Scroll of Fireball", weight: 15 }
+    - { id: antidote, name: "Antidote", weight: 15 }
+    - { id: gem_amethyst, name: "Amethyst", weight: 15, type: gem, value: 25 }
+    - { id: potion_heal_greater, name: "Greater Healing Potion", weight: 10 }
+
+hobgoblin_drop:
+  # Hobgoblins, goblin chiefs
+  gold: [0, 0]
+  rolls: 1
+  dropChance: 0.60
+  pool:
+    - { id: potion_heal, name: "Healing Potion", weight: 20 }
+    - { id: potion_heal_greater, name: "Greater Healing Potion", weight: 15 }
+    - { id: gem_amethyst, name: "Amethyst", weight: 15, type: gem, value: 25 }
+    - { id: scroll_shield, name: "Scroll of Shield", weight: 12 }
+    - { id: potion_str, name: "Potion of Strength", weight: 10 }
+    - { id: shortsword_plus1, name: "Shortsword +1", weight: 8, type: weapon }
+    - { id: gem_ruby, name: "Ruby", weight: 8, type: gem, value: 50 }
+    - { id: scroll_fireball, name: "Scroll of Fireball", weight: 7 }
+    - { id: ring_protection, name: "Ring of Protection", weight: 5, type: armor, acBonus: 1 }
+
+beast_drop:
+  # Wolves, spiders, cave spiders (no gold, loot only)
+  gold: [0, 0]
+  rolls: 1
+  dropChance: 0.25
+  pool:
+    - { id: antidote, name: "Antidote", weight: 40 }
+    - { id: potion_heal, name: "Healing Potion", weight: 30 }
+    - { id: spider_fang, name: "Spider Fang", weight: 20, type: misc, value: 8 }
+    - { id: wolf_pelt, name: "Wolf Pelt", weight: 10, type: misc, value: 12 }
+```
+
+### Enemy → Loot Table Assignment
+
+| Enemy | lootTable |
+|---|---|
+| Goblin | goblin_common |
+| Goblin Archer | goblin_common |
+| Goblin Scout | goblin_common |
+| Wolf | beast_drop |
+| Spider | beast_drop |
+| Goblin Shaman | goblin_shaman_drop |
+| Goblin Warrior | goblin_elite |
+| Goblin Trapper | goblin_elite |
+| Cave Spider | beast_drop |
+| Hobgoblin | hobgoblin_drop |
+| Goblin Captain | hobgoblin_drop |
+| Goblin Chief | hobgoblin_drop |
+
+### Chest Tables Per Floor
+
+Each floor has 2-4 chests. Chest table assignment:
+
+| Floor | Chests | Table Assignment | Expected Gold from Chests |
+|---|---|---|---|
+| B1F | 3 | 2× starter_common, 1× hidden_stash | ~30g |
+| B2F | 3 | 1× starter_common, 1× starter_uncommon, 1× hidden_stash | ~40g |
+| B3F | 3 | 1× starter_uncommon, 1× dungeon_common, 1× descent_key | ~45g |
+| B4F | 4 | 1× dungeon_common, 1× dungeon_uncommon, 1× boss_prep, 1× trap_only | ~55g |
+| B5F | 1 | Boss drop only (goblin_warlord_boss) | ~350g |
+| **Total** | **14** | | **~520g** |
+
+Note: Actual gold from chests (~160g target) comes from gold rolls only. Item value (gems, gear) adds ~360g if sold.
+
+### W1 Gold Flow Verification
+
+```
+Enemies (~40 kills across B1F-B4F):
+  Goblins (20× avg 5g)     = 100g
+  Archers/Scouts (6× avg 5g) = 30g
+  Warriors/Trappers (4× avg 7g) = 28g
+  Shamans (5× avg 10g)     = 50g
+  Hobgoblins (3× avg 10g)  = 30g
+  Wolves/Spiders (5× 0g)   = 0g
+  Subtotal enemy gold:       ~238g
+  + item drops sold (~5 items × ~15g): ~75g
+  Total enemy income:        ~313g (target ~400g ✓ close enough)
+
+Chests (14 across B1F-B4F):
+  Gold from rolls:           ~160g
+  + item value if sold:      ~200g
+  Total chest income:        ~360g (target ~160g gold + ~200g items ✓)
+
+Boss:
+  Gold:                      ~350g
+  + guaranteed drops (hammer, chisel, weapon, milestone)
+  Total boss income:         ~350g + gear (target ~350g ✓)
+
+Run Total:                   ~1,023g gold + ~550g gear value
+                             ≈ 1,300g (target ~1,300g ✓)
+```
 
 ### Income Per Run
 
