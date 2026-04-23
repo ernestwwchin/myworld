@@ -13,10 +13,13 @@ creatures:
     speed: 2
     sight: 4
     fov: 120
+    level: 1
     stats: { str: 8, dex: 14, con: 10, int: 10, wis: 8, cha: 8 }
     skillProficiencies: [stealth, perception]
     attack: { weaponId: scimitar, dice: "1d6-1", range: 1 }
-    sneakAttackDice: 1  # 1d6 Sneak Attack when flanking/advantage
+    ai: { profile: basic }
+    lootTable: goblin_common
+    gold: "1d6"
 
   skeleton:
     name: Skeleton

@@ -1,91 +1,87 @@
 # Goblin Invasion — creature definitions
 # Extends core bestiary with creatures specific to the goblin warren.
+# Creatures with extends: inherit all parent fields via deep merge.
 
 creatures:
   goblin_captain:
+    extends: goblin
     name: Goblin Captain
-    type: goblin
     icon: "\U0001F451"   # 👑
     cr: "1"
     xp: 200
     hp: 18
     ac: 14
-    speed: 2
     sight: 6
     fov: 140
     stats: { str: 14, dex: 12, con: 14, int: 10, wis: 10, cha: 12 }
     skillProficiencies: [athletics, intimidation, perception]
     attack: { weaponId: shortsword, dice: "1d8+2", range: 1 }
-    features: [second_wind]
+    ai: { profile: basic }
+    lootTable: goblin_elite
+    gold: "3d6"
 
   goblin_shaman:
+    extends: goblin
     name: Goblin Shaman
-    type: goblin
     icon: "\U0001F9D9"   # 🧙
     cr: "1/2"
     xp: 100
     hp: 9
     ac: 12
-    speed: 2
-    sight: 5
-    fov: 120
     stats: { str: 6, dex: 14, con: 10, int: 14, wis: 12, cha: 12 }
     skillProficiencies: [arcana, perception]
     attack: { weaponId: shortsword, dice: "1d6-2", range: 1 }
-    features: [sleep_cloud]
+    ai: { profile: support, preferredRange: 4 }
+    lootTable: goblin_elite
+    gold: "2d6"
 
   goblin_archer:
+    extends: goblin
     name: Goblin Archer
-    type: goblin
     icon: "\U0001F3F9"   # 🏹
     cr: "1/4"
     xp: 35
     hp: 8
     ac: 13
-    speed: 2
     sight: 6
-    fov: 120
     stats: { str: 8, dex: 16, con: 10, int: 10, wis: 8, cha: 8 }
-    skillProficiencies: [stealth, perception]
     attack: { weaponId: shortbow, dice: "1d6+1", range: 4 }
+    ai: { profile: ranged, preferredRange: 6 }
     lootTable: goblin_common
-    gold: 2d4
-    ai: { profile: ranged }
+    gold: "2d4"
 
   goblin_warrior:
+    extends: goblin
     name: Goblin Warrior
-    type: goblin
     icon: "\U0001F6E1"   # 🛡
     cr: "1/2"
     xp: 50
     hp: 15
     ac: 14
-    speed: 2
     sight: 5
     fov: 140
     stats: { str: 14, dex: 12, con: 14, int: 8, wis: 10, cha: 8 }
     skillProficiencies: [athletics, intimidation]
     attack: { weaponId: longsword, dice: "1d8", range: 1 }
+    ai: { profile: basic }
     lootTable: goblin_elite
-    gold: 2d6
+    gold: "2d6"
 
   goblin_trapper:
+    extends: goblin
     name: Goblin Trapper
-    type: goblin
     icon: "\U0001FA64"   # 🪤
     cr: "1/4"
     xp: 45
     hp: 10
     ac: 13
-    speed: 2
     sight: 6
-    fov: 120
     stats: { str: 10, dex: 16, con: 10, int: 12, wis: 12, cha: 8 }
     skillProficiencies: [stealth, perception, sleight_of_hand]
     attack: { weaponId: shortbow, dice: "1d6+1", range: 4 }
+    ai: { profile: ranged, preferredRange: 5 }
     lootTable: goblin_elite
-    gold: 2d6
-    ai: { profile: ranged }
+    gold: "2d6"
 
   hobgoblin:
     name: Hobgoblin
@@ -98,11 +94,14 @@ creatures:
     speed: 2
     sight: 6
     fov: 140
+    level: 2
     stats: { str: 16, dex: 12, con: 14, int: 10, wis: 10, cha: 10 }
     skillProficiencies: [athletics, perception]
     attack: { weaponId: longsword, dice: "1d8+2", range: 1 }
+    ai: { profile: basic }
     lootTable: hobgoblin_drop
-    gold: 3d6
+    gold: "3d6"
+    resistances: [poison]
 
   wolf:
     name: Wolf
@@ -115,12 +114,13 @@ creatures:
     speed: 3
     sight: 6
     fov: 180
+    level: 1
     stats: { str: 12, dex: 15, con: 12, int: 3, wis: 12, cha: 6 }
     skillProficiencies: [perception, stealth]
     attack: { dice: "1d6+1", range: 1 }
+    ai: { profile: basic }
     lootTable: beast_drop
     gold: 0
-    ai: { profile: brute }
 
   spider:
     name: Spider
@@ -133,50 +133,36 @@ creatures:
     speed: 2
     sight: 4
     fov: 360
+    level: 1
     stats: { str: 8, dex: 16, con: 10, int: 1, wis: 10, cha: 2 }
     attack: { dice: "1d4+2", range: 1 }
+    ai: { profile: basic }
     lootTable: beast_drop
     gold: 0
-    effects:
-      - statusId: poisoned
-        chance: 0.5
-        saveDc: 12
-        saveStat: con
+    immunities: [poison]
 
   cave_spider:
+    extends: spider
     name: Cave Spider
-    type: beast
-    icon: "\U0001F577"   # 🕷
     cr: "1/2"
     xp: 60
     hp: 16
     ac: 14
-    speed: 2
     sight: 5
-    fov: 360
     stats: { str: 12, dex: 16, con: 12, int: 1, wis: 10, cha: 2 }
     attack: { dice: "1d8+1", range: 1 }
-    lootTable: beast_drop
-    gold: 0
-    effects:
-      - statusId: poisoned
-        chance: 0.6
-        saveDc: 12
-        saveStat: con
 
   goblin_chief:
+    extends: goblin_captain
     name: Goblin Chief
-    type: goblin
     icon: "\U0001FA96"   # 🪖
     cr: "2"
     xp: 150
     hp: 35
     ac: 15
-    speed: 2
-    sight: 6
-    fov: 140
     stats: { str: 16, dex: 12, con: 16, int: 12, wis: 12, cha: 14 }
-    skillProficiencies: [athletics, intimidation, perception]
     attack: { dice: "2d6", range: 1 }
+    ai: { profile: basic }
     lootTable: hobgoblin_drop
-    gold: 5d6
+    gold: "5d6"
+    resistances: [slashing]
