@@ -12,8 +12,14 @@ generator:
 
 encounters:
   - creature: goblin
-    count: 6
-  - creature: goblin_captain
-    count: 1
+    count: 3
+  - creature: goblin_archer
+    count: 2
+  - creature: goblin_warrior
+    count: 2
   - creature: goblin_shaman
+    count: 1
+  - creature: spider
+    count: 2
+  - creature: goblin_captain
     count: 1

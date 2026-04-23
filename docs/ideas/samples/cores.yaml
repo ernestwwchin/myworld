@@ -1,0 +1,85 @@
+# Soul Core Ability Pools
+# Crimson (Red) = Weapon Slot
+# Azure (Blue) = Armor Slot
+# Golden (Yellow) = Accessory Slot
+
+crimson_pool:
+  - id: cinder_strike
+    tier: 1
+    name: "Cinder Strike"
+    description: "+10% Fire Damage to all attacks."
+    stats: { fire_damage_mult: 0.1 }
+
+  - id: vampiric_edge
+    tier: 1
+    name: "Vampiric Edge"
+    description: "Heal 2 HP on every hit."
+    stats: { lifesteal_flat: 2 }
+
+  - id: whirlwind
+    tier: 2
+    name: "Whirlwind"
+    description: "Active: Attack all adjacent enemies (80% dmg)."
+    action: "whirlwind_attack"
+
+  - id: chain_lightning
+    tier: 2
+    name: "Chain Lightning"
+    description: "20% chance on hit to strike 3 nearby enemies."
+    stats: { proc_chain_lightning: 0.2 }
+
+  - id: executioner
+    tier: 3
+    name: "Executioner"
+    description: "Instantly kill enemies below 20% HP."
+    stats: { execute_threshold: 0.2 }
+
+azure_pool:
+  - id: stone_skin
+    tier: 1
+    name: "Stone Skin"
+    description: "+2 Armor Class (AC)."
+    stats: { ac_bonus: 2 }
+
+  - id: regeneration
+    tier: 1
+    name: "Regeneration"
+    description: "Restore 1 HP every 3 turns."
+    stats: { hp_regen_rate: 3 }
+
+  - id: thorn_aura
+    tier: 2
+    name: "Thorn Aura"
+    description: "Reflect 3 damage to melee attackers."
+    stats: { damage_reflect: 3 }
+
+  - id: guardian_shell
+    tier: 3
+    name: "Guardian Shell"
+    description: "All damage taken is reduced by 25%."
+    stats: { damage_reduction: 0.25 }
+
+golden_pool:
+  - id: swift_foot
+    tier: 1
+    name: "Swift Foot"
+    description: "+10% Movement Speed."
+    stats: { move_speed_mult: 0.1 }
+
+  - id: misty_step
+    tier: 2
+    name: "Misty Step"
+    description: "Active: Teleport up to 5 tiles."
+    action: "teleport_short"
+
+  - id: midas_touch
+    tier: 2
+    name: "Midas Touch"
+    description: "Monsters drop 50% more gold."
+    stats: { gold_drop_mult: 0.5 }
+
+  - id: chronos
+    tier: 3
+    name: "Chronos"
+    description: "Active: Gain 2 extra turns immediately."
+    action: "extra_turns"
