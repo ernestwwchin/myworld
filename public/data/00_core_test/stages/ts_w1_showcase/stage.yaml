@@ -1,0 +1,78 @@
+# W1 Mod System Showcase — test all new features in one stage
+# Access via: http://localhost:3000/?map=ts_w1_showcase
+#
+# Open arena with labeled zones. All features testable.
+
+name: "W1 Showcase"
+floor: "TEST"
+globalLight: bright
+
+grid:
+  # 0         1         2         3
+  # 01234567890123456789012345678901234
+  - "###################################"  # 0
+  - "#.................................#"  # 1
+  - "#.................................#"  # 2
+  - "#.................................#"  # 3
+  - "#.................................#"  # 4
+  - "#.................................#"  # 5
+  - "#.................................#"  # 6
+  - "#.................................#"  # 7
+  - "#.................................#"  # 8
+  - "#.................................#"  # 9
+  - "#...............................S.#"  # 10
+  - "#.................................#"  # 11
+  - "###################################"  # 12
+
+playerStart: { x: 3, y: 6 }
+
+encounters:
+  # Zone 1 (left): Single goblin — basic combat
+  - { creature: goblin, x: 1, y: 2, group: room1 }
+
+  # Zone 2 (left-center): Orc — tougher enemy
+  - { creature: orc, x: 7, y: 2, group: room2 }
+
+  # Zone 3 (center): 3 goblins — naming test (A/B/C)
+  - { creature: goblin, x: 13, y: 1, group: room3 }
+  - { creature: goblin, x: 15, y: 1, group: room3 }
+  - { creature: goblin, x: 14, y: 3, group: room3 }
+
+  # Zone 4 (right-center): Skeleton
+  - { creature: skeleton, x: 21, y: 2, group: room4 }
+
+  # Zone 5 (right): Orc boss + guards
+  - { creature: orc, x: 28, y: 6, name: "Orc Warchief", group: boss }
+  - { creature: goblin, x: 26, y: 5, group: boss }
+  - { creature: goblin, x: 30, y: 7, group: boss }
+
+  # Zone 6 (bottom-left): Goblin
+  - { creature: goblin, x: 7, y: 10, group: room6 }
+
+  # Zone 7 (bottom-center): Skeleton
+  - { creature: skeleton, x: 14, y: 10, group: room7 }
+
+interactables:
+  - id: test_stash
+    kind: interactable
+    x: 1
+    y: 10
+    state:
+      label: "Test Stash"
+      icon: "🗄"
+      description: "Test the stash panel."
+      actions:
+        - { label: "Open Stash", icon: "🗄", action: stash }
+
+  - id: test_shop
+    kind: interactable
+    x: 3
+    y: 10
+    state:
+      label: "Test Shop"
+      icon: "🧰"
+      description: "Test the shop panel."
+      actions:
+        - { label: "Browse Shop", icon: "🧰", action: shop }
+
+nextStage: null

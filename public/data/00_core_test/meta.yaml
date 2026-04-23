@@ -29,3 +29,4 @@ stages:
   - ts_chest_loot
   - ts_autorun_f1
   - ts_autorun_f2
+  - ts_w1_showcase
