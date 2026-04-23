@@ -485,6 +485,11 @@ export class GameUIController {
     if (hpText) hpText.textContent = `${s.playerHP}/${s.playerMaxHP}`;
     const vig = document.getElementById('vignette');
     if (vig) vig.style.background = `rgba(0,0,0,${veilAlpha})`;
+    const floorEl = document.getElementById('floor-text');
+    if (floorEl) {
+      const meta = (window as unknown as { _MAP_META?: { floor?: string; name?: string } })._MAP_META;
+      floorEl.textContent = meta?.floor || meta?.name || '';
+    }
   }
 
   updateResBar() {
