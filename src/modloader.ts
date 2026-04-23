@@ -6,6 +6,7 @@ import {
   PLAYER_STATS, ENEMY_DEFS, dnd,
 } from '@/config';
 import { MapGen } from '@/mapgen';
+import { resolveAllCreatures } from '@/systems/creature-resolver';
 
 type Dict = Record<string, unknown>;
 type Tile = number | string;
@@ -1083,6 +1084,9 @@ export const ModLoader = {
     this.applyStatuses(modData);
     this.applyItems(modData);
     this.applyMap(modData, activeMap);
+    if (modData.creatures && typeof modData.creatures === 'object') {
+      modData.creatures = resolveAllCreatures(modData.creatures as Record<string, any>);
+    }
     this.applyCreatures(modData, activeMap);
     this.applyPlayer(playerFile.player, modData);
 

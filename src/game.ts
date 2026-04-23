@@ -876,6 +876,15 @@ export class GameScene extends Phaser.Scene {
     this.updateExplore(delta);
     this._checkWasdIdle();
   }
+
+  handlePlayerDefeat(): void {
+    const w = window as unknown as { ModLoader?: { resolveRunOutcome: (scene: unknown, outcome: string) => void } };
+    if (w.ModLoader?.resolveRunOutcome) {
+      this.time.delayedCall(1500, () => {
+        w.ModLoader!.resolveRunOutcome(this, 'death');
+      });
+    }
+  }
 }
 
 Object.assign(

@@ -570,9 +570,19 @@ export const ModeCombatMixin = {
         this.showStatus('Combat ended — you moved to a different area.');
         withCombatLog((l: any) => l.log('Left combat area.', 'system', 'combat'));
       } else {
-        this.flashBanner('COMBAT OVER', 'explore');
-        this.showStatus('Victory! Continue exploring.');
-        withCombatLog((l: any) => l.log('Victory!', 'player', 'combat'));
+        const w = window as unknown as { ModLoader?: { shouldResolveBossVictory?: (scene: unknown, reason: string) => boolean; resolveRunOutcome: (scene: unknown, outcome: string) => void } };
+        if (w.ModLoader?.shouldResolveBossVictory?.(this, reason)) {
+          this.flashBanner('BOSS DEFEATED!', 'explore');
+          this.showStatus('The Warchief falls! Victory!');
+          withCombatLog((l: any) => l.log('Boss defeated! Victory!', 'player', 'combat'));
+          this.time.delayedCall(2000, () => {
+            w.ModLoader!.resolveRunOutcome(this, 'victory');
+          });
+        } else {
+          this.flashBanner('COMBAT OVER', 'explore');
+          this.showStatus('Victory! Continue exploring.');
+          withCombatLog((l: any) => l.log('Victory!', 'player', 'combat'));
+        }
       }
       withCombatLog((l: any) => l.logSep());
       this.resetActionButtons();
