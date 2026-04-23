@@ -1,5 +1,6 @@
 import type { GameScene } from '@/game';
 import type { GameEntity, MenuOption } from '@/types/entities';
+import { showStashPanel, showShopPanel } from '@/ui/town-panels';
 
 type EntityState = {
   label?: string;
@@ -121,29 +122,13 @@ export class InteractableEntity implements GameEntity {
       return { ok: true, kind: this.kind };
     }
 
-    if (a === 'stash') {
-      const s = scene as unknown as { showTownStashSummary?: () => void };
-      if (s?.showTownStashSummary) s.showTownStashSummary();
-      else scene?.showStatus?.('Stash is not implemented yet. Coming soon.');
-      return { ok: true, kind: this.kind };
-    }
-
-    if (a === 'stash_deposit_all') {
-      const s = scene as unknown as { depositAllToStash?: () => void };
-      if (s?.depositAllToStash) s.depositAllToStash();
-      else scene?.showStatus?.('Stash deposit is not available yet.');
-      return { ok: true, kind: this.kind };
-    }
-
-    if (a === 'stash_withdraw_all') {
-      const s = scene as unknown as { withdrawAllFromStash?: () => void };
-      if (s?.withdrawAllFromStash) s.withdrawAllFromStash();
-      else scene?.showStatus?.('Stash withdraw is not available yet.');
+    if (a === 'stash' || a === 'stash_deposit_all' || a === 'stash_withdraw_all') {
+      if (scene) showStashPanel(scene);
       return { ok: true, kind: this.kind };
     }
 
     if (a === 'shop') {
-      scene?.showStatus?.('Quartermaster services are not implemented yet. Coming soon.');
+      if (scene) showShopPanel(scene);
       return { ok: true, kind: this.kind };
     }
 
