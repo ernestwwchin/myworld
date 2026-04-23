@@ -1178,13 +1178,15 @@ export const ModeCombatMixin = {
     }
 
     const dr = this.resolveAbilityDamage(abilityId, 'player', isCrit);
-    const dmg = Math.max(1, dr.total);
-    enemy.hp -= dmg;
+    const rawDmg = Math.max(1, dr.total);
+    const wpn = WEAPON_DEFS[ps.weaponId ?? ''];
+    const dmgType = wpn?.damageType || 'bludgeoning';
+    const dmgResult = this.applyTypedDamage(enemy as unknown as import('@/types/actors').Actor, rawDmg, dmgType, 'player');
+    const dmg = dmgResult.final;
     this.applyAbilityOnHitStatuses(abilityId, 'player', enemy);
     this.executeAbilityHook('on_hit', { source: 'player', target: enemy, ability: abilityId, isCrit, damage: dmg });
-    this.executeAbilityHook('on_damage_dealt', { source: 'player', target: enemy, amount: dmg, damageType: WEAPON_DEFS[ps.weaponId ?? '']?.damageType });
+    this.executeAbilityHook('on_damage_dealt', { source: 'player', target: enemy, amount: dmg, damageType: dmgType });
 
-    const wpn = WEAPON_DEFS[ps.weaponId ?? ''];
     const floatColor = this.dmgColor(wpn && wpn.damageType);
     this.tweens.add({ targets: enemy.img, alpha: 0.15, duration: 80, yoyo: true, repeat: 3 });
     const ew = this.enemyWorldPos(enemy);

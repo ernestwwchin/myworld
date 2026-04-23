@@ -204,17 +204,21 @@ export const CombatAIMixin = {
       return;
     }
     const dr = dnd.rollDamageSpec(enemy.damageFormula, isCrit);
-    const dmg = Math.max(1, dr.total);
-    (this as unknown as { playerHP: number }).playerHP = Math.max(0, (this as unknown as { playerHP: number }).playerHP - dmg);
+    const rawDmg = Math.max(1, dr.total);
+    const eWpn = enemy.weaponId ? WEAPON_DEFS[enemy.weaponId] : null;
+    const eDmgType = eWpn?.damageType || 'bludgeoning';
+    const dmgResult = this.applyTypedDamage('player', rawDmg, eDmgType, enemy as unknown as import('@/types/actors').Actor);
+    const dmg = dmgResult.final;
     this.cameras.main.shake(180, 0.006);
     this.tweens.add({ targets: this.player, alpha: 0.3, duration: 80, yoyo: true, repeat: 2 });
-    this.spawnFloat(this.player.x, this.player.y - 10, isCrit ? `💥${dmg}` : `-${dmg}`, '#e74c3c');
+    if (!dmgResult.immune) {
+      this.spawnFloat(this.player.x, this.player.y - 10, isCrit ? `💥${dmg}` : `-${dmg}`, '#e74c3c');
+    }
     const dmgText = this.formatDamageBreakdown(dr);
-    this.showStatus(`${enemy.displayName}${isCrit ? ' CRITS' : ' hits'} for ${dmg}! ${dmgText}`);
-    const eWpn = enemy.weaponId ? WEAPON_DEFS[enemy.weaponId] : null;
-    const eDmgType = eWpn ? eWpn.damageType : '';
+    const resistLabel = dmgResult.resistant ? ' (resisted)' : dmgResult.vulnerable ? ' (vulnerable!)' : '';
+    this.showStatus(`${enemy.displayName}${isCrit ? ' CRITS' : ' hits'} for ${dmg}${resistLabel}! ${dmgText}`);
     withCombatLog((l: any) =>
-      l.logRoll({ actor: enemy.displayName, target: 'You', result: isCrit ? 'crit' : 'hit', damage: dmg, rollDetail: rollLine, dmgDetail: `${dmgText}${eDmgType ? ' ' + eDmgType : ''}` }),
+      l.logRoll({ actor: enemy.displayName, target: 'You', result: isCrit ? 'crit' : 'hit', damage: dmg, rollDetail: rollLine, dmgDetail: `${dmgText} ${eDmgType}${resistLabel}` }),
     );
     this.updateHUD();
     this.executeAbilityHook('on_hit', { source: enemy, target: 'player', isCrit, damage: dmg });
