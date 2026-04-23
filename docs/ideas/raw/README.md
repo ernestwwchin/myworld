@@ -6,6 +6,16 @@ No quality bar. No formatting required.
 
 ---
 
+## W1 Readiness
+
+| Status | Count | Files |
+|---|---|---|
+| ✅ Complete for W1 | 13 | game-parameters, class-system, ability-system, equipment-system, enemy-scaling, boss-fight, companion-system, consumables, gold-economy, world-progression, ui-system, mod-system, save-system |
+| ⏭️ Post-W1 | 2 | identification-system (Phase 2 by own plan), sprite-requirements (P0 = emoji MVP) |
+| ⚠️ Has gaps | 4 | inventory-economy (stubs for extraction/gold), run-structure (traps/NPCs/events), world-events (no W1 event YAML), quest-reward-system (no W1 quest list) |
+
+---
+
 ## Reading Order (Recommended)
 
 Start with game-parameters.md for the numbers, then read by topic:
@@ -23,7 +33,7 @@ Start with game-parameters.md for the numbers, then read by topic:
 
 ### Items & Economy
 8. **consumables-brainstorm.md** — Potions, scrolls, throwables, town upgrades
-9. **identification-system-brainstorm.md** — BUC, hidden properties, shuffled names
+9. **identification-system-brainstorm.md** — BUC, hidden properties, shuffled names (post-W1)
 10. **inventory-economy-brainstorm.md** — Carry/stash, stack limits
 11. **gold-economy-brainstorm.md** — Economy balance, gold sinks/sources
 
@@ -35,5 +45,6 @@ Start with game-parameters.md for the numbers, then read by topic:
 
 ### Technical
 16. **ui-system-brainstorm.md** — Navigation bar, screen layout, mobile-first 375px
-17. **mod-system-brainstorm.md** — 4-tier mods, inheritance, engine primitives, DSL, triggers
+17. **mod-system-brainstorm.md** — 4-tier mods, eval+call execution, status/boost system, resources, encounters, town services, full mod API audit
 18. **save-system-brainstorm.md** — Save/load, persistence
+19. **sprite-requirements-brainstorm.md** — Asset inventory, P0/P1/P2 priorities, PixelLab pipeline

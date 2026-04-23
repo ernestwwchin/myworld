@@ -11,13 +11,19 @@ generator:
   stairs: true
 
 encounters:
-  - creature: goblin
-    count: 5
-  - creature: goblin_captain
+  - creature: goblin_warrior
+    count: 3
+  - creature: goblin_archer
+    count: 2
+  - creature: goblin_trapper
     count: 2
   - creature: goblin_shaman
-    count: 3
-  - creature: skeleton
-    count: 4
-  - creature: orc
     count: 2
+  - creature: goblin_captain
+    count: 2
+  - creature: hobgoblin
+    count: 3
+  - creature: cave_spider
+    count: 2
+  - creature: goblin_chief
+    count: 1
