@@ -1,12 +1,12 @@
-# Graph Report - /home/wonwong/git/wonwong/myworld-design  (2026-04-22)
+# Graph Report - /home/wonwong/git/wonwong/myworld  (2026-04-23)
 
 ## Corpus Check
-- 84 files · ~208,814 words
+- 86 files · ~267,773 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 504 nodes · 690 edges · 87 communities detected
-- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 82 edges (avg confidence: 0.8)
+- 501 nodes · 650 edges · 81 communities detected
+- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 73 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
@@ -91,142 +91,136 @@
 - [[_COMMUNITY_Community 78|Community 78]]
 - [[_COMMUNITY_Community 79|Community 79]]
 - [[_COMMUNITY_Community 80|Community 80]]
-- [[_COMMUNITY_Community 81|Community 81]]
-- [[_COMMUNITY_Community 82|Community 82]]
-- [[_COMMUNITY_Community 83|Community 83]]
-- [[_COMMUNITY_Community 84|Community 84]]
-- [[_COMMUNITY_Community 85|Community 85]]
-- [[_COMMUNITY_Community 86|Community 86]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `runLegacyContracts()` - 52 edges
-2. `GameScene` - 44 edges
-3. `loadYaml()` - 29 edges
-4. `GameUIController` - 15 edges
-5. `InteractableEntity` - 13 edges
-6. `DoorEntity` - 13 edges
-7. `ChestEntity` - 12 edges
-8. `loadStageInSandbox()` - 10 edges
-9. `runDndAndMapContracts()` - 9 edges
-10. `FloorItemEntity` - 8 edges
+1. `GameScene` - 44 edges
+2. `AbilityRunner` - 42 edges
+3. `GameUIController` - 15 edges
+4. `InteractableEntity` - 13 edges
+5. `DoorEntity` - 13 edges
+6. `ChestEntity` - 12 edges
+7. `loadYaml()` - 12 edges
+8. `runDndAndMapContracts()` - 9 edges
+9. `FloorItemEntity` - 8 edges
+10. `exists()` - 7 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `bfs()` --calls--> `testMapScenarios()`  [INFERRED]
-  /home/wonwong/git/wonwong/myworld-design/src/helpers.ts → /home/wonwong/git/wonwong/myworld-design/tests/contracts/dnd-and-map-contracts.js
+  src/helpers.ts → /home/wonwong/git/wonwong/myworld/tests/contracts/dnd-and-map-contracts.ts
 - `inFOV()` --calls--> `testMapScenarios()`  [INFERRED]
-  /home/wonwong/git/wonwong/myworld-design/src/helpers.ts → /home/wonwong/git/wonwong/myworld-design/tests/contracts/dnd-and-map-contracts.js
-- `testBugRegressions()` --calls--> `loadYaml()`  [INFERRED]
-  /home/wonwong/git/wonwong/myworld-design/tests/contracts/ui-system-contracts.js → /home/wonwong/git/wonwong/myworld-design/tests/unit/_shared/io.js
-- `toHostObject()` --calls--> `testDiceNotationParsing()`  [INFERRED]
-  /home/wonwong/git/wonwong/myworld-design/tests/contracts/helpers.js → /home/wonwong/git/wonwong/myworld-design/tests/contracts/dnd-and-map-contracts.js
-- `toHostObject()` --calls--> `testInventoryContracts()`  [INFERRED]
-  /home/wonwong/git/wonwong/myworld-design/tests/contracts/helpers.js → /home/wonwong/git/wonwong/myworld-design/tests/contracts/inventory-item-contracts.js
+  src/helpers.ts → /home/wonwong/git/wonwong/myworld/tests/contracts/dnd-and-map-contracts.ts
+- `generateAnims()` --calls--> `exists()`  [INFERRED]
+  src/sprites.ts → /home/wonwong/git/wonwong/myworld/tests/unit/_shared/io.ts
+- `hasLOS()` --calls--> `testMapScenarios()`  [INFERRED]
+  src/helpers.ts → /home/wonwong/git/wonwong/myworld/tests/contracts/dnd-and-map-contracts.ts
+- `loadStageInSandbox()` --calls--> `testMapScenarios()`  [INFERRED]
+  /home/wonwong/git/wonwong/myworld/tests/contracts/helpers.ts → /home/wonwong/git/wonwong/myworld/tests/contracts/dnd-and-map-contracts.ts
 
 ## Communities
 
 ### Community 0 - "Community 0"
 Cohesion: 0.07
-Nodes (59): loadStageInSandbox(), loadYaml(), resolvePath(), toHostObject(), loadCoreTestMeta(), loadYaml(), repoPath(), runLegacyContracts() (+51 more)
+Nodes (10): GameScene, withHotbar(), exists(), generateAnims(), generateSprites(), getCharFrame(), getManifest(), getSpriteCfg() (+2 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.06
-Nodes (10): GameScene, withHotbar(), exists(), generateAnims(), generateSprites(), getCharFrame(), getManifest(), getSpriteCfg() (+2 more)
+Nodes (3): AbilityRunner, damageColor(), isActor()
 
 ### Community 2 - "Community 2"
-Cohesion: 0.07
-Nodes (6): GameUIController, toggleEnemySight(), toggleStats(), DoorEntity, onOpen(), withSidePanel()
+Cohesion: 0.12
+Nodes (27): runCoreContracts(), runDndAndMapContracts(), testCoreTestAllStagesStructure(), testCoreTestMeta(), testDamageRolling(), testDiceNotationParsing(), testExploreTurnBasedModeConstant(), testWeaponDataReferences() (+19 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.07
-Nodes (33): Mixin Module Pattern, Asset Credits & Licensing, Bugs Tracker (docs/BUGS.md), Fresh Meat (Butcher's Chamber), Canvas Upscale Fog Smoothing, CobraLad Portraits, Cursed Shrine (Wave Survival), DCSS Tile Pack (+25 more)
-
-### Community 4 - "Community 4"
 Cohesion: 0.09
-Nodes (3): ChestEntity, onOpen(), InteractableEntity
-
-### Community 5 - "Community 5"
-Cohesion: 0.14
-Nodes (22): runDndAndMapContracts(), testCoreTestAllStagesStructure(), testCoreTestMeta(), testDamageRolling(), testDiceNotationParsing(), testExploreTurnBasedModeConstant(), testMapScenarios(), testWeaponDataReferences() (+14 more)
-
-### Community 6 - "Community 6"
-Cohesion: 0.09
-Nodes (27): 5e Classes Reference, 5e Items & Consumables Reference, Action Surge Ability, Baldur's Gate 3 (Inspiration), Baldur's Gate 3 Inspiration, BG3 UI Design Reference, Barbarian Class, Cleric Class (+19 more)
-
-### Community 7 - "Community 7"
-Cohesion: 0.14
 Nodes (12): killAllEnemies(), moveToTile(), waitExplore(), waitIdle(), getPlayerState(), openChest(), runAndCaptureLoot(), runSeed() (+4 more)
 
+### Community 4 - "Community 4"
+Cohesion: 0.08
+Nodes (29): 5e Classes Reference, 5e Items & Consumables Reference, Action Surge Ability, AWS S3 + CloudFront Hosting, Baldur's Gate 3 Inspiration, Barbarian Class, Cleric Class, Fighter (Champion) Class (+21 more)
+
+### Community 5 - "Community 5"
+Cohesion: 0.11
+Nodes (22): Mixin Module Pattern, Asset Credits & Licensing, Fresh Meat (Butcher's Chamber), Canvas Upscale Fog Smoothing, CobraLad Portraits, Cursed Shrine (Wave Survival), DCSS Tile Pack, DENZI CC0 Asset Pack (+14 more)
+
+### Community 6 - "Community 6"
+Cohesion: 0.1
+Nodes (7): Contract Tests, loadYaml(), runSchemaContracts(), Testing Architecture, Unit Pure Tests, Unit Sandbox Tests, Vitest
+
+### Community 7 - "Community 7"
+Cohesion: 0.11
+Nodes (3): GameUIController, toggleStats(), withSidePanel()
+
 ### Community 8 - "Community 8"
-Cohesion: 0.14
-Nodes (7): Contract Tests, getFlags(), w(), Testing Architecture, Unit Pure Tests, Unit Sandbox Tests, Vitest
+Cohesion: 0.19
+Nodes (15): testMapScenarios(), bfs(), _buildRoomTopology(), _getRoomTopology(), hasLOS(), inFOV(), isWallCell(), lineTiles() (+7 more)
 
 ### Community 9 - "Community 9"
-Cohesion: 0.18
-Nodes (13): runCoreContracts(), runInventoryItemContracts(), testInventoryContracts(), testItemDefinitionContracts(), runModEventContracts(), testEventContracts(), testGoblinInvasionFlagsAndPatrol(), testModContracts() (+5 more)
+Cohesion: 0.16
+Nodes (3): toggleEnemySight(), DoorEntity, onOpen()
 
 ### Community 10 - "Community 10"
 Cohesion: 0.16
 Nodes (17): Alerting Rules, Apex Predator Scenario, BG3-Style Combat System, Underground Black Market Scenario, Combat Entry (BG3-style), Combat Mode, Combat System, D20 Attack Roll System (+9 more)
 
 ### Community 11 - "Community 11"
+Cohesion: 0.17
+Nodes (2): ChestEntity, onOpen()
+
+### Community 12 - "Community 12"
 Cohesion: 0.13
 Nodes (15): The Ancient Temple, Core Game Loop, Death Rules, Dungeon Floors, Floor Biomes & Map Themes, Forward-Only Design Philosophy, The Goblin Cave, Macro-Floor System (+7 more)
 
-### Community 12 - "Community 12"
+### Community 13 - "Community 13"
+Cohesion: 0.2
+Nodes (1): InteractableEntity
+
+### Community 14 - "Community 14"
+Cohesion: 0.18
+Nodes (11): Bugs Tracker (docs/BUGS.md), Docs Index (docs/README.md), Tier 1: Data Mods, Tier 2: Tuning Mods, Tier 3: Hook Mods (YAML), Tier 4: Script Mods (JS), Modding Guide (docs/modding/README.md), Playable v1 Anchor Goal (+3 more)
+
+### Community 15 - "Community 15"
 Cohesion: 0.31
 Nodes (11): AI Action System, AI Behavior System, AI State: ALERT, AI State: COMBAT, AI State: IDLE, AI State Machine, AI State: PATROL, AI State: RETURN (+3 more)
 
-### Community 13 - "Community 13"
+### Community 16 - "Community 16"
 Cohesion: 0.44
 Nodes (9): bsp(), carveCorridor(), caStep(), cellularAutomata(), fallback(), keepLargestRegion(), mapRng(), randomType() (+1 more)
 
-### Community 14 - "Community 14"
-Cohesion: 0.27
-Nodes (10): AWS S3 + CloudFront Hosting, E2E Tests (Playwright), GitHub Actions CI/CD, Infrastructure (OpenTofu), Nonprod Environment, OIDC GitHub→AWS Auth, Playwright, Prod Environment (+2 more)
-
-### Community 15 - "Community 15"
+### Community 17 - "Community 17"
 Cohesion: 0.28
 Nodes (1): FloorItemEntity
 
-### Community 16 - "Community 16"
+### Community 18 - "Community 18"
+Cohesion: 0.36
+Nodes (8): Baldur's Gate 3 (Inspiration), BG3 UI Design Reference, Door Interaction System, Enemy Info Popup, Hotbar UI, Initiative Bar UI, Side Panel UI, UI System
+
+### Community 19 - "Community 19"
 Cohesion: 0.29
 Nodes (7): 5e Races Reference, Dwarf (Hill Dwarf) Race, Elf (High Elf) Race, Half-Orc Race, Halfling (Lightfoot) Race, Human Race, Tiefling Race
 
-### Community 17 - "Community 17"
+### Community 20 - "Community 20"
 Cohesion: 0.5
 Nodes (2): pathTileCost(), tileDist()
 
-### Community 18 - "Community 18"
+### Community 21 - "Community 21"
 Cohesion: 0.4
 Nodes (5): 5e Feats Reference, Alert Feat, Great Weapon Master Feat, Sentinel Feat, Tough Feat
 
-### Community 19 - "Community 19"
-Cohesion: 0.67
-Nodes (0): 
-
-### Community 20 - "Community 20"
-Cohesion: 1.0
-Nodes (2): loadYaml(), runSchemaContracts()
-
-### Community 21 - "Community 21"
-Cohesion: 0.67
-Nodes (3): 5e Armor & Shields Reference, AC Calculation System, Equipment Slots (Future)
-
 ### Community 22 - "Community 22"
-Cohesion: 0.67
-Nodes (3): Monster House Scenario, Shiren the Wanderer (Inspiration), Trapped Corridor Scenario
+Cohesion: 1.0
+Nodes (2): getFlags(), w()
 
 ### Community 23 - "Community 23"
-Cohesion: 1.0
+Cohesion: 0.67
 Nodes (0): 
 
 ### Community 24 - "Community 24"
-Cohesion: 1.0
-Nodes (0): 
+Cohesion: 0.67
+Nodes (3): 5e Armor & Shields Reference, AC Calculation System, Equipment Slots (Future)
 
 ### Community 25 - "Community 25"
-Cohesion: 1.0
-Nodes (0): 
+Cohesion: 0.67
+Nodes (3): Monster House Scenario, Shiren the Wanderer (Inspiration), Trapped Corridor Scenario
 
 ### Community 26 - "Community 26"
 Cohesion: 1.0
@@ -238,27 +232,27 @@ Nodes (0):
 
 ### Community 28 - "Community 28"
 Cohesion: 1.0
-Nodes (2): 5e Spells Reference, Spellcasting System (Planned)
+Nodes (0): 
 
 ### Community 29 - "Community 29"
 Cohesion: 1.0
-Nodes (2): 0x72 Dungeon Atlas, Tileset & Sprite Sourcing
+Nodes (0): 
 
 ### Community 30 - "Community 30"
 Cohesion: 1.0
-Nodes (2): Etrian Odyssey (Inspiration), Wandering Colossus (FOE)
+Nodes (0): 
 
 ### Community 31 - "Community 31"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (2): 5e Spells Reference, Spellcasting System (Planned)
 
 ### Community 32 - "Community 32"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (2): Etrian Odyssey (Inspiration), Wandering Colossus (FOE)
 
 ### Community 33 - "Community 33"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (2): 0x72 Dungeon Atlas, Tileset & Sprite Sourcing
 
 ### Community 34 - "Community 34"
 Cohesion: 1.0
@@ -398,224 +392,182 @@ Nodes (0):
 
 ### Community 68 - "Community 68"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (1): 5e Weapons Reference
 
 ### Community 69 - "Community 69"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (1): 5e Conditions & Status Effects Reference
 
 ### Community 70 - "Community 70"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (1): 5e Monsters Reference (CR 0-2)
 
 ### Community 71 - "Community 71"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (1): Ideas Folder (docs/ideas/)
 
 ### Community 72 - "Community 72"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (1): Prison Rescue Scenario
 
 ### Community 73 - "Community 73"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (1): Monster Nest Scenario
 
 ### Community 74 - "Community 74"
 Cohesion: 1.0
-Nodes (1): 5e Weapons Reference
+Nodes (1): Multi-Floor Escort Scenario
 
 ### Community 75 - "Community 75"
 Cohesion: 1.0
-Nodes (1): 5e Conditions & Status Effects Reference
+Nodes (1): ADR: YAML for All Game Data
 
 ### Community 76 - "Community 76"
 Cohesion: 1.0
-Nodes (1): 5e Monsters Reference (CR 0-2)
+Nodes (1): ADR: Mulberry32 Seeded PRNG
 
 ### Community 77 - "Community 77"
 Cohesion: 1.0
-Nodes (1): Ideas Folder (docs/ideas/)
+Nodes (1): ADR: BSP for Map Generation
 
 ### Community 78 - "Community 78"
 Cohesion: 1.0
-Nodes (1): Prison Rescue Scenario
+Nodes (1): ADR: No Bundler (Vanilla JS)
 
 ### Community 79 - "Community 79"
 Cohesion: 1.0
-Nodes (1): Monster Nest Scenario
-
-### Community 80 - "Community 80"
-Cohesion: 1.0
-Nodes (1): Multi-Floor Escort Scenario
-
-### Community 81 - "Community 81"
-Cohesion: 1.0
-Nodes (1): ADR: YAML for All Game Data
-
-### Community 82 - "Community 82"
-Cohesion: 1.0
-Nodes (1): ADR: Mulberry32 Seeded PRNG
-
-### Community 83 - "Community 83"
-Cohesion: 1.0
-Nodes (1): ADR: BSP for Map Generation
-
-### Community 84 - "Community 84"
-Cohesion: 1.0
-Nodes (1): ADR: No Bundler (Vanilla JS)
-
-### Community 85 - "Community 85"
-Cohesion: 1.0
 Nodes (1): Code Conventions
 
-### Community 86 - "Community 86"
+### Community 80 - "Community 80"
 Cohesion: 1.0
 Nodes (1): Roadmap (Phase 2-4)
 
 ## Knowledge Gaps
-- **Thin community `Community 23`** (2 nodes): `vite.config.ts`, `manualChunks()`
+- **Thin community `Community 26`** (2 nodes): `manualChunks()`, `vite.config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 24`** (2 nodes): `rng.ts`, `mulberry32()`
+- **Thin community `Community 27`** (2 nodes): `mulberry32()`, `rng.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 25`** (2 nodes): `syncUIOverlay()`, `autoplay-entry.ts`
+- **Thin community `Community 28`** (2 nodes): `syncUIOverlay()`, `autoplay-entry.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 26`** (2 nodes): `main.ts`, `syncUIOverlay()`
+- **Thin community `Community 29`** (2 nodes): `syncUIOverlay()`, `main.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 27`** (2 nodes): `handler()`, `cf-function-pr-routing.js`
+- **Thin community `Community 30`** (2 nodes): `handler()`, `cf-function-pr-routing.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 28`** (2 nodes): `5e Spells Reference`, `Spellcasting System (Planned)`
+- **Thin community `Community 31`** (2 nodes): `5e Spells Reference`, `Spellcasting System (Planned)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 29`** (2 nodes): `0x72 Dungeon Atlas`, `Tileset & Sprite Sourcing`
+- **Thin community `Community 32`** (2 nodes): `Etrian Odyssey (Inspiration)`, `Wandering Colossus (FOE)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 30`** (2 nodes): `Etrian Odyssey (Inspiration)`, `Wandering Colossus (FOE)`
+- **Thin community `Community 33`** (2 nodes): `0x72 Dungeon Atlas`, `Tileset & Sprite Sourcing`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 31`** (1 nodes): `vitest.config.ts`
+- **Thin community `Community 34`** (1 nodes): `vitest.config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 32`** (1 nodes): `autoplay.ts`
+- **Thin community `Community 35`** (1 nodes): `check_browser.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 33`** (1 nodes): `demoplay.ts`
+- **Thin community `Community 36`** (1 nodes): `config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 34`** (1 nodes): `combat-ai.ts`
+- **Thin community `Community 37`** (1 nodes): `autoplay.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 35`** (1 nodes): `mode-explore.ts`
+- **Thin community `Community 38`** (1 nodes): `demoplay.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 36`** (1 nodes): `entities.ts`
+- **Thin community `Community 39`** (1 nodes): `combat-ai.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 37`** (1 nodes): `actors.ts`
+- **Thin community `Community 40`** (1 nodes): `mode-explore.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 38`** (1 nodes): `templates.ts`
+- **Thin community `Community 41`** (1 nodes): `entities.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 39`** (1 nodes): `combat-log.ts`
+- **Thin community `Community 42`** (1 nodes): `actors.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 40`** (1 nodes): `side-panel.ts`
+- **Thin community `Community 43`** (1 nodes): `templates.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 41`** (1 nodes): `action-buttons.ts`
+- **Thin community `Community 44`** (1 nodes): `combat-log.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 42`** (1 nodes): `hotbar.ts`
+- **Thin community `Community 45`** (1 nodes): `side-panel.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 43`** (1 nodes): `common.ts`
+- **Thin community `Community 46`** (1 nodes): `action-buttons.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 44`** (1 nodes): `chest-handler.ts`
+- **Thin community `Community 47`** (1 nodes): `hotbar.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 45`** (1 nodes): `camera-system.ts`
+- **Thin community `Community 48`** (1 nodes): `common.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 46`** (1 nodes): `ability-system.ts`
+- **Thin community `Community 49`** (1 nodes): `chest-handler.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 47`** (1 nodes): `event-runner.ts`
+- **Thin community `Community 50`** (1 nodes): `camera-system.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 48`** (1 nodes): `flags.ts`
+- **Thin community `Community 51`** (1 nodes): `ability-system.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 49`** (1 nodes): `input-system.ts`
+- **Thin community `Community 52`** (1 nodes): `event-runner.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 50`** (1 nodes): `entity-system.ts`
+- **Thin community `Community 53`** (1 nodes): `flags.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 51`** (1 nodes): `floor-item-handler.ts`
+- **Thin community `Community 54`** (1 nodes): `input-system.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 52`** (1 nodes): `status-effect-system.ts`
+- **Thin community `Community 55`** (1 nodes): `entity-system.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 53`** (1 nodes): `fog-system.ts`
+- **Thin community `Community 56`** (1 nodes): `floor-item-handler.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 54`** (1 nodes): `light-system.ts`
+- **Thin community `Community 57`** (1 nodes): `status-effect-system.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 55`** (1 nodes): `movement-system.ts`
+- **Thin community `Community 58`** (1 nodes): `fog-system.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 56`** (1 nodes): `inventory-system.ts`
+- **Thin community `Community 59`** (1 nodes): `light-system.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 57`** (1 nodes): `door-handler.ts`
+- **Thin community `Community 60`** (1 nodes): `movement-system.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 58`** (1 nodes): `sight-system.ts`
+- **Thin community `Community 61`** (1 nodes): `inventory-system.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 59`** (1 nodes): `leveling-system.ts`
+- **Thin community `Community 62`** (1 nodes): `door-handler.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 60`** (1 nodes): `damage-system.ts`
+- **Thin community `Community 63`** (1 nodes): `sight-system.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 61`** (1 nodes): `dialog-runner.ts`
+- **Thin community `Community 64`** (1 nodes): `leveling-system.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 62`** (1 nodes): `combat-join-and-debug.spec.js`
+- **Thin community `Community 65`** (1 nodes): `damage-system.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 63`** (1 nodes): `floor-transition-crash.spec.js`
+- **Thin community `Community 66`** (1 nodes): `dialog-runner.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 64`** (1 nodes): `playwright.config.ts`
+- **Thin community `Community 67`** (1 nodes): `playwright.config.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 65`** (1 nodes): `generated-map-persistence.spec.js`
+- **Thin community `Community 68`** (1 nodes): `5e Weapons Reference`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 66`** (1 nodes): `movement.spec.js`
+- **Thin community `Community 69`** (1 nodes): `5e Conditions & Status Effects Reference`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 67`** (1 nodes): `inventory.spec.js`
+- **Thin community `Community 70`** (1 nodes): `5e Monsters Reference (CR 0-2)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 68`** (1 nodes): `highlights.spec.js`
+- **Thin community `Community 71`** (1 nodes): `Ideas Folder (docs/ideas/)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 69`** (1 nodes): `run-progression-smoke.spec.js`
+- **Thin community `Community 72`** (1 nodes): `Prison Rescue Scenario`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 70`** (1 nodes): `fog.spec.js`
+- **Thin community `Community 73`** (1 nodes): `Monster Nest Scenario`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 71`** (1 nodes): `town-portal.spec.js`
+- **Thin community `Community 74`** (1 nodes): `Multi-Floor Escort Scenario`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 72`** (1 nodes): `combat-turns.spec.js`
+- **Thin community `Community 75`** (1 nodes): `ADR: YAML for All Game Data`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 73`** (1 nodes): `combat.spec.js`
+- **Thin community `Community 76`** (1 nodes): `ADR: Mulberry32 Seeded PRNG`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 74`** (1 nodes): `5e Weapons Reference`
+- **Thin community `Community 77`** (1 nodes): `ADR: BSP for Map Generation`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 75`** (1 nodes): `5e Conditions & Status Effects Reference`
+- **Thin community `Community 78`** (1 nodes): `ADR: No Bundler (Vanilla JS)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 76`** (1 nodes): `5e Monsters Reference (CR 0-2)`
+- **Thin community `Community 79`** (1 nodes): `Code Conventions`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 77`** (1 nodes): `Ideas Folder (docs/ideas/)`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 78`** (1 nodes): `Prison Rescue Scenario`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 79`** (1 nodes): `Monster Nest Scenario`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 80`** (1 nodes): `Multi-Floor Escort Scenario`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 81`** (1 nodes): `ADR: YAML for All Game Data`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 82`** (1 nodes): `ADR: Mulberry32 Seeded PRNG`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 83`** (1 nodes): `ADR: BSP for Map Generation`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 84`** (1 nodes): `ADR: No Bundler (Vanilla JS)`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 85`** (1 nodes): `Code Conventions`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 86`** (1 nodes): `Roadmap (Phase 2-4)`
+- **Thin community `Community 80`** (1 nodes): `Roadmap (Phase 2-4)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `GameScene` connect `Community 1` to `Community 3`, `Community 4`?**
-  _High betweenness centrality (0.203) - this node is a cross-community bridge._
-- **Why does `loadYaml()` connect `Community 0` to `Community 9`, `Community 5`?**
-  _High betweenness centrality (0.136) - this node is a cross-community bridge._
-- **Why does `exists()` connect `Community 1` to `Community 0`?**
-  _High betweenness centrality (0.080) - this node is a cross-community bridge._
-- **Are the 26 inferred relationships involving `loadYaml()` (e.g. with `testBugRegressions()` and `testWeaponDataReferences()`) actually correct?**
-  _`loadYaml()` has 26 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `GameScene` connect `Community 0` to `Community 1`, `Community 11`, `Community 5`?**
+  _High betweenness centrality (0.199) - this node is a cross-community bridge._
+- **Why does `exists()` connect `Community 0` to `Community 2`?**
+  _High betweenness centrality (0.067) - this node is a cross-community bridge._
 - **Should `Community 0` be split into smaller, more focused modules?**
   _Cohesion score 0.07 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.06 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
-  _Cohesion score 0.07 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.12 - nodes in this community are weakly interconnected._
+- **Should `Community 3` be split into smaller, more focused modules?**
+  _Cohesion score 0.09 - nodes in this community are weakly interconnected._
+- **Should `Community 4` be split into smaller, more focused modules?**
+  _Cohesion score 0.08 - nodes in this community are weakly interconnected._
