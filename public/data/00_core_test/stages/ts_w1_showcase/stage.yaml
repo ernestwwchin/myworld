@@ -1,64 +1,79 @@
-# W1 Mod System Showcase — isolated test rooms
+# W1 Mod System Showcase — walled rooms with doors
 # Access via: http://localhost:3000/?map=ts_w1_showcase
 #
-# Wide rooms along a central corridor. One test per room.
-# Player starts in corridor center.
+# Central corridor with 8 locked rooms (doors).
+# Walk through a door to trigger combat with that room's enemies.
+# Each room tests one feature.
+#
+# TOP ROW (walk up from corridor):
+#   R1: Solo goblin      R2: Orc (resist slash)  R3: 3-goblin squad   R4: Bone Lord
+# CORRIDOR: player starts here, walk left/right, up/down into rooms
+# BOTTOM ROW (walk down from corridor):
+#   R5: Stash            R6: Shop                R7: Skeleton          R8: Boss + stairs
 
 name: "W1 Showcase"
 floor: "TEST"
 globalLight: bright
 
 grid:
-  # Top rooms: R1, R2, R3, R4
+  #    0    5    0    5    0    5    0    5    0    5
   #    0         1         2         3         4
-  #    0123456789012345678901234567890123456789012345
-  - "##############################################"  # 0
-  - "#.....#.....#.......#.......#.....#.........#"  # 1
-  - "#.....#.....#.......#.......#.....#.........#"  # 2
-  - "#.....#.....#.......#.......#.....#.........#"  # 3
-  - "#..#..#..#..#...#...#...#...#..#..#....#....#"  # 4
-  - "#............................................#"  # 5
-  - "#............................................#"  # 6
-  - "#............................................#"  # 7
-  - "#..#..#..#..#...#...#...#...#..#..#.........#"  # 8
-  - "#.....#.....#.......#.......#.....#.........#"  # 9
-  - "#.....#.....#.......#.......#.....#.........#"  # 10
-  - "#.....#.....#.......#.......#.....#......S..#"  # 11
-  - "##############################################"  # 12
+  - "###########################################################"  # 0
+  - "#....##.....##.......##.......##.....##.....##............#"  # 1
+  - "#....##.....##.......##.......##.....##.....##............#"  # 2
+  - "#....##.....##.......##.......##.....##.....##............#"  # 3
+  - "##D####D#####D########D########D#####D#####D##############"  # 4
+  - "#.........................................................#"  # 5
+  - "#.........................................................#"  # 6
+  - "#.........................................................#"  # 7
+  - "##D####D#####D########D########D#####D#####D##############"  # 8
+  - "#....##.....##.......##.......##.....##.....##............#"  # 9
+  - "#....##.....##.......##.......##.....##.....##............#"  # 10
+  - "#....##.....##.......##.......##.....##.....##......S.....#"  # 11
+  - "###########################################################"  # 12
 
-playerStart: { x: 22, y: 6 }
+playerStart: { x: 28, y: 6 }
 
 encounters:
-  # ── R1 (top-left): Solo goblin — basic 1v1 ──
-  - { creature: goblin, x: 2, y: 2, group: r1 }
+  # ── R1 (top-left): Solo goblin — basic 1v1 combat ──
+  - { creature: goblin, x: 2, y: 2, facing: 180, group: r1 }
 
-  # ── R2 (top 2nd): Solo orc — tougher, more HP ──
-  - { creature: orc, x: 8, y: 2, group: r2 }
+  # ── R2 (top 2nd): Orc — resists slashing (player longsword = half dmg) ──
+  - { creature: orc, x: 8, y: 2, facing: 180, group: r2 }
 
-  # ── R3 (top 3rd): 3-goblin squad — naming A/B/C ──
-  - { creature: goblin, x: 14, y: 1, group: r3 }
-  - { creature: goblin, x: 16, y: 2, group: r3 }
-  - { creature: goblin, x: 15, y: 3, group: r3 }
+  # ── R3 (top 3rd): 3-goblin squad — naming test (Goblin A/B/C) ──
+  - { creature: goblin, x: 15, y: 1, facing: 180, group: r3 }
+  - { creature: goblin, x: 17, y: 2, facing: 180, group: r3 }
+  - { creature: goblin, x: 16, y: 3, facing: 180, group: r3 }
 
-  # ── R4 (top 4th): Named skeleton — explicit name ──
-  - { creature: skeleton, x: 22, y: 2, name: "Bone Lord", group: r4 }
+  # ── R4 (top 4th): Named skeleton — immune to poison, vuln to bludgeon ──
+  - { creature: skeleton, x: 24, y: 2, facing: 180, name: "Bone Lord", group: r4 }
 
-  # ── R5 (bottom-left): Empty — stash test ──
+  # ── R5 (bottom-left): Empty — stash interactable only ──
 
-  # ── R6 (bottom 2nd): Empty — shop test ──
+  # ── R6 (bottom 2nd): Empty — shop interactable only ──
 
-  # ── R7 (bottom 3rd): Solo skeleton — basic combat ──
-  - { creature: skeleton, x: 15, y: 10, group: r7 }
+  # ── R7 (bottom 5th): Solo skeleton — basic combat, vuln bludgeon ──
+  - { creature: skeleton, x: 33, y: 10, facing: 0, group: r7 }
 
   # ── R8 (bottom-right, wide): Boss — Orc Warchief + 2 goblin guards ──
-  - { creature: orc, x: 39, y: 10, name: "Orc Warchief", group: boss }
-  - { creature: goblin, x: 37, y: 9, group: boss }
-  - { creature: goblin, x: 41, y: 10, group: boss }
+  - { creature: orc, x: 49, y: 10, facing: 0, name: "Orc Warchief", group: boss }
+  - { creature: goblin, x: 46, y: 9, facing: 0, group: boss }
+  - { creature: goblin, x: 52, y: 10, facing: 0, group: boss }
 
-  # ── Hub corridor: lone goblin patrol ──
-  - { creature: goblin, x: 34, y: 6, group: patrol }
+  # ── Corridor: lone patrol goblin ──
+  - { creature: goblin, x: 44, y: 6, facing: 270, group: patrol }
+
+  # ── R5 extra: goblin in stash room for combat+stash test ──
+
+  # ── Top R5: Solo orc warrior ──
+  - { creature: orc, x: 33, y: 2, facing: 180, group: r5 }
+
+  # ── Top R6: Solo skeleton ──
+  - { creature: skeleton, x: 39, y: 2, facing: 180, group: r6 }
 
 interactables:
+  # ── R5 (bottom-left): Stash ──
   - id: test_stash
     kind: interactable
     x: 2
@@ -72,6 +87,7 @@ interactables:
         - { label: "Open Stash", icon: "🗄", action: stash }
         - { label: "Deposit All", icon: "📥", action: stash_deposit_all }
 
+  # ── R6 (bottom 2nd): Shop ──
   - id: test_shop
     kind: interactable
     x: 8
