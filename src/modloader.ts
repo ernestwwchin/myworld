@@ -7,6 +7,8 @@ import {
 } from '@/config';
 import { MapGen } from '@/mapgen';
 import { resolveAllCreatures } from '@/systems/creature-resolver';
+import { placeSquads, assignCreatureNames } from '@/systems/encounter-placement';
+import type { SquadDef, FlatEncounterDef } from '@/systems/encounter-placement';
 
 type Dict = Record<string, unknown>;
 type Tile = number | string;
@@ -1361,34 +1363,79 @@ export const ModLoader = {
     const mapDef = data.maps[activeMap];
     const isGenerated = !!mapDef.generator;
     ENEMY_DEFS.length = 0;
-    for (const enc of (mapDef.encounters || [])) {
-      const tmpl = data.creatures[enc.creature];
-      if (!tmpl) continue;
-      const weaponId: string | null = tmpl.attack?.weaponId || null;
-      const weapon = weaponId ? data.weapons?.[weaponId] : null;
-      const damageFormula = dnd.damageSpecToString(weapon?.damageDice || tmpl.attack?.dice || '1d4');
-      const atkRange = weapon?.range || tmpl.attack?.range || 1;
-      const count = isGenerated ? Number(enc.count || 1) : 1;
-      for (let i = 0; i < count; i++) {
+
+    const genResult = mapDef._genResult as { rooms?: Array<{ x1: number; y1: number; x2: number; y2: number; cx: number; cy: number; w: number; h: number }>; grid?: number[][] } | undefined;
+    const hasRooms = genResult?.rooms && genResult.rooms.length > 0 && genResult.grid;
+    const encounters = mapDef.encounters || [];
+    const hasSquads = encounters.some((e: any) => e.squad || (e.creatures && Array.isArray(e.creatures)));
+
+    if (isGenerated && hasRooms && hasSquads) {
+      const placed = placeSquads(
+        encounters as Array<SquadDef | FlatEncounterDef>,
+        genResult!.rooms!,
+        genResult!.grid!,
+        Number((mapState as any).FLOOR ?? 0),
+        mapDef.playerStart || { x: 0, y: 0 },
+        mapDef._stairsPos || null,
+      );
+      for (const p of placed) {
+        const tmpl = data.creatures[p.creature];
+        if (!tmpl) continue;
+        const weaponId: string | null = tmpl.attack?.weaponId || null;
+        const weapon = weaponId ? data.weapons?.[weaponId] : null;
+        const damageFormula = dnd.damageSpecToString(weapon?.damageDice || tmpl.attack?.dice || '1d4');
+        const atkRange = weapon?.range || tmpl.attack?.range || 1;
         ENEMY_DEFS.push({
-          tx: isGenerated ? -1 : enc.x,
-          ty: isGenerated ? -1 : enc.y,
+          tx: p.tx, ty: p.ty,
           type: tmpl.type,
-          name: enc.name || tmpl.name || null,
+          name: p.name || tmpl.name || null,
           hp: tmpl.hp, maxHp: tmpl.hp,
           sight: tmpl.sight, spd: tmpl.speed, icon: tmpl.icon,
-          facing: enc.facing ?? 0, fov: tmpl.fov, group: enc.group,
+          facing: 0, fov: tmpl.fov, group: p.group,
           stats: { ...tmpl.stats },
           ac: tmpl.ac, weaponId: weaponId || '', damageFormula, atkRange,
           xp: tmpl.xp, cr: tmpl.cr,
-          lootTable: enc.lootTable || tmpl.lootTable || null,
-          loot: enc.loot || tmpl.loot || [],
-          gold: Number(enc.gold ?? tmpl.gold ?? 0),
-          ai: { ...(tmpl.ai || {}), ...(enc.ai || {}) },
-          effects: [...(tmpl.effects || tmpl.statuses || []), ...(enc.effects || enc.statuses || [])],
+          lootTable: tmpl.lootTable || null,
+          loot: tmpl.loot || [],
+          gold: Number(tmpl.gold ?? 0),
+          ai: { ...(tmpl.ai || {}), ...(p.ai || {}) },
+          effects: [...(tmpl.effects || tmpl.statuses || [])],
           skillProficiencies: new Set(tmpl.skillProficiencies || []),
           level: tmpl.level || 1,
+          hidden: p.hidden,
         });
+      }
+    } else {
+      for (const enc of encounters) {
+        const creatureId = enc.creature || (enc.creatures?.[0] && typeof enc.creatures[0] === 'string' ? enc.creatures[0] : null);
+        const tmpl = creatureId ? data.creatures[creatureId] : null;
+        if (!tmpl) continue;
+        const weaponId: string | null = tmpl.attack?.weaponId || null;
+        const weapon = weaponId ? data.weapons?.[weaponId] : null;
+        const damageFormula = dnd.damageSpecToString(weapon?.damageDice || tmpl.attack?.dice || '1d4');
+        const atkRange = weapon?.range || tmpl.attack?.range || 1;
+        const count = isGenerated ? Number(enc.count || 1) : 1;
+        for (let i = 0; i < count; i++) {
+          ENEMY_DEFS.push({
+            tx: isGenerated ? -1 : enc.x,
+            ty: isGenerated ? -1 : enc.y,
+            type: tmpl.type,
+            name: enc.name || tmpl.name || null,
+            hp: tmpl.hp, maxHp: tmpl.hp,
+            sight: tmpl.sight, spd: tmpl.speed, icon: tmpl.icon,
+            facing: enc.facing ?? 0, fov: tmpl.fov, group: enc.group,
+            stats: { ...tmpl.stats },
+            ac: tmpl.ac, weaponId: weaponId || '', damageFormula, atkRange,
+            xp: tmpl.xp, cr: tmpl.cr,
+            lootTable: enc.lootTable || tmpl.lootTable || null,
+            loot: enc.loot || tmpl.loot || [],
+            gold: Number(enc.gold ?? tmpl.gold ?? 0),
+            ai: { ...(tmpl.ai || {}), ...(enc.ai || {}) },
+            effects: [...(tmpl.effects || tmpl.statuses || []), ...(enc.effects || enc.statuses || [])],
+            skillProficiencies: new Set(tmpl.skillProficiencies || []),
+            level: tmpl.level || 1,
+          });
+        }
       }
     }
   },

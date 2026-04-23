@@ -1,6 +1,7 @@
 import { S, MODE, COMBAT_RULES, WEAPON_DEFS, dnd, mapState } from '@/config';
 import { bfs, hasLOS, inFOV, roomIdAt, withHotbar, withCombatLog, _getRoomTopology } from '@/helpers';
 import { tileDist, pathTileCost } from '@/systems/world-position-system';
+import { assignCreatureNames } from '@/systems/encounter-placement';
 import type { GameScene } from '@/game';
 
 type Enemy = {
@@ -445,6 +446,7 @@ export const ModeCombatMixin = {
     const triggerSet = new Set<Enemy>((triggers || []).filter((e) => e && e.alive));
     const alerted = this._buildAlertedEnemySet(triggers, opts);
     this.combatGroup = [...alerted];
+    assignCreatureNames(this.combatGroup as unknown as Enemy[]);
     (this.combatGroup as unknown as Enemy[]).forEach((e) => (e.inCombat = true));
 
     (this.combatGroup as unknown as Enemy[]).forEach((e) => {
