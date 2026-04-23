@@ -32,8 +32,12 @@ creatures:
     speed: 2
     sight: 5
     fov: 100
+    level: 1
     stats: { str: 10, dex: 14, con: 15, int: 6, wis: 8, cha: 5 }
     attack: { weaponId: shortsword, dice: "1d6+2", range: 1 }
+    ai: { profile: basic }
+    vulnerabilities: [bludgeoning]
+    immunities: [poison]
 
   orc:
     name: Orc
@@ -46,5 +50,8 @@ creatures:
     speed: 1
     sight: 6
     fov: 140
+    level: 1
     stats: { str: 16, dex: 12, con: 16, int: 7, wis: 11, cha: 10 }
     attack: { weaponId: greataxe, dice: "1d12+3", range: 1 }
+    ai: { profile: basic }
+    resistances: [slashing]

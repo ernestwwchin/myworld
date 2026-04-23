@@ -1,76 +1,85 @@
-# W1 Mod System Showcase — test all new features in one stage
+# W1 Mod System Showcase — isolated test rooms
 # Access via: http://localhost:3000/?map=ts_w1_showcase
 #
-# Open arena with labeled zones. All features testable.
+# Wide rooms along a central corridor. One test per room.
+# Player starts in corridor center.
 
 name: "W1 Showcase"
 floor: "TEST"
 globalLight: bright
 
 grid:
-  # 0         1         2         3
-  # 01234567890123456789012345678901234
-  - "###################################"  # 0
-  - "#.................................#"  # 1
-  - "#.................................#"  # 2
-  - "#.................................#"  # 3
-  - "#.................................#"  # 4
-  - "#.................................#"  # 5
-  - "#.................................#"  # 6
-  - "#.................................#"  # 7
-  - "#.................................#"  # 8
-  - "#.................................#"  # 9
-  - "#...............................S.#"  # 10
-  - "#.................................#"  # 11
-  - "###################################"  # 12
+  # Top rooms: R1, R2, R3, R4
+  #    0         1         2         3         4
+  #    0123456789012345678901234567890123456789012345
+  - "##############################################"  # 0
+  - "#.....#.....#.......#.......#.....#.........#"  # 1
+  - "#.....#.....#.......#.......#.....#.........#"  # 2
+  - "#.....#.....#.......#.......#.....#.........#"  # 3
+  - "#..#..#..#..#...#...#...#...#..#..#....#....#"  # 4
+  - "#............................................#"  # 5
+  - "#............................................#"  # 6
+  - "#............................................#"  # 7
+  - "#..#..#..#..#...#...#...#...#..#..#.........#"  # 8
+  - "#.....#.....#.......#.......#.....#.........#"  # 9
+  - "#.....#.....#.......#.......#.....#.........#"  # 10
+  - "#.....#.....#.......#.......#.....#......S..#"  # 11
+  - "##############################################"  # 12
 
-playerStart: { x: 3, y: 6 }
+playerStart: { x: 22, y: 6 }
 
 encounters:
-  # Zone 1 (left): Single goblin — basic combat
-  - { creature: goblin, x: 1, y: 2, group: room1 }
+  # ── R1 (top-left): Solo goblin — basic 1v1 ──
+  - { creature: goblin, x: 2, y: 2, group: r1 }
 
-  # Zone 2 (left-center): Orc — tougher enemy
-  - { creature: orc, x: 7, y: 2, group: room2 }
+  # ── R2 (top 2nd): Solo orc — tougher, more HP ──
+  - { creature: orc, x: 8, y: 2, group: r2 }
 
-  # Zone 3 (center): 3 goblins — naming test (A/B/C)
-  - { creature: goblin, x: 13, y: 1, group: room3 }
-  - { creature: goblin, x: 15, y: 1, group: room3 }
-  - { creature: goblin, x: 14, y: 3, group: room3 }
+  # ── R3 (top 3rd): 3-goblin squad — naming A/B/C ──
+  - { creature: goblin, x: 14, y: 1, group: r3 }
+  - { creature: goblin, x: 16, y: 2, group: r3 }
+  - { creature: goblin, x: 15, y: 3, group: r3 }
 
-  # Zone 4 (right-center): Skeleton
-  - { creature: skeleton, x: 21, y: 2, group: room4 }
+  # ── R4 (top 4th): Named skeleton — explicit name ──
+  - { creature: skeleton, x: 22, y: 2, name: "Bone Lord", group: r4 }
 
-  # Zone 5 (right): Orc boss + guards
-  - { creature: orc, x: 28, y: 6, name: "Orc Warchief", group: boss }
-  - { creature: goblin, x: 26, y: 5, group: boss }
-  - { creature: goblin, x: 30, y: 7, group: boss }
+  # ── R5 (bottom-left): Empty — stash test ──
 
-  # Zone 6 (bottom-left): Goblin
-  - { creature: goblin, x: 7, y: 10, group: room6 }
+  # ── R6 (bottom 2nd): Empty — shop test ──
 
-  # Zone 7 (bottom-center): Skeleton
-  - { creature: skeleton, x: 14, y: 10, group: room7 }
+  # ── R7 (bottom 3rd): Solo skeleton — basic combat ──
+  - { creature: skeleton, x: 15, y: 10, group: r7 }
+
+  # ── R8 (bottom-right, wide): Boss — Orc Warchief + 2 goblin guards ──
+  - { creature: orc, x: 39, y: 10, name: "Orc Warchief", group: boss }
+  - { creature: goblin, x: 37, y: 9, group: boss }
+  - { creature: goblin, x: 41, y: 10, group: boss }
+
+  # ── Hub corridor: lone goblin patrol ──
+  - { creature: goblin, x: 34, y: 6, group: patrol }
 
 interactables:
   - id: test_stash
     kind: interactable
-    x: 1
+    x: 2
     y: 10
     state:
       label: "Test Stash"
       icon: "🗄"
+      texture: deco_crystal
       description: "Test the stash panel."
       actions:
         - { label: "Open Stash", icon: "🗄", action: stash }
+        - { label: "Deposit All", icon: "📥", action: stash_deposit_all }
 
   - id: test_shop
     kind: interactable
-    x: 3
+    x: 8
     y: 10
     state:
       label: "Test Shop"
       icon: "🧰"
+      texture: deco_banner
       description: "Test the shop panel."
       actions:
         - { label: "Browse Shop", icon: "🧰", action: shop }

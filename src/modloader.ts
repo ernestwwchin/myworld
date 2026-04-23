@@ -10,6 +10,19 @@ import { resolveAllCreatures } from '@/systems/creature-resolver';
 import { placeSquads, assignCreatureNames } from '@/systems/encounter-placement';
 import type { SquadDef, FlatEncounterDef } from '@/systems/encounter-placement';
 
+function buildBaseDerived(tmpl: any): Record<string, unknown> {
+  const resistances = new Set<string>(tmpl.resistances || []);
+  const immunities = new Set<string>(tmpl.immunities || []);
+  const vulnerabilities = new Set<string>(tmpl.vulnerabilities || []);
+  return {
+    ac: 0, str: 0, dex: 0, con: 0, wis: 0, int: 0, cha: 0,
+    maxHp: 0, damage: 0, movement: 0, movementMultiplier: 1,
+    saves: {}, saveAll: 0,
+    advantages: new Set(), disadvantages: new Set(), autoFails: new Set(),
+    immunities, resistances, vulnerabilities,
+  };
+}
+
 type Dict = Record<string, unknown>;
 type Tile = number | string;
 
@@ -1403,6 +1416,7 @@ export const ModLoader = {
           skillProficiencies: new Set(tmpl.skillProficiencies || []),
           level: tmpl.level || 1,
           hidden: p.hidden,
+          derived: buildBaseDerived(tmpl),
         });
       }
     } else {
@@ -1434,6 +1448,7 @@ export const ModLoader = {
             effects: [...(tmpl.effects || tmpl.statuses || []), ...(enc.effects || enc.statuses || [])],
             skillProficiencies: new Set(tmpl.skillProficiencies || []),
             level: tmpl.level || 1,
+            derived: buildBaseDerived(tmpl),
           });
         }
       }
