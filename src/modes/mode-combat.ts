@@ -1181,8 +1181,16 @@ export const ModeCombatMixin = {
     const rawDmg = Math.max(1, dr.total);
     const wpn = WEAPON_DEFS[ps.weaponId ?? ''];
     const dmgType = wpn?.damageType || 'bludgeoning';
-    const dmgResult = this.applyTypedDamage(enemy as unknown as import('@/types/actors').Actor, rawDmg, dmgType, 'player');
-    const dmg = dmgResult.final;
+    const targetDerived = (enemy as Record<string, unknown>).derived as { resistances?: Set<string>; immunities?: Set<string>; vulnerabilities?: Set<string> } | undefined;
+    let dmg = rawDmg;
+    let resistLabel = '';
+    if (targetDerived) {
+      if (targetDerived.immunities?.has(dmgType)) { dmg = 0; resistLabel = ' (immune)'; }
+      else if (targetDerived.resistances?.has(dmgType) && targetDerived.vulnerabilities?.has(dmgType)) { /* cancel */ }
+      else if (targetDerived.vulnerabilities?.has(dmgType)) { dmg = rawDmg * 2; resistLabel = ' (vulnerable!)'; }
+      else if (targetDerived.resistances?.has(dmgType)) { dmg = Math.max(1, Math.floor(rawDmg / 2)); resistLabel = ' (resisted)'; }
+    }
+    if (dmg > 0) enemy.hp -= dmg;
     this.applyAbilityOnHitStatuses(abilityId, 'player', enemy);
     this.executeAbilityHook('on_hit', { source: 'player', target: enemy, ability: abilityId, isCrit, damage: dmg });
     this.executeAbilityHook('on_damage_dealt', { source: 'player', target: enemy, amount: dmg, damageType: dmgType });
@@ -1190,7 +1198,8 @@ export const ModeCombatMixin = {
     const floatColor = this.dmgColor(wpn && wpn.damageType);
     this.tweens.add({ targets: enemy.img, alpha: 0.15, duration: 80, yoyo: true, repeat: 3 });
     const ew = this.enemyWorldPos(enemy);
-    this.spawnFloat(ew.x, ew.y - S / 2, isCrit ? `💥${dmg}` : `-${dmg}`, isCrit ? '#f39c12' : floatColor);
+    const floatText = dmg === 0 ? 'IMMUNE' : isCrit ? `💥${dmg}${resistLabel}` : `-${dmg}${resistLabel}`;
+    this.spawnFloat(ew.x, ew.y - S / 2, floatText, dmg === 0 ? '#7fc8f8' : isCrit ? '#f39c12' : floatColor);
     const ratio = Math.max(0, enemy.hp / enemy.maxHp);
     if (enemy.hpFg) {
       enemy.hpFg.setDisplaySize((S - 8) * ratio, 5);
