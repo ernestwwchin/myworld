@@ -217,6 +217,8 @@ export const CombatAIMixin = {
       l.logRoll({ actor: enemy.displayName, target: 'You', result: isCrit ? 'crit' : 'hit', damage: dmg, rollDetail: rollLine, dmgDetail: `${dmgText}${eDmgType ? ' ' + eDmgType : ''}` }),
     );
     this.updateHUD();
+    this.executeAbilityHook('on_hit', { source: enemy, target: 'player', isCrit, damage: dmg });
+    this.executeAbilityHook('on_damage_taken', { source: enemy, target: 'player', amount: dmg, damageType: eDmgType });
     if ((this as unknown as { playerHP: number }).playerHP <= 0) {
       this.showStatus('You have been defeated...');
       withCombatLog((l: any) =>

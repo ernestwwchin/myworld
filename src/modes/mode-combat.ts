@@ -516,6 +516,7 @@ export const ModeCombatMixin = {
       l.log(`Join reasons: ${reasonDetails}`, 'system', 'combat');
     });
     this.updateFogOfWar();
+    this.executeAbilityHook('on_combat_start', { combatants: this.combatGroup });
     this.time.delayedCall(700, () => { this.buildInitBar(); this.startNextTurn(); });
   },
 
@@ -585,6 +586,7 @@ export const ModeCombatMixin = {
         }
       }
       withCombatLog((l: any) => l.logSep());
+      this.executeAbilityHook('on_combat_end', { reason });
       this.resetActionButtons();
       withHotbar((h: any) => h.resetUsed());
       this.time.delayedCall(300, () => { this.drawSightOverlays(); this.updateFogOfWar(); });
@@ -704,6 +706,7 @@ export const ModeCombatMixin = {
         this.time.delayedCall(250, () => this.endPlayerTurn(true));
         return;
       }
+      this.executeAbilityHook('on_turn_start', { actor: 'player' });
       combatSelf.playerAP = 1;
       combatSelf.playerMoves = Number(COMBAT_RULES.playerMovePerTurn || 5);
       combatSelf.playerMovesUsed = 0;
@@ -739,6 +742,7 @@ export const ModeCombatMixin = {
       const enemy = cur.enemy as Enemy;
       const st = this.processStatusEffectsForActor(enemy, 'turn_start');
       if (st.skipTurn) { this.time.delayedCall(220, () => this.endEnemyTurn(enemy)); return; }
+      this.executeAbilityHook('on_turn_start', { actor: enemy });
       document.getElementById('action-bar')?.classList.remove('show');
       document.getElementById('res-pips')?.classList.remove('show');
       this.turnHL.setAlpha(0);
@@ -754,7 +758,10 @@ export const ModeCombatMixin = {
     if ((this as unknown as { ui?: { dismissEnemyPopup: () => void } }).ui) {
       (this as unknown as { ui: { dismissEnemyPopup: () => void } }).ui.dismissEnemyPopup();
     }
-    if (!fromStatusSkip) this.processStatusEffectsForActor('player', 'turn_end');
+    if (!fromStatusSkip) {
+      this.processStatusEffectsForActor('player', 'turn_end');
+      this.executeAbilityHook('on_turn_end', { actor: 'player' });
+    }
     if (typeof (this as unknown as { tickStatMods?: () => void }).tickStatMods === 'function') {
       (this as unknown as { tickStatMods: () => void }).tickStatMods();
     }
@@ -1157,6 +1164,7 @@ export const ModeCombatMixin = {
       withCombatLog((l: any) =>
         l.logRoll({ actor: 'You', target: enemy.displayName, result: isMiss ? 'crit' : 'miss', rollDetail: rollDisplay, extra: wasHidden ? 'advantage' : '' }),
       );
+      this.executeAbilityHook('on_miss', { source: 'player', target: enemy, ability: abilityId });
       self._afterPlayerDice = () => { this.showMoveRange(); };
       if (isMiss) {
         self.diceWaiting = 'player';
@@ -1171,6 +1179,8 @@ export const ModeCombatMixin = {
     const dmg = Math.max(1, dr.total);
     enemy.hp -= dmg;
     this.applyAbilityOnHitStatuses(abilityId, 'player', enemy);
+    this.executeAbilityHook('on_hit', { source: 'player', target: enemy, ability: abilityId, isCrit, damage: dmg });
+    this.executeAbilityHook('on_damage_dealt', { source: 'player', target: enemy, amount: dmg, damageType: WEAPON_DEFS[ps.weaponId ?? '']?.damageType });
 
     const wpn = WEAPON_DEFS[ps.weaponId ?? ''];
     const floatColor = this.dmgColor(wpn && wpn.damageType);
@@ -1221,6 +1231,7 @@ export const ModeCombatMixin = {
             l.log(`${enemy.displayName} defeated! +${enemy.xp || 50} XP`, 'player', 'combat'),
           );
           (this.pStats as PStats).xp += enemy.xp || 50;
+          this.executeAbilityHook('on_kill', { source: 'player', target: enemy });
           try { this.checkLevelUp(); } catch (err) { console.warn('[Combat] Level-up check failed on kill:', err); }
           if ((this.combatGroup as unknown as Enemy[]).every((e) => !e.alive)) {
             this.time.delayedCall(600, () => this.exitCombat());
