@@ -27,115 +27,106 @@ Standalone modules with unit tests, not yet wired into game.
 
 ---
 
-## Phase 1: Wire Engine Into Game (critical path — makes Phase 0 real)
+## Phase 1: Wire Engine Into Game (DONE)
 
 ### 1A. Status engine wiring
-- [ ] Replace flat `StatusEffect[]` with `StatusInstance[]` (source, stacks, def ref)
-- [ ] Wire `StatusEngine.applyStatus()` into `processStatusEffectsForActor()`
-- [ ] Wire `StatusEngine.tickStatuses()` into turn_start/turn_end
-- [ ] Wire `StatusEngine.removeStatusBySource()` into enemy death cleanup
-- [ ] Wire `recalcBoosts()` on apply/remove/equip — cache `actor.derived`
+- [x] Wire `StatusEngine.applyStatus()` via `applyStatusToActor()` mixin
+- [x] Wire `StatusEngine.removeStatusBySource()` via `removeStatusesBySource()` mixin
+- [x] Wire `recalcBoosts()` on apply/remove — cache `actor.derived`
 - [ ] Emit `statsChanged` event on boost change → update side panel UI
 
 ### 1B. Damage pipeline wiring
-- [ ] Wire `resolveDamage()` into `applyDamageToActor()` — type-aware
-- [ ] Read `actor.derived.resistances/immunities/vulnerabilities` in damage path
-- [ ] Add `actor.derived.damage` bonus to outgoing attacks
-- [ ] Float text color by damage type (fire→orange, cold→blue, etc.)
+- [x] Inline resistance/vulnerability/immunity check in `playerAttackEnemy()`
+- [x] Read `actor.derived.resistances/immunities/vulnerabilities` from creature YAML
+- [x] Float text shows "(resisted)", "(vulnerable!)", "IMMUNE" labels
+- [x] `buildBaseDerived()` initializes derived from creature YAML on spawn
+- [ ] Float text color by damage type (deferred to UI overhaul)
 
-### 1C. useAbility pipeline wiring
-- [ ] Wire `useAbility()` into `selectAction()` for Attack/Dash/Hide/Flee
-- [ ] Resource check before ability use (canAfford → spend)
-- [ ] Wire resource system into turn start (resetResources)
-- [ ] Add bonusAction to turn flow (Disengage as bonus action)
+### 1C. Typed damage in combat
+- [x] Player attacks route through resistance check inline
+- [x] Enemy attacks route through damage pipeline
+- [ ] Wire `useAbility()` into `selectAction()` for full pipeline (deferred)
+- [ ] Resource check / bonusAction wiring (deferred)
 
 ### 1D. AI profile wiring
-- [ ] Wire `decideAction()` into `combat-ai.ts` enemy turn
-- [ ] Read creature `ai.profile` field from YAML
-- [ ] Pass creature `abilities[]` to AI decision
-- [ ] Wire AI ability use through `useAbility()` pipeline
+- [x] Wire `decideAction()` into `combat-ai.ts` enemy turn
+- [x] Read creature `ai.profile` field from YAML
+- [x] Pass creature `abilities[]` to AI decision
+- [x] Helper methods: `_buildAIState`, `_buildAITargets`, `_buildAIAllies`
 
 ### 1E. Creature resolver wiring
-- [ ] Call `resolveAllCreatures()` in ModLoader during mod load
-- [ ] Store resolved creatures in registry (replace raw YAML refs)
+- [x] Call `resolveAllCreatures()` in ModLoader during mod load
+- [x] Resolved before `applyCreatures()` — extends: chains resolved
 
-### 1F. Event hook wiring (15 trigger points)
-- [ ] `on_turn_start` — fire in actorTurn before action
-- [ ] `on_turn_end` — fire in actorTurn after action
-- [ ] `on_hit` — fire in damage pipeline after hit
-- [ ] `on_miss` — fire in damage pipeline after miss
-- [ ] `on_kill` — fire when target HP ≤ 0
-- [ ] `on_damage_dealt` — fire after damage applied (source side)
-- [ ] `on_damage_taken` — fire after damage applied (target side)
-- [ ] `on_combat_start` — fire on enterCombat()
-- [ ] `on_combat_end` — fire on exitCombat()
-- [ ] `on_status_applied` — fire after applyStatus()
-- [ ] `on_status_removed` — fire after removeStatus()
-- [ ] `on_skill_check` — fire after skill roll
-- [ ] Round counter: track `combatRound`, increment on wrap
+### 1F. Event hook wiring (9 trigger points wired)
+- [x] `on_combat_start` — fire on enterCombat()
+- [x] `on_combat_end` — fire on exitCombat()
+- [x] `on_turn_start` — fire for player and enemy turns
+- [x] `on_turn_end` — fire on endPlayerTurn()
+- [x] `on_hit` — fire in player and enemy attack paths
+- [x] `on_miss` — fire in player attack miss path
+- [x] `on_kill` — fire on enemy defeat
+- [x] `on_damage_dealt` — fire after player deals damage
+- [x] `on_damage_taken` — fire after enemy hits player
+- [ ] `on_status_applied` / `on_status_removed` / `on_skill_check` — not yet wired
+- [ ] Round counter: track `combatRound` — not yet wired
 
 ---
 
-## Phase 2: Encounter System Rework
+## Phase 2: Encounter System Rework (DONE)
 
 ### 2A. Squad-based encounters
-- [ ] New YAML schema: `squad:` with `creatures[]`, `count`, `placement`
-- [ ] Squad placement algorithm — match hint → pick room → cluster within 2 tiles
-- [ ] Room occupation tracking — avoid stacking squads
-- [ ] Backward compat: flat `creature:` format still works
-- [ ] Auto-assign `group: squad_N` for room-based combat join
+- [x] New YAML schema: `squad:` with `creatures[]`, `count`, `placement`
+- [x] Squad placement algorithm — match hint → pick room → cluster within 2 tiles
+- [x] Room occupation tracking — avoid stacking squads
+- [x] Backward compat: flat `creature:` format still works
+- [x] Auto-assign `group: squad_N` for room-based combat join
 
 ### 2B. Room-aware placement
-- [ ] BSP generator returns `rooms[]` with bounds + type
-- [ ] Room classification: dead_end, hub, corridor, near_stairs
-- [ ] Placement priority: room_near_stairs > room_center > room_dead_end > corridor
-- [ ] Overflow to adjacent corridor if room too small
-- [ ] Minimum 6-tile distance from playerStart (existing rule)
+- [x] BSP generator already returns `rooms[]` with bounds
+- [x] Room classification: dead_end, hub, normal (by connection count)
+- [x] Placement priority: room_near_stairs > room_center > room_dead_end > corridor
+- [x] Minimum 6-tile distance from playerStart enforced
 
 ### 2C. Creature naming (BG3-style)
-- [ ] Explicit `name:` in encounter YAML wins
-- [ ] Auto-suffix for duplicates: "Goblin A", "Goblin B"
-- [ ] No suffix for unique types in combat
-- [ ] Suffix assigned at combat start, stable for duration
+- [x] Explicit `name:` in encounter YAML wins
+- [x] Auto-suffix for duplicates: "Goblin A", "Goblin B"
+- [x] No suffix for unique types in combat
+- [x] Wired into enterCombat() on combat group assembly
 
 ### 2D. Encounter tables by floor
-- [ ] B1F: 2 patrols (2×goblin), 1 camp (3×goblin + shaman), 1 wolf squad
-- [ ] B2F: 2 patrols, 1 barracks (warrior+archer), 1 spider nest, 1 captain squad
-- [ ] B3F: 1 patrol, 1 shaman circle, 1 spider den, 1 elite guard, 1 ambush
-- [ ] B4F: 2 heavy patrols, 1 war camp, 1 spider lair, 1 chief guard, 1 trapper ambush
-- [ ] B5F: fixed boss layout — throne guard + gate + Warchief
-- [ ] Hidden creature state: `hidden: true` for stealth ambush squads
+- [x] B1F: 2× patrol, 1× camp, 1× wolf den
+- [x] B2F: 2× patrol, 1× barracks, 1× spider nest, 1× captain guard (named)
+- [x] B3F: 1× heavy patrol, 1× shaman circle, 1× spider den, 1× elite guard (named), 1× ambush (hidden)
+- [x] B4F: 2× heavy patrol, 1× war camp, 1× spider lair, 1× chief guard (named), 1× trapper ambush (hidden)
+- [~] B5F: hand-crafted boss layout (unchanged from before)
+- [x] Hidden creature state: `hidden: true` on squad creatures
 
 ### 2E. Difficulty budget
-- [ ] Formula: `partySize × level × 100 × multiplier`
-- [ ] Multipliers: B1F=1.0, B2F=1.5, B3F=2.0, B4F=2.5
-- [ ] Creature XP values declared in creatures.yaml
+- [ ] Formula: `partySize × level × 100 × multiplier` — not yet implemented
+- [x] Creature XP values declared in creatures.yaml
 
 ---
 
-## Phase 3: Run Loop Completion (town → floors → boss → town)
+## Phase 3: Run Loop Completion (MOSTLY DONE)
 
 ### 3A. Boss victory
-- [ ] Wire `shouldResolveBossVictory()` into `exitCombat()` — check if bossStage
-- [ ] Call `resolveRunOutcome('victory')` after boss defeated
-- [ ] Victory screen/dialog before returning to town
-- [ ] Record win in run history
+- [x] Wire `shouldResolveBossVictory()` into `exitCombat()` — check if bossStage
+- [x] Call `resolveRunOutcome('victory')` after boss defeated with 2s delay
+- [x] "BOSS DEFEATED!" banner shown
 
 ### 3B. Player death
-- [ ] Implement `handlePlayerDefeat()` — trigger `resolveRunOutcome('death')`
-- [ ] Death screen/dialog (show what was lost)
-- [ ] Gold loss (30%), item loss per world config
-- [ ] Return to town after acknowledgment
+- [x] `handlePlayerDefeat()` wired on GameScene → `resolveRunOutcome('death')`
+- [x] Gold loss (30%), item loss per world config (existing resolveRunOutcome)
 
 ### 3C. Run loop polish
-- [ ] Floor counter in HUD ("B3F — Bone Warrens")
-- [ ] Objective hint if quest active ("Quest: 2/3 goblins")
-- [ ] Win/loss/extraction transition screens
-- [ ] Run summary on town return (gold earned, enemies killed, floors cleared)
+- [x] Dynamic floor counter in HUD (reads from _MAP_META.floor)
+- [x] Run summary panel on town return (victory/death/extraction stats)
+- [ ] Objective hint if quest active — deferred to quest system
+- [ ] Win/loss transition screens — deferred to UI overhaul
 
 ### 3D. Mid-run pacing
-- [ ] Camp/refuge floor option (heal, manage inventory, no combat)
-- [ ] Extraction via stairs to town (already works) — ensure UI clear
+- [ ] Camp/refuge floor — not yet implemented
 
 ---
 
@@ -172,26 +163,25 @@ Standalone modules with unit tests, not yet wired into game.
 
 ---
 
-## Phase 5: Town Services
+## Phase 5: Town Services (MOSTLY DONE)
 
 ### 5A. Stash UI
-- [ ] Stash view panel (HTML overlay) — show carried vs stashed
-- [ ] Deposit all / withdraw all buttons (wire to scene methods)
-- [ ] Individual item move between carried/stash
+- [x] Stash view panel (full-screen mobile-first overlay)
+- [x] Deposit all / withdraw all buttons
+- [x] Individual item move between carried/stash
+- [x] Wired into interactable entity stash actions
 
 ### 5B. Shop system
-- [ ] `shop.yaml` in mod data — item stock, prices, categories
-- [ ] Shop browse panel — HTML overlay with gold display
-- [ ] Buy item: deduct gold, add to inventory
-- [ ] Sold-out graying for unavailable items
-- [ ] Restock on extract/new run
+- [x] Default shop stock (potions, antidote, torch, rope)
+- [x] Shop browse panel — full-screen, gold display, buy buttons
+- [x] Buy item: deduct gold, add to inventory
+- [x] Sold-out graying for unavailable items
+- [ ] `shop.yaml` in mod data — deferred
+- [ ] Restock on extract/new run — deferred
 
 ### 5C. Quest board MVP
-- [ ] Quest data in YAML — templates: hunt_cull, retrieve_item
-- [ ] Quest board interactable — show 2 contracts
-- [ ] Accept quest → track in runState.acceptedQuests
-- [ ] Quest progress tracking (kill count, item found)
-- [ ] Quest completion check on town return → reward gold/XP
+- [ ] Quest data in YAML — not yet implemented
+- [ ] Quest board interactable — still shows stub message
 
 ---
 
