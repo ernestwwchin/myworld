@@ -509,6 +509,16 @@ export class GameScene extends Phaser.Scene {
       + ` player:(${this.playerTile.x},${this.playerTile.y})`
       + ` floor:${(meta as Record<string, unknown>)?.floor} nextStage:${(meta as Record<string, unknown>)?.nextStage}`,
     );
+
+    const ml = (window as unknown as { ModLoader?: { consumeLastRunSummary?: () => Record<string, unknown> | null } }).ModLoader;
+    if (ml?.consumeLastRunSummary) {
+      const summary = ml.consumeLastRunSummary();
+      if (summary) {
+        import('@/ui/town-panels').then(({ showRunSummary }) => {
+          this.time.delayedCall(500, () => showRunSummary(summary));
+        });
+      }
+    }
   }
 
   playActorIdle(sprite: unknown, type: unknown): void {

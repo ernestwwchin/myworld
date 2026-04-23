@@ -233,3 +233,60 @@ export function showShopPanel(scene: GameScene): void {
 
   render();
 }
+
+// ── Run Summary Panel ──
+
+export function showRunSummary(summary: Record<string, unknown>): void {
+  const panel = createOverlay('run-summary-panel');
+  const outcome = String(summary.outcome || 'extract');
+  const titles: Record<string, string> = {
+    victory: '⚔️ VICTORY!',
+    death: '💀 DEFEATED',
+    extract: '🏃 EXTRACTED',
+  };
+  const colors: Record<string, string> = {
+    victory: '#f0c060',
+    death: '#e74c3c',
+    extract: '#3498db',
+  };
+
+  panel.appendChild(closeBtn(panel));
+
+  const title = document.createElement('h1');
+  title.textContent = titles[outcome] || 'Run Complete';
+  Object.assign(title.style, {
+    fontSize: '28px', textAlign: 'center', margin: '20px 0 8px',
+    color: colors[outcome] || '#f0e6c8',
+  });
+  panel.appendChild(title);
+
+  const desc = document.createElement('p');
+  desc.textContent = String(summary.summary || '');
+  Object.assign(desc.style, { textAlign: 'center', margin: '0 0 20px', color: '#ccc', fontSize: '14px' });
+  panel.appendChild(desc);
+
+  const stats = [
+    ['Floors cleared', String(summary.depth || 0)],
+    ['Gold reward', outcome === 'victory' ? `+${summary.rewardGold || 0}` : '—'],
+    ['Gold lost', (summary.lostGold as number) > 0 ? `-${summary.lostGold}` : '—'],
+    ['Items banked', String((summary.bankedItems as number) || 0)],
+    ['Items lost', String((summary.lostItems as number) || 0)],
+  ];
+
+  for (const [label, value] of stats) {
+    const row = document.createElement('div');
+    Object.assign(row.style, {
+      display: 'flex', justifyContent: 'space-between',
+      padding: '8px 12px', margin: '2px 0',
+      background: 'rgba(255,255,255,0.05)', borderRadius: '4px',
+    });
+    const lbl = document.createElement('span');
+    lbl.textContent = label;
+    const val = document.createElement('span');
+    val.textContent = value;
+    val.style.color = '#f0c060';
+    row.appendChild(lbl);
+    row.appendChild(val);
+    panel.appendChild(row);
+  }
+}
