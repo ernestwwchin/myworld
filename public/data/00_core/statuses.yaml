@@ -1,5 +1,7 @@
 # Status Definitions — BG3-style configurable trigger effects
 # Each status can define trigger timing and on-trigger logic.
+# `boosts:` is a JS pipe string run through BoostRunner (stat modifiers).
+# `onTick:` / `onApply:` / `onRemove:` are JS strings run through AbilityRunner.
 
 statusRules:
   exploreTickMs: 1000
@@ -12,6 +14,10 @@ statuses:
     label: Poisoned
     trigger: turn_end
     duration: 3
+    onReapply: overwrite
+    boosts: |
+      disadvantage("attacks")
+      disadvantage("ability_checks")
     onTrigger:
       damageDice: "1d4"
       damageColor: 0x8bc34a
@@ -21,6 +27,8 @@ statuses:
     label: Sleep
     trigger: turn_start
     duration: 2
+    skipTurn: true
+    onReapply: overwrite
     onTrigger:
       skipTurn: true
       removeOnSave:
@@ -32,6 +40,99 @@ statuses:
     label: Burning
     trigger: turn_start
     duration: 2
+    onReapply: independent
     onTrigger:
       damageDice: "1d6"
       damageColor: 0xff7043
+
+  bleeding:
+    id: bleeding
+    label: Bleeding
+    trigger: turn_start
+    duration: 4
+    onReapply: stack
+    maxStacks: 5
+    onTrigger:
+      damageDice: "1d4"
+      damageColor: 0xcc0000
+
+  blessed:
+    id: blessed
+    label: Blessed
+    duration: 5
+    stackId: bless_bane
+    stackPriority: 0
+    onReapply: overwrite
+    boosts: |
+      save("all", 1)
+      damage(1)
+
+  haste:
+    id: haste
+    label: Haste
+    duration: 10
+    stackId: haste_slow
+    stackPriority: 10
+    onReapply: overwrite
+    boosts: |
+      ac(2)
+      multiplyMovement(2)
+      advantage("save_dex")
+
+  slow:
+    id: slow
+    label: Slow
+    duration: 10
+    stackId: haste_slow
+    stackPriority: 12
+    onReapply: overwrite
+    boosts: |
+      ac(-2)
+      movement(-2)
+      disadvantage("save_dex")
+
+  restrained:
+    id: restrained
+    label: Restrained
+    duration: 1
+    onReapply: overwrite
+    boosts: |
+      movement(-99)
+      disadvantage("attacks")
+      disadvantage("save_dex")
+
+  hidden:
+    id: hidden
+    label: Hidden
+    duration: -1
+    onReapply: overwrite
+
+  disengaged:
+    id: disengaged
+    label: Disengaged
+    duration: 1
+    onReapply: overwrite
+
+  dodging:
+    id: dodging
+    label: Dodging
+    duration: 1
+    onReapply: overwrite
+    boosts: |
+      advantage("save_dex")
+
+  fleeing:
+    id: fleeing
+    label: Fleeing
+    duration: 1
+    onReapply: overwrite
+
+  stunned:
+    id: stunned
+    label: Stunned
+    duration: 1
+    skipTurn: true
+    onReapply: overwrite
+    boosts: |
+      autoFail("save_str")
+      autoFail("save_dex")
