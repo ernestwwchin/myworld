@@ -40,7 +40,7 @@ Standalone modules with unit tests, not yet wired into game.
 - [x] Read `actor.derived.resistances/immunities/vulnerabilities` from creature YAML
 - [x] Float text shows "(resisted)", "(vulnerable!)", "IMMUNE" labels
 - [x] `buildBaseDerived()` initializes derived from creature YAML on spawn
-- [ ] Float text color by damage type (deferred to UI overhaul)
+- [x] Float text color by damage type — dmgColor() in GameScene, used by spawnFloat calls
 
 ### 1C. Typed damage in combat
 - [x] Player attacks route through resistance check inline

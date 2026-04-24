@@ -212,7 +212,7 @@ export const CombatAIMixin = {
     (this as unknown as { playerHP: number }).playerHP = Math.max(0, (this as unknown as { playerHP: number }).playerHP - dmg);
     this.cameras.main.shake(180, 0.006);
     this.tweens.add({ targets: this.player, alpha: 0.3, duration: 80, yoyo: true, repeat: 2 });
-    this.spawnFloat(this.player.x, this.player.y - 10, isCrit ? `💥${dmg}` : `-${dmg}`, '#e74c3c');
+    this.spawnFloat(this.player.x, this.player.y - 10, isCrit ? `💥${dmg}` : `-${dmg}`, isCrit ? '#f39c12' : this.dmgColor(eDmgType));
     const dmgText = this.formatDamageBreakdown(dr);
     this.showStatus(`${enemy.displayName}${isCrit ? ' CRITS' : ' hits'} for ${dmg}! ${dmgText}`);
     withCombatLog((l: any) =>
