@@ -2,7 +2,7 @@ import yaml from 'js-yaml';
 import {
   TILE, COMBAT_RULES, STATUS_RULES, FOG_RULES, LIGHT_RULES, DOOR_RULES,
   MAP, mapState, DND_XP, ASI_LEVELS, SKILLS,
-  WEAPON_DEFS, ABILITY_DEFS, ITEM_DEFS, STATUS_DEFS, CLASSES_DATA, QUEST_DEFS,
+  WEAPON_DEFS, ABILITY_DEFS, ITEM_DEFS, STATUS_DEFS, CLASSES_DATA, QUEST_DEFS, SHOP_DEFS,
   PLAYER_STATS, ENEMY_DEFS, dnd,
 } from '@/config';
 import { MapGen } from '@/mapgen';
@@ -1019,6 +1019,14 @@ export const ModLoader = {
         const qt = (await this.loadYaml(`data/${modId}/quests.yaml`)) as any;
         if (qt?.quests && typeof qt.quests === 'object') Object.assign(modData.quests!, qt.quests);
       } catch { /* no quests.yaml — ok */ }
+
+      try {
+        const sh = (await this.loadYaml(`data/${modId}/shop.yaml`)) as any;
+        if (Array.isArray(sh?.shop)) {
+          SHOP_DEFS.length = 0;
+          for (const item of sh.shop) SHOP_DEFS.push({ id: item.id, price: item.price, stock: item.stock });
+        }
+      } catch { /* no shop.yaml — ok */ }
 
       try {
         const sl = (await this.loadYaml(`data/${modId}/storylines.yaml`)) as any;

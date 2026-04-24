@@ -180,7 +180,7 @@ Standalone modules with unit tests, not yet wired into game.
 - [x] Shop browse panel — full-screen, gold display, buy buttons
 - [x] Buy item: deduct gold, add to inventory
 - [x] Sold-out graying for unavailable items
-- [ ] `shop.yaml` in mod data — deferred
+- [x] `shop.yaml` in mod data — loaded by ModLoader, overrides DEFAULT_SHOP when present
 - [ ] Restock on extract/new run — deferred
 
 ### 5C. Quest board MVP

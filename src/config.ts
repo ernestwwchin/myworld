@@ -225,6 +225,14 @@ export interface QuestDef {
 
 export const QUEST_DEFS: Record<string, QuestDef> = {};
 
+export interface ShopDef {
+  id: string;
+  price: number;
+  stock?: number;
+}
+
+export const SHOP_DEFS: ShopDef[] = [];
+
 export interface InventoryItem {
   id: string;
   name?: string;
@@ -542,6 +550,7 @@ if (typeof window !== 'undefined') {
   w.STATUS_DEFS = STATUS_DEFS;
   w.CLASSES_DATA = CLASSES_DATA;
   w.QUEST_DEFS = QUEST_DEFS;
+  w.SHOP_DEFS = SHOP_DEFS;
   w.PLAYER_STATS = PLAYER_STATS;
   w.ENEMY_DEFS = ENEMY_DEFS;
   w.dnd = dnd;

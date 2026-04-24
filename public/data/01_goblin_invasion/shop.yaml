@@ -1,0 +1,19 @@
+shop:
+  - id: potion_heal
+    price: 25
+    stock: 5
+  - id: potion_heal_greater
+    price: 75
+    stock: 3
+  - id: antidote
+    price: 15
+    stock: 5
+  - id: scroll_shield
+    price: 40
+    stock: 2
+  - id: torch
+    price: 5
+    stock: 10
+  - id: rope
+    price: 10
+    stock: 3

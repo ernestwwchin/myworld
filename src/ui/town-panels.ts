@@ -1,4 +1,4 @@
-import { PLAYER_STATS, ITEM_DEFS, QUEST_DEFS } from '@/config';
+import { PLAYER_STATS, ITEM_DEFS, QUEST_DEFS, SHOP_DEFS } from '@/config';
 import type { GameScene } from '@/game';
 
 function createOverlay(id: string): HTMLDivElement {
@@ -202,7 +202,10 @@ export function resetShopStock(): void {
 }
 
 export function showShopPanel(scene: GameScene): void {
-  if (!shopStock) shopStock = DEFAULT_SHOP.map(s => ({ ...s }));
+  if (!shopStock) {
+    const base = SHOP_DEFS.length ? SHOP_DEFS : DEFAULT_SHOP;
+    shopStock = base.map(s => ({ ...s }));
+  }
   const panel = createOverlay('shop-panel');
 
   const render = () => {
