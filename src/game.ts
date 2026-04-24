@@ -26,6 +26,7 @@ import { LightSystemMixin } from '@/systems/light-system';
 import { MovementSystemMixin } from '@/systems/movement-system';
 import { SightSystemMixin } from '@/systems/sight-system';
 import { StatusEffectSystemMixin } from '@/systems/status-effect-system';
+import { AuraSystemMixin } from '@/systems/aura-system';
 import { WorldPositionSystemMixin } from '@/systems/world-position-system';
 
 import { CombatAIMixin } from '@/modes/combat-ai';
@@ -503,6 +504,8 @@ export class GameScene extends Phaser.Scene {
     this.updateFogOfWar();
     this.time.addEvent({ delay: 1200, loop: true, callback: () => { if (this.mode === MODE.EXPLORE) this.wanderEnemies(); } });
     this.startExploreStatusTicker();
+    this.startAuraTicker();
+    this.events.once('shutdown', () => this.stopAuraTicker());
 
     const modData = (w.ModLoader as { _modData?: { _stageEvents?: unknown[]; _stageDialogs?: Record<string, unknown> } } | undefined)?._modData;
     EventRunner.init(this, (modData?._stageEvents || []) as Parameters<typeof EventRunner.init>[1]);
@@ -911,6 +914,7 @@ Object.assign(
   SightSystemMixin,
   DamageSystemMixin,
   StatusEffectSystemMixin,
+  AuraSystemMixin,
   EntitySystemMixin,
   AbilitySystemMixin,
   InventorySystemMixin,

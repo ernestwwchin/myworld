@@ -1,0 +1,61 @@
+# Goblin Warren — Mid-run Camp (between B3F and B4F)
+# Safe floor with campfire rest, supply crate, and extraction point.
+
+name: "Refuge — The Hidden Camp"
+floor: CAMP
+globalLight: dim
+nextStage: gw_b4f
+
+grid:
+  - "##################################################"
+  - "#................................................#"
+  - "#...........######################...............#"
+  - "#...........#....................#...............#"
+  - "#...........#....................#...............#"
+  - "#...........#....................#...............#"
+  - "#...........#..f..C.........S....#...............#"
+  - "#...........#....................#...............#"
+  - "#...........#....................#...............#"
+  - "#...........####..######..#######................#"
+  - "#................................................#"
+  - "#................................................#"
+  - "#................................................#"
+  - "##################################################"
+
+playerStart: { x: 24, y: 11 }
+
+interactables:
+  - id: camp_fire
+    kind: interactable
+    x: 15
+    y: 6
+    state:
+      label: "Campfire"
+      icon: "🔥"
+      texture: deco_crystal
+      needsAdjacency: true
+      description: "A crackling fire offers warmth and rest. Take a short rest to recover HP."
+      actions:
+        - { label: "Short Rest (1d8+CON)", icon: "🔥", action: camp_rest }
+
+  - id: camp_supply_crate
+    kind: chest
+    x: 18
+    y: 6
+    locked: false
+    gold: 20
+    lootTable: camp_supplies
+
+  - id: camp_extract
+    kind: interactable
+    x: 44
+    y: 6
+    state:
+      label: "Rope Ladder"
+      icon: "🪜"
+      texture: deco_banner
+      needsAdjacency: false
+      description: "A rope ladder leads up to the surface. Extract now and bank your loot."
+      actions:
+        - { label: "Extract to Town", icon: "🪜", action: travel }
+      targetStage: town

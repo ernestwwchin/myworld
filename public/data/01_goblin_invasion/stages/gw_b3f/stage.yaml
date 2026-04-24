@@ -1,7 +1,7 @@
 name: "B3F — The Bone Warrens"
 floor: B3F
 globalLight: dark
-nextStage: gw_b4f
+nextStage: gw_camp
 
 generator:
   type: bsp

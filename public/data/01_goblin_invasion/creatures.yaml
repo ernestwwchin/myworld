@@ -102,6 +102,11 @@ creatures:
     lootTable: hobgoblin_drop
     gold: "3d6"
     resistances: [poison]
+    aura:
+      radius: 3
+      statusId: slow
+      target: player
+      duration: 2
 
   wolf:
     name: Wolf

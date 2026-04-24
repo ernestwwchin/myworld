@@ -498,6 +498,7 @@ export class GameUIController {
       floorEl.textContent = meta?.floor || meta?.name || '';
     }
     this._updateStatusIcons();
+    withSidePanel(sp => (sp as { updateHeader(): void; refreshActiveTab(): void }).updateHeader());
   }
 
   _updateStatusIcons() {

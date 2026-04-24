@@ -74,11 +74,16 @@ export const SidePanel = {
     const acEl = document.getElementById('sp-ac');
     const profEl = document.getElementById('sp-prof');
 
+    const derived = p.derived as Record<string, number> | undefined;
+    const effAc = Number(p.ac) + (derived?.ac || 0);
     if (nameEl) nameEl.textContent = String(p.name || 'Adventurer');
     if (classEl) classEl.textContent = `${p.class} Lv ${p.level}`;
     if (hpTextEl) hpTextEl.textContent = `${s.playerHP}/${s.playerMaxHP}`;
     if (hpBarEl) hpBarEl.style.width = (s.playerHP / s.playerMaxHP * 100) + '%';
-    if (acEl) acEl.textContent = `AC ${p.ac}`;
+    if (acEl) {
+      acEl.textContent = `AC ${effAc}`;
+      acEl.style.color = derived?.ac ? '#66bb6a' : '';
+    }
     if (profEl) profEl.textContent = `Prof +${p.profBonus}`;
 
     const asiBadge = document.getElementById('sp-asi-badge');
@@ -131,6 +136,12 @@ export const SidePanel = {
         ? '<div style="color:#666;text-align:center;margin-top:16px;font-size:11px">Inventory is empty</div>'
         : `<div class="inv-list">${rows}</div>`
       }`;
+  },
+
+  refreshActiveTab() {
+    if (!this._collapsed && this._activeTab === 'character') {
+      this._renderCharacterTab(this._scene!);
+    }
   },
 
   refresh() {

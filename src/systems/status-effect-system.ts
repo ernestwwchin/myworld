@@ -70,7 +70,11 @@ export const StatusEffectSystemMixin = {
     engine.applyStatus(actor, def, source ?? null, duration);
     recalcBoosts(actor, getBoostAdapter(this));
     this.showStatus(`${this.actorLabel(actor)} is now ${statusId}.`);
-    if (actor === 'player') this.updateHUD?.();
+    if (actor === 'player') {
+      this.updateHUD?.();
+      const sp = (window as unknown as { SidePanel?: { refreshActiveTab?: () => void } }).SidePanel;
+      sp?.refreshActiveTab?.();
+    }
   },
 
   removeStatusFromActor(this: GameScene, actor: Actor, statusId: string): void {
@@ -79,7 +83,11 @@ export const StatusEffectSystemMixin = {
     if (removed) {
       recalcBoosts(actor, getBoostAdapter(this));
       this.showStatus(`${this.actorLabel(actor)} is no longer ${statusId}.`);
-      if (actor === 'player') this.updateHUD?.();
+      if (actor === 'player') {
+        this.updateHUD?.();
+        const sp = (window as unknown as { SidePanel?: { refreshActiveTab?: () => void } }).SidePanel;
+        sp?.refreshActiveTab?.();
+      }
     }
   },
 
