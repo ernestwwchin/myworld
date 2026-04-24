@@ -1471,6 +1471,18 @@ export const ModLoader = {
         }
       }
     }
+
+    // Difficulty budget diagnostic
+    const totalXP = ENEMY_DEFS.reduce((sum: number, e: any) => sum + (Number(e.xp) || 0), 0);
+    const playerLevel = Number(PLAYER_STATS.level || 1);
+    const budget = playerLevel * 100 * 4; // medium × party-of-1 approximation
+    mapDef._encounterXP = totalXP;
+    mapDef._difficultyBudget = budget;
+    if (totalXP > budget * 2) {
+      console.warn(`[Difficulty] ${activeMap}: XP ${totalXP} exceeds deadly budget ${budget * 2} (${ENEMY_DEFS.length} enemies, player Lv${playerLevel})`);
+    } else {
+      console.log(`[Difficulty] ${activeMap}: XP ${totalXP}/${budget} budget (${ENEMY_DEFS.length} enemies, player Lv${playerLevel})`);
+    }
   },
 
   applyPlayer(p: any, data: any): void {

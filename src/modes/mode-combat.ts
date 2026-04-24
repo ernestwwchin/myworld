@@ -351,6 +351,9 @@ export const ModeCombatMixin = {
       if (enemy.hp <= 0) {
         enemy.alive = false;
         enemy.inCombat = true;
+        if (typeof this.removeStatusesBySource === 'function') {
+          this.removeStatusesBySource('player', enemy as unknown as import('@/types/actors').Actor);
+        }
         this.tweens.add({
           targets: [enemy.img, enemy.hpBg, enemy.hpFg, enemy.lbl, enemy.sightRing].filter((o) => o && (o as Phaser.GameObjects.GameObject).active),
           alpha: 0,
@@ -1224,6 +1227,9 @@ export const ModeCombatMixin = {
       try {
         if (enemy.hp <= 0) {
           enemy.alive = false; enemy.inCombat = false;
+          if (typeof this.removeStatusesBySource === 'function') {
+            this.removeStatusesBySource('player', enemy as unknown as import('@/types/actors').Actor);
+          }
           this.tweens.add({
             targets: [enemy.img, enemy.hpBg, enemy.hpFg, enemy.lbl, enemy.sightRing].filter((o) => o && (o as Phaser.GameObjects.GameObject).active),
             alpha: 0,

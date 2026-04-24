@@ -169,8 +169,12 @@ export class ChestEntity extends InteractableEntity {
       const ok = s?.tryOpenChest?.(this.x, this.y);
       return { ok: !!ok, kind: 'chest' };
     }
+    const _fireSkillHook = (skill: string, dc: number, success: boolean, total: number) =>
+      (scene as unknown as { executeAbilityHook?(h: string, ctx: Record<string, unknown>): void })?.executeAbilityHook?.('on_skill_check', { skill, dc, success, total });
+
     if (action === 'check_trap') {
       const result = dnd.skillCheck('perception', PLAYER_STATS as unknown as Record<string, unknown>, this.trapDc);
+      _fireSkillHook('perception', this.trapDc, result.success, result.total);
       if (result.success) {
         this.trapDetected = true;
         scene?.showStatus?.(`You spot a trap! (${result.total} vs DC ${this.trapDc})`);
@@ -181,6 +185,7 @@ export class ChestEntity extends InteractableEntity {
     }
     if (action === 'disarm_trap') {
       const result = dnd.skillCheck('sleightOfHand', PLAYER_STATS as unknown as Record<string, unknown>, this.trapDc);
+      _fireSkillHook('sleightOfHand', this.trapDc, result.success, result.total);
       if (result.success) {
         this.trapTriggered = true;
         scene?.showStatus?.(`Trap disarmed! (${result.total} vs DC ${this.trapDc})`);
@@ -201,6 +206,7 @@ export class ChestEntity extends InteractableEntity {
     }
     if (action === 'lockpick_chest') {
       const result = dnd.skillCheck('sleightOfHand', PLAYER_STATS as unknown as Record<string, unknown>, this.lockDc);
+      _fireSkillHook('sleightOfHand', this.lockDc, result.success, result.total);
       if (result.success) {
         this.locked = false;
         scene?.showStatus?.(`Chest unlocked! (${result.total} vs DC ${this.lockDc})`);

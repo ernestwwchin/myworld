@@ -33,7 +33,7 @@ Standalone modules with unit tests, not yet wired into game.
 - [x] Wire `StatusEngine.applyStatus()` via `applyStatusToActor()` mixin
 - [x] Wire `StatusEngine.removeStatusBySource()` via `removeStatusesBySource()` mixin
 - [x] Wire `recalcBoosts()` on apply/remove — cache `actor.derived`
-- [ ] Emit `statsChanged` event on boost change → update side panel UI
+- [x] Side panel header + character tab refresh on boost change (Phase 1E)
 
 ### 1B. Damage pipeline wiring
 - [x] Inline resistance/vulnerability/immunity check in `playerAttackEnemy()`
@@ -68,8 +68,9 @@ Standalone modules with unit tests, not yet wired into game.
 - [x] `on_kill` — fire on enemy defeat
 - [x] `on_damage_dealt` — fire after player deals damage
 - [x] `on_damage_taken` — fire after enemy hits player
-- [ ] `on_status_applied` / `on_status_removed` / `on_skill_check` — not yet wired
-- [ ] Round counter: track `combatRound` — not yet wired
+- [x] `on_status_applied` / `on_status_removed` — wired in StatusEffectSystemMixin
+- [x] `on_skill_check` — fired from door/chest skill check interact paths
+- [x] Round counter: `combatRound` initialised to 1 on combat start, incremented per round
 
 ---
 
@@ -103,7 +104,8 @@ Standalone modules with unit tests, not yet wired into game.
 - [x] Hidden creature state: `hidden: true` on squad creatures
 
 ### 2E. Difficulty budget
-- [ ] Formula: `partySize × level × 100 × multiplier` — not yet implemented
+- [x] Formula: `level × 100 × 4` medium budget logged after applyCreatures(); warns if deadly
+- [x] `_encounterXP` / `_difficultyBudget` stored on mapDef for tooling
 - [x] Creature XP values declared in creatures.yaml
 
 ---
@@ -126,7 +128,7 @@ Standalone modules with unit tests, not yet wired into game.
 - [ ] Win/loss transition screens — deferred to UI overhaul
 
 ### 3D. Mid-run pacing
-- [ ] Camp/refuge floor — not yet implemented
+- [x] Camp/refuge floor — `gw_camp` between B3F/B4F: campfire short rest, supply crate, extraction
 
 ---
 
@@ -214,36 +216,38 @@ Standalone modules with unit tests, not yet wired into game.
 ## Phase 7: Combat UI Polish
 
 ### 7A. Ability UI
-- [ ] Hotbar tabs: common / class / items
-- [ ] Ability range indicator on hover (circle overlay)
-- [ ] AOE preview on ability select (sphere/cone/line shapes)
-- [ ] Action button graying when resource insufficient
-- [ ] Tooltip showing ability name, cost, description
+- [x] Hotbar tabs: common / class / items
+- [x] Action button graying when resource insufficient (unavail class, grayscale+dim)
+- [x] Tooltip showing ability name, cost, description (300ms hover, type-colored)
+- [ ] Ability range indicator on hover (circle overlay) — deferred
+- [ ] AOE preview on ability select — deferred
 
 ### 7B. Status UI
-- [ ] Status icon bar on portraits (player + enemies)
-- [ ] Icon rendering: overwrite (1 icon), stack (×N badge), independent (N icons)
-- [ ] Duration countdown on each icon
-- [ ] Side panel: show AC, movement, saves with `(+2)` boost diffs
+- [x] Status icon bar below HP bar (emoji + duration + stacks, per-type colors)
+- [x] Updates immediately on apply/remove via updateHUD()
+- [x] Side panel: effective AC/speed/saves with (+N) boost diffs colored green/red
+- [ ] Status icons on enemy portraits — deferred
 
 ### 7C. Combat feedback
-- [ ] Damage float text colored by type
-- [ ] Projectile tween animations
-- [ ] Cast/hit sound hooks from YAML
-- [ ] Combat log: status applied/removed messages
-- [ ] Combat log: damage type + resistance info
+- [x] Damage number colored by damage type in combat log
+- [x] [type] badge inline on hit entries
+- [x] Resistance/vulnerable/immune labels with distinct colors
+- [ ] Projectile tween animations — deferred
+- [ ] Cast/hit sound hooks from YAML — deferred
 
 ---
 
 ## Phase 8: Advanced Systems (post-core, pre-polish)
 
 ### 8A. Aura engine
-- [ ] Spatial range check per tick — `auraRadius` field
-- [ ] Auto-apply child status to actors entering range
-- [ ] Auto-remove child status on leaving range
-- [ ] Aura source tracking on children
-- [ ] Aura cleanup on bearer death
-- [ ] Aura circle rendering (translucent overlay)
+- [x] Spatial range check per second — `aura: { radius, statusId, target, duration }` on creature YAML
+- [x] Auto-apply child status when player enters range
+- [x] Auto-remove via removeStatusesBySource() when player exits range
+- [x] Aura source tracking via StatusEngine source field
+- [x] startAuraTicker()/stopAuraTicker() wired to scene create/shutdown
+- [x] Hobgoblin radius-3 slow aura as first showcase
+- [ ] Aura cleanup on bearer death — deferred
+- [ ] Aura circle rendering (translucent overlay) — deferred
 
 ### 8B. Explore abilities
 - [x] Lockpick (Sleight of Hand vs lockDc) — DoorEntity + ChestEntity

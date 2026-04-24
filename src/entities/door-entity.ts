@@ -85,6 +85,7 @@ export class DoorEntity extends InteractableEntity {
     }
     if (action === 'lockpick') {
       const result = dnd.skillCheck('sleightOfHand', PLAYER_STATS as unknown as Record<string, unknown>, this.lockDc);
+      (scene as unknown as { executeAbilityHook?(h: string, ctx: Record<string, unknown>): void })?.executeAbilityHook?.('on_skill_check', { skill: 'sleightOfHand', dc: this.lockDc, success: result.success, total: result.total });
       if (result.success) {
         this.locked = false;
         scene?.showStatus?.(`Lockpick success! (${result.total} vs DC ${this.lockDc})`);
@@ -96,6 +97,7 @@ export class DoorEntity extends InteractableEntity {
     }
     if (action === 'break_door') {
       const result = dnd.skillCheck('athletics', PLAYER_STATS as unknown as Record<string, unknown>, this.breakDc);
+      (scene as unknown as { executeAbilityHook?(h: string, ctx: Record<string, unknown>): void })?.executeAbilityHook?.('on_skill_check', { skill: 'athletics', dc: this.breakDc, success: result.success, total: result.total });
       if (result.success) {
         this.locked = false;
         scene?.showStatus?.(`Forced the door open! (${result.total} vs DC ${this.breakDc})`);
