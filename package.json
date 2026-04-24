@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview --port 3100 --strictPort",
     "typecheck": "tsc --noEmit",
+    "typecheck:editor": "tsc --noEmit --project tsconfig.editor.json",
     "test": "npm run typecheck && vitest run",
     "test:contracts": "vitest run tests/contracts/run-contracts.test.ts",
     "test:unit": "vitest run tests/unit",

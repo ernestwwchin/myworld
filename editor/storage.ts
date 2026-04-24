@@ -120,7 +120,7 @@ export async function importStampsFromFile(): Promise<SavedStamp[]> {
     const rec = item as Record<string, unknown>;
     // Must have at least grid + w + h to be a valid stamp
     if (typeof rec.grid !== 'string' || typeof rec.w !== 'number' || typeof rec.h !== 'number') continue;
-    const saved = exportToSaved(rec as StampExport, {
+    const saved = exportToSaved(rec as unknown as StampExport, {
       id: typeof rec.id === 'string' ? rec.id : undefined,
       tags: Array.isArray(rec.tags) ? rec.tags as string[] : [],
       difficulty: typeof rec.difficulty === 'number' ? rec.difficulty : 0,

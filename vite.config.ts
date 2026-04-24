@@ -8,7 +8,6 @@ export default defineConfig({
   base: './',
   plugins: [
     svelte({
-      // Only compile .svelte files under src/editor/ — game code untouched
       compilerOptions: { css: 'injected' },
     }),
   ],
