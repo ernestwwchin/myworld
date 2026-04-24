@@ -216,7 +216,7 @@ export const CombatAIMixin = {
     const dmgText = this.formatDamageBreakdown(dr);
     this.showStatus(`${enemy.displayName}${isCrit ? ' CRITS' : ' hits'} for ${dmg}! ${dmgText}`);
     withCombatLog((l: any) =>
-      l.logRoll({ actor: enemy.displayName, target: 'You', result: isCrit ? 'crit' : 'hit', damage: dmg, rollDetail: rollLine, dmgDetail: `${dmgText} ${eDmgType}` }),
+      l.logRoll({ actor: enemy.displayName, target: 'You', result: isCrit ? 'crit' : 'hit', damage: dmg, rollDetail: rollLine, dmgDetail: dmgText, dmgType: eDmgType }),
     );
     this.updateHUD();
     this._processEnemyOnHitEffects(enemy);

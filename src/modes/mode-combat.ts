@@ -338,7 +338,7 @@ export const ModeCombatMixin = {
       const opDmgText = this.formatDamageBreakdown(dr);
       const opDmgType = wpn ? wpn.damageType : '';
       withCombatLog((l: any) =>
-        l.logRoll({ actor: 'You', target: enemy.displayName, result: isCrit ? 'crit' : 'hit', damage: dmg, rollDetail: opRollLine, dmgDetail: `${opDmgText}${opDmgType ? ' ' + opDmgType : ''}`, extra: 'opener' }),
+        l.logRoll({ actor: 'You', target: enemy.displayName, result: isCrit ? 'crit' : 'hit', damage: dmg, rollDetail: opRollLine, dmgDetail: opDmgText, dmgType: opDmgType, extra: 'opener' }),
       );
 
       const ratio = Math.max(0, enemy.hp / enemy.maxHp);
@@ -518,6 +518,7 @@ export const ModeCombatMixin = {
       l.log(`Join reasons: ${reasonDetails}`, 'system', 'combat');
     });
     this.updateFogOfWar();
+    this.combatRound = 1;
     this.executeAbilityHook('on_combat_start', { combatants: this.combatGroup });
     this.time.delayedCall(700, () => { this.buildInitBar(); this.startNextTurn(); });
   },
@@ -686,7 +687,10 @@ export const ModeCombatMixin = {
       return;
     }
 
-    if (this.turnIndex < 0 || this.turnIndex >= this.turnOrder.length) this.turnIndex = 0;
+    if (this.turnIndex < 0 || this.turnIndex >= this.turnOrder.length) {
+      this.turnIndex = 0;
+      this.combatRound++;
+    }
     const cur = this.turnOrder[this.turnIndex];
     this.buildInitBar();
 
@@ -1212,10 +1216,8 @@ export const ModeCombatMixin = {
       ? `d20(${atkRoll2}|${atkRoll}↑) ${totalMod >= 0 ? '+ ' + totalMod : '- ' + Math.abs(totalMod)} = ${atkTotal} | AC ${enemy.ac}`
       : this.formatRollLine(atkRoll, totalMod, atkTotal, enemy.ac);
     this.showStatus(`${isCrit ? 'CRIT! ' : ''}${wasHidden ? 'SNEAK ' : ''}${abilityName} hit ${enemy.displayName} for ${dmg}! ${rollDisplay} | ${dmgText}`);
-    const pWpn = WEAPON_DEFS[ps.weaponId ?? ''];
-    const pDmgType = pWpn ? pWpn.damageType : '';
     withCombatLog((l: any) =>
-      l.logRoll({ actor: 'You', target: enemy.displayName, result: isCrit ? 'crit' : 'hit', damage: dmg, rollDetail: rollDisplay, dmgDetail: `${dmgText}${pDmgType ? ' ' + pDmgType : ''}`, extra: wasHidden ? 'sneak attack' : '' }),
+      l.logRoll({ actor: 'You', target: enemy.displayName, result: isCrit ? 'crit' : 'hit', damage: dmg, rollDetail: rollDisplay, dmgDetail: dmgText, dmgType: dmgType, resistLabel: resistLabel.trim() || '', extra: wasHidden ? 'sneak attack' : '' }),
     );
 
     self._afterPlayerDice = () => {
