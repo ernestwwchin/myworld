@@ -196,6 +196,20 @@ export function setupToolbar(): void {
   // Clear
   document.getElementById('edClear')!.onclick = () => { state.initGrid(); renderAll(); };
 
+  // New stamp (clear grid + reset active stamp id)
+  document.getElementById('edNewStamp')?.addEventListener('click', () => {
+    state.initGrid();
+    state.setStampName('Untitled');
+    state.setLastLoadedStamp(null);
+    (document.getElementById('edName') as HTMLInputElement).value = 'Untitled';
+    (document.getElementById('edTags') as HTMLInputElement).value = '';
+    (document.getElementById('edDifficulty') as HTMLSelectElement).value = '0';
+    (document.getElementById('edTheme') as HTMLSelectElement).value = 'stone';
+    // Clear active stamp id (imported dynamically to avoid circular deps)
+    import('./library').then(lib => lib.setActiveStampId(null));
+    renderAll();
+  });
+
   // Reset stamp
   document.getElementById('edResetStamp')!.onclick = () => {
     if (state.lastLoadedStamp) loadStampIntoEditor(state.lastLoadedStamp);

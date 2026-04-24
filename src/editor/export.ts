@@ -1,8 +1,10 @@
 import { LOGIC, OBJECTS } from './data';
 import * as state from './state';
 import type { StampExport } from './types';
+import { downloadJSON } from './storage';
 
-export function exportStampJSON(): void {
+/** Build a StampExport from the current editor grid (pure data, no side effects). */
+export function buildStampExport(): StampExport {
   const name = (document.getElementById('edName') as HTMLInputElement | null)?.value || state.stampName || 'Untitled';
 
   // ASCII grid
@@ -71,7 +73,7 @@ export function exportStampJSON(): void {
     }
   }
 
-  const exportData: StampExport = {
+  return {
     name,
     w: state.gridW,
     h: state.gridH,
@@ -83,13 +85,61 @@ export function exportStampJSON(): void {
     objects: objects.length > 0 ? objects : undefined,
     visualLayers: Object.keys(visualLayers).length > 0 ? visualLayers : undefined,
   };
+}
 
+/** Copy stamp JSON to clipboard (legacy behavior). */
+export function exportStampJSON(): void {
+  const exportData = buildStampExport();
   const json = JSON.stringify(exportData, null, 2);
   navigator.clipboard.writeText(json).then(() => {
-    const el = document.getElementById('edStatus');
-    if (el) { el.textContent = '✓ Copied to clipboard!'; setTimeout(() => { el.textContent = ''; }, 3000); }
+    showStatus('Copied to clipboard!');
   }).catch(() => {
     prompt('Stamp JSON:', json);
   });
   console.log('Stamp export:', exportData);
+}
+
+/** Download current stamp as a .json file. */
+export function downloadStampFile(): void {
+  const data = buildStampExport();
+  const safeName = (data.name || 'stamp').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+  downloadJSON(data, `${safeName}.json`);
+  showStatus('Downloaded!');
+}
+
+/** Export stamp in the mapgen-compatible StampDef format (for BSP room placement). */
+export function exportForMapgen(): void {
+  const data = buildStampExport();
+  const safeName = (data.name || 'stamp').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+  const tags = readTagsFromInput();
+  const difficulty = parseInt((document.getElementById('edDifficulty') as HTMLSelectElement | null)?.value || '0') || 0;
+  const theme = (document.getElementById('edTheme') as HTMLSelectElement | null)?.value || 'stone';
+
+  const stampDef = {
+    id: safeName,
+    name: data.name,
+    w: data.w,
+    h: data.h,
+    grid: data.grid,
+    bspGrid: data.bspGrid,
+    tags,
+    difficulty,
+    theme,
+    spawns: data.spawns,
+    stairs: data.stairs,
+    objects: data.objects,
+  };
+  downloadJSON(stampDef, `${safeName}.stamp.json`);
+  showStatus('Mapgen stamp downloaded!');
+}
+
+function readTagsFromInput(): string[] {
+  const val = (document.getElementById('edTags') as HTMLInputElement | null)?.value || '';
+  return val.split(',').map(t => t.trim()).filter(Boolean);
+}
+
+/** Show a brief status message. */
+export function showStatus(msg: string): void {
+  const el = document.getElementById('edStatus');
+  if (el) { el.textContent = `✓ ${msg}`; setTimeout(() => { el.textContent = ''; }, 3000); }
 }

@@ -53,6 +53,16 @@ export interface StampExport {
   visualLayers?: Record<string, Partial<CellVisuals>>;
 }
 
+/** A stamp saved in the local library (localStorage) */
+export interface SavedStamp extends StampExport {
+  id: string;
+  tags: string[];
+  difficulty: number;
+  theme: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 /** Tile catalog entry from tiles.json */
 export interface TileDef {
   id: string;

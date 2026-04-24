@@ -30,7 +30,25 @@ export interface GeneratorCfg {
   chests?: boolean | number;
   doors?: boolean;
   modifiers?: Record<string, unknown>;
+  /** Custom room stamps to apply inside BSP leaves. */
+  stamps?: StampDef[];
   [key: string]: unknown;
+}
+
+/** A room stamp definition the BSP generator can place into a leaf. */
+export interface StampDef {
+  id: string;
+  name: string;
+  w: number;
+  h: number;
+  grid: string;
+  bspGrid: number[][];
+  tags?: string[];
+  difficulty?: number;
+  theme?: string;
+  spawns?: { x: number; y: number }[];
+  stairs?: { x: number; y: number };
+  objects?: { type: string; x: number; y: number }[];
 }
 
 export interface GenLight { x: number; y: number; radius: number; level: string; }

@@ -1,10 +1,17 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 export default defineConfig({
   root: '.',
   publicDir: 'public',
   base: './',
+  plugins: [
+    svelte({
+      // Only compile .svelte files under src/editor/ — game code untouched
+      compilerOptions: { css: 'injected' },
+    }),
+  ],
   server: {
     port: 3000,
     strictPort: true,

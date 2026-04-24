@@ -1,7 +1,6 @@
 import { loadCatalogData, renderTiles, renderCharacters, renderStamps, setupViewTabs, setupFilters, initAutotileDemo } from './catalog';
-import { buildPalette, setupTileCanvasEvents, setupLogicCanvasEvents, setupToolbar, ensureEditorReady } from './controls';
-import { exportStampJSON } from './export';
-import { renderAll } from './renderer';
+import { mount } from 'svelte';
+import EditorApp from './EditorApp.svelte';
 import './editor.css';
 
 // ── Boot ──
@@ -26,19 +25,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Filters + search
   setupFilters();
 
-  // Tile editor toolbar (logic/object buttons, resize, clear, visual layer)
-  setupToolbar();
-
-  // Export button
-  document.getElementById('edExport')?.addEventListener('click', () => exportStampJSON());
-
-  // MutationObserver: init editor on first tab switch
+  // Mount Svelte editor app into the tile-editor panel on first activation
   const panel = document.getElementById('tileeditorView');
+  let svelteApp: ReturnType<typeof mount> | null = null;
+
   if (panel) {
     const observer = new MutationObserver(() => {
-      if (panel.classList.contains('active')) {
-        ensureEditorReady();
-        renderAll();
+      if (panel.classList.contains('active') && !svelteApp) {
+        // Clear the old static HTML content
+        panel.innerHTML = '';
+        svelteApp = mount(EditorApp, { target: panel });
       }
     });
     observer.observe(panel, { attributes: true, attributeFilter: ['class'] });
