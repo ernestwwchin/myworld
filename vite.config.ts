@@ -27,6 +27,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         test: resolve(__dirname, 'test.html'),
+        editor: resolve(__dirname, 'editor.html'),
       },
       output: {
         manualChunks(id: string) {

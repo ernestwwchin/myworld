@@ -1,0 +1,131 @@
+import type { Stamp } from './types';
+
+export const stampData: Stamp[] = [
+  // Basic Rooms
+  { name: 'Small Square Room', size: '7x7', tags: ['basic', 'small', 'empty'],
+    grid: `#######\n#.....#\n#.....#\n#.....#\n#.....#\n#.....#\n#######`, difficulty: 0, theme: 'stone' },
+  { name: 'Large Hall', size: '13x9', tags: ['basic', 'large', 'hall'],
+    grid: `#############\n#...........#\n#...........#\n#...........#\n#...........#\n#...........#\n#...........#\n#...........#\n#############`, difficulty: 0, theme: 'stone' },
+
+  // Treasure Rooms
+  { name: 'Treasure Room with Pillars', size: '9x9', tags: ['treasure', 'combat', 'pillars'],
+    grid: `#########\n#.......#\n#.P...P.#\n#.......#\n#...C...#\n#.......#\n#.P...P.#\n#.......#\n#########`, difficulty: 2, theme: 'stone' },
+  { name: 'Vault Room', size: '9x9', tags: ['treasure', 'vault', 'secure'],
+    grid: `#########\n#.......#\n#.#####.#\n#.#CCC#.#\n#.##D##.#\n#.......#\n#.......#\n#########`, difficulty: 3, theme: 'stone' },
+  { name: 'Corner Treasure Cache', size: '7x7', tags: ['treasure', 'small', 'corner'],
+    grid: `#######\n#.....#\n#.....#\n#.....#\n#...#.C\n#...#..#\n#######`, difficulty: 1, theme: 'stone' },
+
+  // Combat Arenas
+  { name: 'Small Arena', size: '9x9', tags: ['arena', 'combat', 'boss'],
+    grid: `#########\n#.......#\n#.......#\n#.......#\n#...@...#\n#.......#\n#.......#\n#.......#\n#########`, difficulty: 2, theme: 'stone' },
+  { name: 'Pillared Arena', size: '11x11', tags: ['arena', 'pillars', 'tactical'],
+    grid: `###########\n#.........#\n#.P.....P.#\n#.........#\n#.........#\n#....@....#\n#.........#\n#.........#\n#.P.....P.#\n#.........#\n###########`, difficulty: 3, theme: 'stone' },
+  { name: 'Octagonal Arena', size: '11x11', tags: ['arena', 'octagon', 'boss'],
+    grid: `   #####   \n  ##...##  \n ##.....## \n#.........#\n#.........#\n#....@....#\n#.........#\n#.........#\n ##.....## \n  ##...##  \n   #####   `, difficulty: 3, theme: 'stone' },
+
+  // Ambush & Trap Rooms
+  { name: 'Flanking Ambush', size: '11x9', tags: ['ambush', 'tactical', 'dangerous'],
+    grid: `###########\n#.........#\n#@#.....#@#\n#.#.....#.#\n#.#.....#.#\n#@#.....#@#\n#.........#\n#.........#\n###########`, difficulty: 3, theme: 'stone' },
+  { name: 'Spike Corridor', size: '9x5', tags: ['trap', 'corridor', 'hazard'],
+    grid: `#########\n#.......#\n#.TTTTT.#\n#.......#\n#########`, difficulty: 1, theme: 'stone' },
+  { name: 'Treasure Trap', size: '7x7', tags: ['treasure', 'trap', 'puzzle'],
+    grid: `#######\n#.....#\n#.TTT.#\n#.TCT.#\n#.TTT.#\n#.....#\n#######`, difficulty: 2, theme: 'stone' },
+  { name: 'Pit Room', size: '9x9', tags: ['hazard', 'pit', 'parkour'],
+    grid: `#########\n#.......#\n#.~~.~~.#\n#.......#\n#.~~.~~.#\n#.......#\n#.~~.~~.#\n#.......#\n#########`, difficulty: 2, theme: 'stone' },
+
+  // Shrine & Rest Rooms
+  { name: 'Small Shrine', size: '7x7', tags: ['shrine', 'reward', 'rest'],
+    grid: `#######\n#.....#\n#..P..#\n#.....#\n#..S..#\n#.....#\n#######`, difficulty: 0, theme: 'stone' },
+  { name: 'Healing Fountain', size: '9x9', tags: ['shrine', 'fountain', 'healing'],
+    grid: `#########\n#.......#\n#.......#\n#...W...#\n#..WWW..#\n#...W...#\n#.......#\n#.......#\n#########`, difficulty: 0, theme: 'water' },
+  { name: 'Meditation Chamber', size: '9x9', tags: ['shrine', 'peaceful', 'rest'],
+    grid: `#########\n#.......#\n#.P...P.#\n#.......#\n#...S...#\n#.......#\n#.P...P.#\n#.......#\n#########`, difficulty: 0, theme: 'stone' },
+
+  // L-Shaped & Irregular Rooms
+  { name: 'L-Shaped Room', size: '11x11', tags: ['irregular', 'L-shape', 'tactical'],
+    grid: `####### \n#.....#    \n#.....#    \n#.....#    \n#.....#####\n#.........#\n#.........#\n#.........#\n#.........#\n#.........#\n###########`, difficulty: 1, theme: 'stone' },
+  { name: 'T-Junction Room', size: '11x11', tags: ['irregular', 'T-shape', 'junction'],
+    grid: `    ###    \n    #.#    \n    #.#    \n###########\n#.........#\n#.........#\n#.........#\n###########\n    #.#    \n    #.#    \n    ###    `, difficulty: 1, theme: 'stone' },
+  { name: 'Cross Room', size: '11x11', tags: ['irregular', 'cross', 'junction'],
+    grid: `    ###    \n    #.#    \n    #.#    \n###########\n#.........#\n#....C....#\n#.........#\n###########\n    #.#    \n    #.#    \n    ###    `, difficulty: 2, theme: 'stone' },
+  { name: 'Circular Chamber', size: '11x11', tags: ['irregular', 'circular', 'mystical'],
+    grid: `    ###    \n  ##...##  \n #.......# \n#.........#\n#.........#\n#....@....#\n#.........#\n#.........#\n #.......# \n  ##...##  \n    ###    `, difficulty: 2, theme: 'stone' },
+
+  // Decorated Rooms
+  { name: 'Columned Hall', size: '13x9', tags: ['decorated', 'hall', 'pillars'],
+    grid: `#############\n#...........#\n#.P.P.P.P.P.#\n#...........#\n#...........#\n#...........#\n#.P.P.P.P.P.#\n#...........#\n#############`, difficulty: 1, theme: 'stone' },
+  { name: 'Storage Room', size: '9x9', tags: ['storage', 'crates', 'loot'],
+    grid: `#########\n#.......#\n#.B.B.B.#\n#.......#\n#.B.B.B.#\n#.......#\n#.B.B.B.#\n#.......#\n#########`, difficulty: 1, theme: 'stone' },
+  { name: 'Guard Barracks', size: '11x9', tags: ['barracks', 'guards', 'combat'],
+    grid: `###########\n#.........#\n#.@.....@.#\n#.........#\n#.........#\n#.........#\n#.@.....@.#\n#.........#\n###########`, difficulty: 2, theme: 'stone' },
+  { name: 'Library', size: '9x9', tags: ['library', 'loot', 'knowledge'],
+    grid: `#########\n#.......#\n#.##D##.#\n#.#...#.#\n#.#.C.#.#\n#.#...#.#\n#.#####.#\n#.......#\n#########`, difficulty: 1, theme: 'stone' },
+  { name: 'Prison Cells', size: '11x9', tags: ['prison', 'cells', 'rescue'],
+    grid: `###########\n#.#.#.#.#.#\n#.........#\n#.#.#.#.#.#\n#.........#\n#.#.#.#.#.#\n#.........#\n#.#.#.#.#.#\n###########`, difficulty: 1, theme: 'stone' },
+
+  // Boss Rooms
+  { name: 'Throne Room', size: '13x11', tags: ['boss', 'throne', 'large'],
+    grid: `#############\n#...........#\n#.P.......P.#\n#...........#\n#...........#\n#...........#\n#...........#\n#.....@.....#\n#.P.......P.#\n#...........#\n#############`, difficulty: 4, theme: 'stone' },
+  { name: 'Ritual Circle', size: '11x11', tags: ['boss', 'ritual', 'mystical'],
+    grid: `###########\n#.........#\n#..P...P..#\n#.........#\n#.P.....P.#\n#....@....#\n#.P.....P.#\n#.........#\n#..P...P..#\n#.........#\n###########`, difficulty: 4, theme: 'mystical' },
+
+  // Themed Rooms
+  { name: 'Flooded Room', size: '9x9', tags: ['water', 'hazard', 'environmental'],
+    grid: `#########\n#WWWWWWW#\n#W.....W#\n#W.....W#\n#W.....W#\n#W.....W#\n#W.....W#\n#WWWWWWW#\n#########`, difficulty: 2, theme: 'water' },
+  { name: 'Garden Courtyard', size: '11x11', tags: ['garden', 'peaceful', 'outdoor'],
+    grid: `###########\n#.........#\n#.G.G.G.G.#\n#.........#\n#.G.....G.#\n#....W....#\n#.G.....G.#\n#.........#\n#.G.G.G.G.#\n#.........#\n###########`, difficulty: 0, theme: 'grass' },
+  { name: 'Crypt', size: '9x9', tags: ['crypt', 'undead', 'spooky'],
+    grid: `#########\n#.......#\n#.P.@.P.#\n#.......#\n#.......#\n#.......#\n#.P...P.#\n#.......#\n#########`, difficulty: 2, theme: 'stone' },
+  { name: 'Maze Fragment', size: '11x11', tags: ['maze', 'puzzle', 'complex'],
+    grid: `###########\n#.#.#.#.#.#\n#.#.#.#.#.#\n#.........#\n###.###.###\n#.........#\n###.###.###\n#.........#\n#.#.#.#.#.#\n#.#.#.#.#.#\n###########`, difficulty: 2, theme: 'stone' },
+
+  // ═══ LARGE ROOMS ═══
+  { name: 'Grand Throne Hall', size: '21x15', tags: ['boss', 'throne', 'large', 'pillars'],
+    grid: `#####################\n#...................#\n#.P...............P.#\n#...................#\n#.P.....P.P.....P.#\n#...................#\n#...................#\n#.......P.P.......#\n#...................#\n#...................#\n#.P.....P.P.....P.#\n#...................#\n#.P......@......P.#\n#...................#\n#####################`, difficulty: 4, theme: 'stone' },
+  { name: 'Great Feast Hall', size: '19x15', tags: ['hall', 'large', 'social'],
+    grid: `###################\n#.................#\n#.P.............P.#\n#.................#\n#...BBBBBBBBB.....#\n#...B.......B.....#\n#...B.......B.....#\n#...B.......B.....#\n#...BBBBBBBBB.....#\n#.................#\n#.................#\n#.P.............P.#\n#.................#\n#.................#\n###################`, difficulty: 1, theme: 'stone' },
+  { name: 'Cathedral', size: '17x21', tags: ['shrine', 'large', 'pillars', 'mystical'],
+    grid: `#################\n#...............#\n#.P...........P.#\n#...............#\n#.P...........P.#\n#...............#\n#.P...........P.#\n#...............#\n#.P...........P.#\n#...............#\n#.P...........P.#\n#...............#\n#.P...........P.#\n#...............#\n#.P...........P.#\n#...............#\n#...............#\n#.......S.......#\n#...............#\n#.......D.......#\n#################`, difficulty: 0, theme: 'mystical' },
+  { name: 'Underground Lake', size: '19x17', tags: ['water', 'large', 'environmental', 'cave'],
+    grid: `###################\n#.................#\n#..WWWWWWWWWWW....#\n#.WWWWWWWWWWWWW...#\n#.WWWWWWWWWWWWWW..#\n#.WWWWWWWWWWWWWW..#\n#..WWWWWWWWWWWWW..#\n#...WWWWWWWWWWW...#\n#....WWWWWWWWW....#\n#.....WWWWWWW.....#\n#......WWWWW......#\n#.................#\n#..P.........P....#\n#.................#\n#.................#\n#.................#\n###################`, difficulty: 1, theme: 'water' },
+  { name: 'Gladiator Pit', size: '19x19', tags: ['arena', 'boss', 'large', 'combat'],
+    grid: `    ###########    \n  ###.........###  \n ###...........### \n##...............##\n#.................#\n#.................#\n#....P.....P.....#\n#.................#\n#.................#\n#........@........#\n#.................#\n#.................#\n#....P.....P.....#\n#.................#\n#.................#\n##...............##\n ###...........### \n  ###.........###  \n    ###########    `, difficulty: 4, theme: 'stone' },
+  { name: 'Armory', size: '17x15', tags: ['loot', 'large', 'weapons', 'storage'],
+    grid: `#################\n#...............#\n#.B.B.B...B.B.B.#\n#...............#\n#.B.B.B...B.B.B.#\n#...............#\n#.B.B.B...B.B.B.#\n#...............#\n#...............#\n#.......C.......#\n#...............#\n#.P...........P.#\n#...............#\n#...............#\n#################`, difficulty: 2, theme: 'stone' },
+  { name: 'Great Hall with Side Alcoves', size: '21x15', tags: ['hall', 'large', 'alcoves', 'tactical'],
+    grid: `#####################\n#...................#\n#.P...............P.#\n#...................#\n##.##.........##.##.#\n#...#.........#...#.#\n#...#.........#...#.#\n##.##.........##.##.#\n#...................#\n#...B.........B.....#\n#...................#\n#.P...............P.#\n#...................#\n#.........D.........#\n#####################`, difficulty: 2, theme: 'stone' },
+  { name: 'Necromancer Lair', size: '17x17', tags: ['boss', 'large', 'undead', 'ritual'],
+    grid: `#################\n#...............#\n#..P.........P..#\n#...............#\n#....P.....P....#\n#...............#\n#......P.P......#\n#.......S.......#\n#......P.P......#\n#...............#\n#....P.....P....#\n#...............#\n#..P.........P..#\n#...............#\n#.......@.......#\n#...............#\n#################`, difficulty: 4, theme: 'mystical' },
+  { name: 'Flooded Crypt', size: '17x15', tags: ['water', 'large', 'undead', 'crypt'],
+    grid: `#################\n#WWWWWWWWWWWWWWW#\n#W.............W#\n#W..P...C...P..W#\n#W.............W#\n#W.............W#\n#WWWW.....WWWWW#\n#...............#\n#WWWW.....WWWWW#\n#W.............W#\n#W.............W#\n#W..P...@...P..W#\n#W.............W#\n#WWWWWWWWWWWWWWW#\n#################`, difficulty: 3, theme: 'water' },
+  { name: 'Garden Ruins', size: '19x17', tags: ['garden', 'large', 'outdoor', 'peaceful'],
+    grid: `###################\n#.................#\n#.GGG.........GGG.#\n#.GGG..P...P..GGG.#\n#.GGG.........GGG.#\n#.................#\n#....GGG...GGG....#\n#....GGG.W.GGG....#\n#....GGG...GGG....#\n#.................#\n#.GGG.........GGG.#\n#.GGG..P...P..GGG.#\n#.GGG.........GGG.#\n#.................#\n#.......D.........#\n#.................#\n###################`, difficulty: 0, theme: 'grass' },
+  { name: 'Prison Block', size: '19x15', tags: ['prison', 'large', 'cells', 'rescue'],
+    grid: `###################\n#.................#\n#.###.###.###.###.#\n#.#.#.#.#.#.#.#.#.#\n#.#.#.#.#.#.#.#.#.#\n#.#D#.#D#.#D#.#D#.#\n#.................#\n#.................#\n#.................#\n#.#D#.#D#.#D#.#D#.#\n#.#.#.#.#.#.#.#.#.#\n#.#.#.#.#.#.#.#.#.#\n#.###.###.###.###.#\n#.................#\n###################`, difficulty: 2, theme: 'stone' },
+
+  // ═══ INTERIOR SUB-STAMPS ═══
+  { name: 'Pillar Grid 3x3', size: '5x5', tags: ['interior', 'pillars', 'tactical'],
+    grid: `P...P\n.....\n..P..\n.....\nP...P`, difficulty: 0, theme: 'stone' },
+  { name: 'Campfire Circle', size: '5x5', tags: ['interior', 'rest', 'camp'],
+    grid: `..B..\n.B.B.\n..S..\n.B.B.\n..B..`, difficulty: 0, theme: 'stone' },
+  { name: 'Altar Setup', size: '5x5', tags: ['interior', 'shrine', 'mystical'],
+    grid: `..P..\n.....\nP.S.P\n.....\n..P..`, difficulty: 0, theme: 'mystical' },
+  { name: 'Crate Storage Cluster', size: '5x5', tags: ['interior', 'storage', 'loot'],
+    grid: `BBB..\nBBB..\nBBB..\n.....\n.....`, difficulty: 0, theme: 'stone' },
+  { name: 'Chest Alcove', size: '5x3', tags: ['interior', 'treasure', 'alcove'],
+    grid: `#####\n#.C.#\n##.##`, difficulty: 1, theme: 'stone' },
+  { name: 'Water Pool', size: '5x5', tags: ['interior', 'water', 'decoration'],
+    grid: `.WWW.\nWWWWW\nWWWWW\nWWWWW\n.WWW.`, difficulty: 0, theme: 'water' },
+  { name: 'Spike Trap Line', size: '7x3', tags: ['interior', 'trap', 'corridor'],
+    grid: `.......\n.TTTTT.\n.......`, difficulty: 1, theme: 'stone' },
+  { name: 'Guard Post', size: '5x5', tags: ['interior', 'combat', 'patrol'],
+    grid: `.....\n.@.@.\n.....\n..B..\n.....`, difficulty: 2, theme: 'stone' },
+  { name: 'Pillar Corridor', size: '3x9', tags: ['interior', 'corridor', 'pillars'],
+    grid: `P.P\n...\nP.P\n...\nP.P\n...\nP.P\n...\nP.P`, difficulty: 0, theme: 'stone' },
+  { name: 'Ritual Circle', size: '7x7', tags: ['interior', 'mystical', 'ritual'],
+    grid: `..P.P..\n.......\nP.....P\n...S...\nP.....P\n.......\n..P.P..`, difficulty: 0, theme: 'mystical' },
+  { name: 'Pit Hazard Zone', size: '5x5', tags: ['interior', 'hazard', 'pit'],
+    grid: `.~~~.\n~...~\n~...~\n~...~\n.~~~.`, difficulty: 2, theme: 'stone' },
+  { name: 'Garden Patch', size: '5x5', tags: ['interior', 'garden', 'decoration'],
+    grid: `GGGGG\nG...G\nG.W.G\nG...G\nGGGGG`, difficulty: 0, theme: 'grass' },
+];

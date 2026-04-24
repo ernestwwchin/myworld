@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Tile Showcase - MyWorld</title>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>🎨 Interactive Tile Showcase</h1>
+      <div class="view-tabs">
+        <button class="view-tab active" data-view="tiles">Tiles</button>
+        <button class="view-tab" data-view="characters">Characters</button>
+        <button class="view-tab" data-view="autotile">Autotiling</button>
+        <button class="view-tab" data-view="stamps">Room Stamps</button>
+        <button class="view-tab" data-view="tileeditor">Tile Editor</button>
+      </div>
+    </header>
+
+    <aside>
+      <h2>Filters</h2>
+      <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:10px;">
+        <span id="tileCount">Loading...</span>
+      </div>
+      <input type="text" class="search-box" id="searchBox" placeholder="Search tiles...">
+
+      <div class="filter-group">
+        <label class="filter-label">Category</label>
+        <div class="filter-tags" id="categoryFilters">
+          <span class="tag active" data-filter="all">All</span>
+          <span class="tag" data-filter="floor">Floor</span>
+          <span class="tag" data-filter="wall">Wall</span>
+          <span class="tag" data-filter="door">Door</span>
+          <span class="tag" data-filter="container">Container</span>
+          <span class="tag" data-filter="prop">Props</span>
+          <span class="tag" data-filter="switch">Switches</span>
+          <span class="tag" data-filter="consumable">Consumables</span>
+          <span class="tag" data-filter="weapon">Weapons</span>
+          <span class="tag" data-filter="ui">UI</span>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <label class="filter-label">Map Role</label>
+        <div class="filter-tags" id="mapRoleFilters">
+          <span class="tag" data-filter="ground">Ground</span>
+          <span class="tag" data-filter="wall-face">Wall Face</span>
+          <span class="tag" data-filter="wall-top">Wall Top</span>
+          <span class="tag" data-filter="wall-edge">Wall Edge</span>
+          <span class="tag" data-filter="wall-decoration">Wall Deco</span>
+          <span class="tag" data-filter="door">Door</span>
+          <span class="tag" data-filter="pickup">Pickup</span>
+          <span class="tag" data-filter="hazard">Hazard</span>
+          <span class="tag" data-filter="pillar">Pillar</span>
+          <span class="tag" data-filter="transition">Transition</span>
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <label class="filter-label">Properties</label>
+        <div class="filter-tags" id="propFilters">
+          <span class="tag" data-filter="walkable">Walkable</span>
+          <span class="tag" data-filter="solid">Solid</span>
+          <span class="tag" data-filter="interactive">Interactive</span>
+          <span class="tag" data-filter="decoration">Decoration</span>
+          <span class="tag" data-filter="hazard">Hazard</span>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <!-- Tiles View -->
+      <div id="tilesView" class="view-panel active">
+        <div class="tile-grid" id="tileGrid"></div>
+      </div>
+
+      <!-- Characters View -->
+      <div id="charactersView" class="view-panel">
+        <div class="character-grid" id="characterGrid"></div>
+      </div>
+
+      <!-- Autotiling View -->
+      <div id="autotileView" class="view-panel">
+        <div class="autotile-demo">
+          <div class="demo-section">
+            <h3>Paint Mode</h3>
+            <div class="canvas-container">
+              <canvas id="paintCanvas" width="320" height="320"></canvas>
+            </div>
+            <div class="tool-buttons">
+              <button class="tool-btn" id="paintWall">Paint Wall</button>
+              <button class="tool-btn" id="paintFloor">Paint Floor</button>
+              <button class="tool-btn" id="clearCanvas">Clear</button>
+            </div>
+            <p style="margin-top:10px;font-size:0.85rem;color:var(--text-dim);">
+              Click tiles to paint. Autotiling applies automatically.
+            </p>
+          </div>
+          <div class="demo-section">
+            <h3>Bitmask Reference</h3>
+            <div class="canvas-container">
+              <canvas id="bitmaskCanvas" width="320" height="400"></canvas>
+            </div>
+            <p style="font-size:0.85rem;color:var(--text-dim);">
+              Visual reference showing all 47 unique tile configurations.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stamps View -->
+      <div id="stampsView" class="view-panel">
+        <div style="background:var(--bg-mid);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:20px;">
+          <h3 style="color:var(--accent);margin-bottom:15px;">Tile Legend</h3>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;font-size:0.9rem;">
+            <div><code style="color:var(--accent);">#</code> = Wall</div>
+            <div><code style="color:var(--accent);">.</code> = Floor</div>
+            <div><code style="color:var(--accent);">P</code> = Pillar/Column</div>
+            <div><code style="color:var(--accent);">C</code> = Chest</div>
+            <div><code style="color:var(--accent);">@</code> = Enemy Spawn</div>
+            <div><code style="color:var(--accent);">T</code> = Trap</div>
+            <div><code style="color:var(--accent);">S</code> = Shrine/Altar</div>
+            <div><code style="color:var(--accent);">W</code> = Water</div>
+            <div><code style="color:var(--accent);">~</code> = Pit/Hole</div>
+            <div><code style="color:var(--accent);">G</code> = Grass</div>
+            <div><code style="color:var(--accent);">B</code> = Box/Crate</div>
+            <div><code style="color:var(--accent);">D</code> = Door</div>
+          </div>
+          <div style="margin-top:15px;padding-top:15px;border-top:1px solid var(--border);">
+            <input type="text" id="stampSearch" placeholder="Search stamps..."
+                   style="width:100%;padding:8px;background:var(--bg-dark);border:1px solid var(--border);color:var(--text);border-radius:4px;">
+          </div>
+        </div>
+        <div style="margin-bottom:15px;color:var(--text-dim);font-size:0.9rem;">
+          <span id="stampCount">35+ room stamps</span>
+        </div>
+        <div class="stamp-grid" id="stampGrid"></div>
+      </div>
+
+      <!-- Tile Editor View -->
+      <div id="tileeditorView" class="view-panel">
+        <div style="display:flex;flex-direction:column;height:calc(100vh - 100px);gap:8px;">
+          <!-- Top toolbar -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:6px 0;">
+            <label style="font-size:0.8rem;color:var(--text-dim);font-weight:bold;">Logic:</label>
+            <button class="logic-btn" data-logic="blocked" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-mid);color:var(--text);cursor:pointer;font-size:0.8rem;">Blocked</button>
+            <button class="logic-btn" data-logic="void" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-mid);color:var(--text);cursor:pointer;font-size:0.8rem;">Void</button>
+            <button class="logic-btn" data-logic="doorable" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-mid);color:var(--text);cursor:pointer;font-size:0.8rem;">Doorable</button>
+            <button class="logic-btn active" data-logic="walkable" style="padding:3px 8px;border:1px solid var(--accent);border-radius:4px;background:var(--bg-mid);color:var(--accent);cursor:pointer;font-size:0.8rem;">Eraser ⌫</button>
+            <span style="color:var(--border);margin:0 2px;">│</span>
+            <label style="font-size:0.8rem;color:var(--text-dim);font-weight:bold;">Object:</label>
+            <button class="obj-btn" data-obj="door" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-mid);color:var(--text);cursor:pointer;font-size:0.8rem;">Door</button>
+            <button class="obj-btn" data-obj="chest" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-mid);color:var(--text);cursor:pointer;font-size:0.8rem;">Chest</button>
+            <button class="obj-btn" data-obj="trap" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-mid);color:var(--text);cursor:pointer;font-size:0.8rem;">Trap</button>
+            <button class="obj-btn" data-obj="column" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-mid);color:var(--text);cursor:pointer;font-size:0.8rem;">Column</button>
+            <button class="obj-btn" data-obj="crate" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-mid);color:var(--text);cursor:pointer;font-size:0.8rem;">Crate</button>
+            <button class="obj-btn" data-obj="stairs" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-mid);color:var(--text);cursor:pointer;font-size:0.8rem;">Stairs</button>
+            <button class="obj-btn" data-obj="shrine" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-mid);color:var(--text);cursor:pointer;font-size:0.8rem;">Shrine</button>
+            <button class="obj-btn" data-obj="enemy_spawn" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-mid);color:var(--text);cursor:pointer;font-size:0.8rem;">Enemy @</button>
+            <button class="obj-btn active" data-obj="" style="padding:3px 8px;border:1px solid var(--accent);border-radius:4px;background:var(--bg-mid);color:var(--accent);cursor:pointer;font-size:0.8rem;">No Obj ✕</button>
+            <span style="margin-left:auto;font-size:0.85rem;color:var(--text-dim);">
+              Grid: <input id="edGridW" type="number" value="12" min="6" max="40" style="width:40px;background:var(--bg-dark);border:1px solid var(--border);color:var(--text);border-radius:3px;padding:2px 4px;">
+              × <input id="edGridH" type="number" value="12" min="6" max="40" style="width:40px;background:var(--bg-dark);border:1px solid var(--border);color:var(--text);border-radius:3px;padding:2px 4px;">
+              <button id="edResize" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-mid);color:var(--text);cursor:pointer;">Resize</button>
+              <button id="edClear" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-mid);color:var(--text);cursor:pointer;">Clear</button>
+              <button id="edResetStamp" style="padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg-mid);color:var(--text);cursor:pointer;" title="Reload the last loaded stamp">Reset Stamp</button>
+            </span>
+          </div>
+          <!-- Main area: two canvases + palette -->
+          <div style="display:flex;gap:12px;flex:1;min-height:0;">
+            <!-- Tile view -->
+            <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+              <div style="font-size:0.85rem;color:var(--accent);margin-bottom:4px;font-weight:bold;">Tile View
+                <span style="font-weight:normal;color:var(--text-dim);font-size:0.7rem;margin-left:6px;">click to place objects · palette overrides visual</span>
+              </div>
+              <div style="flex:1;overflow:auto;background:var(--bg-dark);border:1px solid var(--border);border-radius:6px;">
+                <canvas id="edTileCanvas" style="image-rendering:pixelated;cursor:crosshair;"></canvas>
+              </div>
+            </div>
+            <!-- Logic view -->
+            <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+              <div style="font-size:0.85rem;color:var(--accent);margin-bottom:4px;font-weight:bold;">Logic View
+                <span style="font-weight:normal;color:var(--text-dim);font-size:0.7rem;margin-left:6px;">click to set · 🟩walk 🟥block ⬛void 🟦door</span>
+              </div>
+              <div style="flex:1;overflow:auto;background:var(--bg-dark);border:1px solid var(--border);border-radius:6px;">
+                <canvas id="edLogicCanvas" style="image-rendering:pixelated;cursor:crosshair;"></canvas>
+              </div>
+            </div>
+            <!-- Palette panel -->
+            <div style="width:320px;overflow-y:auto;background:var(--bg-mid);border:1px solid var(--border);border-radius:6px;padding:8px;flex-shrink:0;">
+              <div style="margin-bottom:8px;">
+                <label style="font-size:0.75rem;color:var(--text-dim);">Stamp name:</label>
+                <input id="edName" type="text" value="Untitled" style="width:100%;padding:4px;background:var(--bg-dark);border:1px solid var(--border);color:var(--text);border-radius:3px;font-size:0.85rem;margin-top:2px;">
+              </div>
+              <h4 style="color:var(--accent);margin-bottom:6px;font-size:0.85rem;">Selected Cell</h4>
+              <div id="edSelected" style="font-size:0.8rem;color:var(--text-dim);margin-bottom:10px;">Click a cell</div>
+              <h4 style="color:var(--accent);margin-bottom:6px;font-size:0.85rem;">Visual Layers</h4>
+              <div style="margin-bottom:6px;display:flex;gap:4px;align-items:center;">
+                <label style="font-size:0.75rem;color:var(--text-dim);">Paint to:</label>
+                <select id="edVisualLayer" style="background:var(--bg-dark);border:1px solid var(--border);color:var(--text);border-radius:3px;padding:2px 4px;font-size:0.8rem;">
+                  <option value="ground" selected>Ground</option>
+                  <option value="structure">Structure</option>
+                  <option value="decoration">Decoration</option>
+                </select>
+              </div>
+              <div style="margin-bottom:6px;display:flex;gap:4px;align-items:center;">
+                <label style="font-size:0.75rem;color:var(--text-dim);">Filter:</label>
+                <select id="edPalFilter" style="background:var(--bg-dark);border:1px solid var(--border);color:var(--text);border-radius:3px;padding:2px 4px;font-size:0.8rem;">
+                  <option value="all">All (150)</option>
+                  <option value="floor" selected>Floor (14)</option>
+                  <option value="wall_basic">Wall Basic (6)</option>
+                  <option value="wall_edge">Wall Edges (12)</option>
+                  <option value="wall_outer">Wall Outer (6)</option>
+                  <option value="wall_deco">Wall Deco (15)</option>
+                  <option value="prop">Props (8)</option>
+                  <option value="chest">Chests (9)</option>
+                  <option value="consumable">Consumables (11)</option>
+                  <option value="creature">Creatures (61)</option>
+                </select>
+              </div>
+              <div id="edPalette" style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;overflow-y:auto;"></div>
+              <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px;">
+                <button id="edExport" style="width:100%;padding:6px;border:1px solid var(--accent);border-radius:4px;background:var(--bg-mid);color:var(--accent);cursor:pointer;font-weight:bold;font-size:0.85rem;">Export Stamp JSON</button>
+                <span id="edStatus" style="font-size:0.75rem;color:var(--text-dim);display:block;margin-top:4px;"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="/src/editor/main.ts"></script>
+</body>
+</html>
