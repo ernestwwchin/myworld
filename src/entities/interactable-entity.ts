@@ -1,6 +1,6 @@
 import type { GameScene } from '@/game';
 import type { GameEntity, MenuOption } from '@/types/entities';
-import { showStashPanel, showShopPanel, showJobSelectorPanel } from '@/ui/town-panels';
+import { showStashPanel, showShopPanel, showJobSelectorPanel, showQuestBoardPanel } from '@/ui/town-panels';
 
 type EntityState = {
   label?: string;
@@ -133,7 +133,7 @@ export class InteractableEntity implements GameEntity {
     }
 
     if (a === 'quests') {
-      scene?.showStatus?.('Quest board is not implemented yet. Coming soon.');
+      if (scene) showQuestBoardPanel(scene);
       return { ok: true, kind: this.kind };
     }
 

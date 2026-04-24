@@ -190,6 +190,19 @@ export const STATUS_DEFS: Record<string, StatusDef> = {
 
 export const CLASSES_DATA: Record<string, Record<string, unknown>> = {};
 
+export interface QuestDef {
+  id: string;
+  title: string;
+  description: string;
+  icon?: string;
+  type?: string;
+  reward?: { gold?: number; xp?: number; items?: string[] };
+  objectives?: Array<{ id: string; label: string; count?: number }>;
+  [key: string]: unknown;
+}
+
+export const QUEST_DEFS: Record<string, QuestDef> = {};
+
 export interface InventoryItem {
   id: string;
   name?: string;
@@ -506,6 +519,7 @@ if (typeof window !== 'undefined') {
   w.ITEM_DEFS = ITEM_DEFS;
   w.STATUS_DEFS = STATUS_DEFS;
   w.CLASSES_DATA = CLASSES_DATA;
+  w.QUEST_DEFS = QUEST_DEFS;
   w.PLAYER_STATS = PLAYER_STATS;
   w.ENEMY_DEFS = ENEMY_DEFS;
   w.dnd = dnd;

@@ -1,0 +1,59 @@
+quests:
+
+  q1_clear_invasion:
+    title: "Repel the Goblin Invasion"
+    icon: "⚔️"
+    type: main
+    description: >
+      Goblin raiders from the Warren have been terrorizing the countryside.
+      Descend into the Goblin Warren, fight through five floors, and slay the
+      Goblin Warlord to end the threat.
+    objectives:
+      - { id: reach_boss, label: "Reach the throne room (B5F)" }
+      - { id: slay_warlord, label: "Defeat the Goblin Warlord" }
+    reward:
+      gold: 500
+      xp: 1000
+
+  q2_spider_culling:
+    title: "Clear the Spider Nests"
+    icon: "🕷️"
+    type: side
+    description: >
+      Giant spiders have been spinning webs throughout the lower levels.
+      Destroy the spider dens on floors B3F and B4F.
+    objectives:
+      - { id: clear_b3f_spiders, label: "Clear B3F spider den", count: 3 }
+      - { id: clear_b4f_spiders, label: "Clear B4F spider lair", count: 3 }
+    reward:
+      gold: 150
+      xp: 300
+
+  q3_rescue_prisoners:
+    title: "Find the Missing Scouts"
+    icon: "🔍"
+    type: side
+    description: >
+      Three town scouts went missing after entering the Warren.
+      Search the floors for any sign of survivors.
+    objectives:
+      - { id: find_scout_1, label: "Find the first scout" }
+      - { id: find_scout_2, label: "Find the second scout" }
+      - { id: find_scout_3, label: "Find the third scout" }
+    reward:
+      gold: 200
+      xp: 400
+      items: [potion_heal_greater]
+
+  q4_bounty_warlord_grik:
+    title: "Bounty: Warlord Grik"
+    icon: "💀"
+    type: bounty
+    description: >
+      The goblin commander known as Warlord Grik has been spotted on B4F.
+      Bring proof of his defeat to claim the bounty.
+    objectives:
+      - { id: slay_grik, label: "Defeat Warlord Grik (B4F)" }
+    reward:
+      gold: 300
+      xp: 500

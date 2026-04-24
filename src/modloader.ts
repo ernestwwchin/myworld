@@ -2,7 +2,7 @@ import yaml from 'js-yaml';
 import {
   TILE, COMBAT_RULES, STATUS_RULES, FOG_RULES, LIGHT_RULES, DOOR_RULES,
   MAP, mapState, DND_XP, ASI_LEVELS, SKILLS,
-  WEAPON_DEFS, ABILITY_DEFS, ITEM_DEFS, STATUS_DEFS, CLASSES_DATA,
+  WEAPON_DEFS, ABILITY_DEFS, ITEM_DEFS, STATUS_DEFS, CLASSES_DATA, QUEST_DEFS,
   PLAYER_STATS, ENEMY_DEFS, dnd,
 } from '@/config';
 import { MapGen } from '@/mapgen';
@@ -94,6 +94,7 @@ interface ModData {
   statusRules: Dict;
   lootTables: Dict;
   items: Dict;
+  quests?: Dict;
   worlds?: Dict;
   storylines?: any[];
   _stageEvents?: unknown[];
@@ -978,7 +979,7 @@ export const ModLoader = {
 
     const modData: ModData = {
       rules: {}, classes: {}, weapons: {}, creatures: {}, maps: {},
-      abilities: {}, statuses: {}, statusRules: {}, lootTables: {}, items: {},
+      abilities: {}, statuses: {}, statusRules: {}, lootTables: {}, items: {}, quests: {},
     };
 
     this._stageRegistry = {};
@@ -1013,6 +1014,11 @@ export const ModLoader = {
         const it = (await this.loadYaml(`data/${modId}/items.yaml`)) as any;
         if (it?.items && typeof it.items === 'object') Object.assign(modData.items, it.items);
       } catch { /* no items.yaml — ok */ }
+
+      try {
+        const qt = (await this.loadYaml(`data/${modId}/quests.yaml`)) as any;
+        if (qt?.quests && typeof qt.quests === 'object') Object.assign(modData.quests!, qt.quests);
+      } catch { /* no quests.yaml — ok */ }
 
       try {
         const sl = (await this.loadYaml(`data/${modId}/storylines.yaml`)) as any;
@@ -1098,6 +1104,7 @@ export const ModLoader = {
     this.applyAbilities(modData);
     this.applyStatuses(modData);
     this.applyItems(modData);
+    this.applyQuests(modData);
     this.applyMap(modData, activeMap);
     if (modData.creatures && typeof modData.creatures === 'object') {
       modData.creatures = resolveAllCreatures(modData.creatures as Record<string, any>);
@@ -1295,6 +1302,13 @@ export const ModLoader = {
     if (!data.items) return;
     for (const [id, item] of Object.entries<any>(data.items)) {
       ITEM_DEFS[id] = { id, ...item };
+    }
+  },
+
+  applyQuests(data: any): void {
+    if (!data.quests) return;
+    for (const [id, quest] of Object.entries<any>(data.quests)) {
+      QUEST_DEFS[id] = { id, ...quest };
     }
   },
 

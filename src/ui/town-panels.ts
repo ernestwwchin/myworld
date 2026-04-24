@@ -1,4 +1,4 @@
-import { PLAYER_STATS, ITEM_DEFS } from '@/config';
+import { PLAYER_STATS, ITEM_DEFS, QUEST_DEFS } from '@/config';
 import type { GameScene } from '@/game';
 
 function createOverlay(id: string): HTMLDivElement {
@@ -427,6 +427,112 @@ function applyJobToPlayer(job: JobDef, scene: GameScene): void {
   s.playerMaxHP = job.maxHP;
   scene.updateHUD?.();
   scene.showStatus?.(`⚡ ${job.icon} You are now a Level 10 ${job.name}! +${job.gold} gold!`);
+}
+
+// ── Quest Board Panel ──
+
+export function showQuestBoardPanel(_scene: GameScene): void {
+  const panel = createOverlay('quest-board-panel');
+
+  const render = () => {
+    panel.innerHTML = '';
+    panel.appendChild(closeBtn(panel));
+    panel.appendChild(heading('📋 Quest Board'));
+
+    const quests = Object.values(QUEST_DEFS);
+    if (!quests.length) {
+      const empty = document.createElement('p');
+      empty.textContent = 'No quests available.';
+      empty.style.color = '#888';
+      panel.appendChild(empty);
+      return;
+    }
+
+    const accepted = (PLAYER_STATS as Record<string, unknown>).acceptedQuests as string[] | undefined ?? [];
+    const typeColors: Record<string, string> = { main: '#f0c060', side: '#7ec8e3', bounty: '#e88' };
+    const typeLabels: Record<string, string> = { main: 'MAIN', side: 'SIDE', bounty: 'BOUNTY' };
+
+    for (const quest of quests) {
+      const isAccepted = accepted.includes(quest.id);
+      const card = document.createElement('div');
+      Object.assign(card.style, {
+        padding: '12px', margin: '8px 0',
+        background: isAccepted ? 'rgba(80,140,80,0.15)' : 'rgba(255,255,255,0.05)',
+        borderRadius: '8px', border: `1px solid ${isAccepted ? '#4a8a4a' : '#444'}`,
+      });
+
+      const cardHeader = document.createElement('div');
+      Object.assign(cardHeader.style, { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' });
+
+      const titleSpan = document.createElement('span');
+      titleSpan.textContent = `${quest.icon || '📋'} ${quest.title}`;
+      Object.assign(titleSpan.style, { fontSize: '16px', fontWeight: 'bold', color: '#f0e6c8' });
+
+      const typeBadge = document.createElement('span');
+      typeBadge.textContent = typeLabels[quest.type || 'side'] || 'QUEST';
+      Object.assign(typeBadge.style, {
+        fontSize: '11px', padding: '2px 6px', borderRadius: '4px',
+        background: typeColors[quest.type || 'side'] || '#666',
+        color: '#000', fontWeight: 'bold',
+      });
+
+      cardHeader.appendChild(titleSpan);
+      cardHeader.appendChild(typeBadge);
+
+      const desc = document.createElement('p');
+      desc.textContent = String(quest.description || '');
+      Object.assign(desc.style, { margin: '4px 0 8px', fontSize: '13px', color: '#bbb', lineHeight: '1.4' });
+
+      const objList = document.createElement('ul');
+      Object.assign(objList.style, { margin: '0 0 8px', paddingLeft: '16px', fontSize: '13px', color: '#aaa' });
+      for (const obj of (quest.objectives || [])) {
+        const li = document.createElement('li');
+        li.textContent = obj.label;
+        objList.appendChild(li);
+      }
+
+      const rewardDiv = document.createElement('div');
+      const r = quest.reward || {};
+      const parts: string[] = [];
+      if (r.gold) parts.push(`${r.gold}g`);
+      if (r.xp) parts.push(`${r.xp} XP`);
+      if (r.items?.length) parts.push(r.items.join(', '));
+      rewardDiv.textContent = parts.length ? `Reward: ${parts.join(' · ')}` : '';
+      Object.assign(rewardDiv.style, { fontSize: '12px', color: '#f0c060', marginBottom: '8px' });
+
+      const actionBtn = document.createElement('button');
+      if (isAccepted) {
+        actionBtn.textContent = '✓ Accepted';
+        actionBtn.disabled = true;
+        Object.assign(actionBtn.style, {
+          padding: '8px 16px', background: '#2a5a2a', color: '#6c6',
+          border: 'none', borderRadius: '4px', fontSize: '14px', minHeight: '40px',
+        });
+      } else {
+        actionBtn.textContent = 'Accept Quest';
+        Object.assign(actionBtn.style, {
+          padding: '8px 16px', background: '#2a5a8a', color: '#fff',
+          border: 'none', borderRadius: '4px', fontSize: '14px', cursor: 'pointer', minHeight: '40px',
+        });
+        actionBtn.onclick = () => {
+          if (!(PLAYER_STATS as Record<string, unknown>).acceptedQuests) {
+            (PLAYER_STATS as Record<string, unknown>).acceptedQuests = [];
+          }
+          ((PLAYER_STATS as Record<string, unknown>).acceptedQuests as string[]).push(quest.id);
+          render();
+        };
+      }
+
+      card.appendChild(cardHeader);
+      card.appendChild(desc);
+      if (quest.objectives?.length) card.appendChild(objList);
+      if (rewardDiv.textContent) card.appendChild(rewardDiv);
+      card.appendChild(actionBtn);
+      panel.appendChild(card);
+    }
+  };
+
+  render();
 }
 
 // ── Run Summary Panel ──
