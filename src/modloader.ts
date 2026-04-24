@@ -281,7 +281,7 @@ export const ModLoader = {
     const inBounds = (x: number, y: number) => x >= 0 && y >= 0 && x < cols && y < rows;
     const isWalkable = (x: number, y: number) => {
       const v = grid[y]?.[x];
-      return v === TILE.FLOOR || v === TILE.GRASS || v === TILE.WATER;
+      return v === TILE.FLOOR || v === TILE.GRASS || v === TILE.WATER || v === TILE.FIRE || v === TILE.ACID || v === TILE.ICE || v === TILE.CONSECRATED;
     };
 
     for (let d = 1; d <= 4; d++) {
@@ -309,7 +309,7 @@ export const ModLoader = {
     const cols = grid[0]?.length || 0;
     if (x < 0 || y < 0 || x >= cols || y >= rows) return false;
     const v = grid[y]?.[x];
-    return v === TILE.FLOOR || v === TILE.GRASS || v === TILE.WATER || v === TILE.STAIRS;
+    return v === TILE.FLOOR || v === TILE.GRASS || v === TILE.WATER || v === TILE.STAIRS || v === TILE.FIRE || v === TILE.ACID || v === TILE.ICE || v === TILE.CONSECRATED;
   },
 
   _findNearestWalkableTile(grid: Tile[][], fromTile: { x: number; y: number } | null): { x: number; y: number } | null {

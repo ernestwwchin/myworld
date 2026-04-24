@@ -18,7 +18,7 @@ grid:
   - "#........##..........##..........##..........##..........##..................#"
   - "####..#######..#########..#########..#########..#########..###################"
   - "#............................................................................#"
-  - "#............................................................................#"
+  - "#..................FFF.III...................................................#"
   - "#............................................................................#"
   - "####..#######..#########..#########..#########..#########..###################"
   - "#........##..........##..........##..........##..........##..................#"
@@ -55,8 +55,9 @@ encounters:
   # ── Bottom R1: Empty — stash ──
   # ── Bottom R2: Empty — shop ──
 
-  # ── Bottom R3: Solo skeleton ──
+  # ── Bottom R3: 2 Skeletons — tests vuln bludgeoning ──
   - { creature: skeleton, x: 28, y: 14, facing: 0, group: r9 }
+  - { creature: skeleton, x: 26, y: 15, facing: 0, group: r9 }
 
   # ── Bottom R4: 2 goblins ──
   - { creature: goblin, x: 37, y: 13, facing: 0, group: r10 }
@@ -86,6 +87,18 @@ interactables:
       description: "A glowing shrine radiates power. Choose your class and become Level 10."
       actions:
         - { label: "Choose Class", icon: "⚡", action: jobselect }
+
+  - id: test_quests
+    kind: interactable
+    x: 7
+    y: 14
+    state:
+      label: "Quest Board"
+      icon: "📋"
+      texture: deco_banner
+      description: "A notice board with available quests."
+      actions:
+        - { label: "View Quests", icon: "📋", action: quests }
 
   - id: test_stash
     kind: interactable

@@ -69,6 +69,7 @@ export class GameScene extends Phaser.Scene {
   combatGroup: unknown[] = [];
   turnOrder: { id: string; surprised?: boolean; enemy?: unknown; roll?: number; mod?: number; init?: number }[] = [];
   turnIndex = 0;
+  combatRound = 0;
   playerAP = 1;
   playerMoves = 5;
   playerMovesUsed = 0;
@@ -249,6 +250,7 @@ export class GameScene extends Phaser.Scene {
     this.combatGroup = [];
     this.turnOrder = [];
     this.turnIndex = 0;
+    this.combatRound = 0;
     this.playerAP = 1;
     this.playerMoves = Number(COMBAT_RULES.playerMovePerTurn || 5);
     this.playerMovesUsed = 0;
@@ -279,6 +281,10 @@ export class GameScene extends Phaser.Scene {
         else if (t === TILE.STAIRS) k = 't_stairs';
         else if (t === TILE.WATER) k = 't_water';
         else if (t === TILE.GRASS) k = 't_grass';
+        else if (t === TILE.FIRE) k = 't_floor';
+        else if (t === TILE.ACID) k = 't_water';
+        else if (t === TILE.ICE) k = 't_floor';
+        else if (t === TILE.CONSECRATED) k = 't_floor';
         const tex = getTileTex(k);
         this.tileSprites[r][c] = this.add.image(c * S + S / 2, r * S + S / 2, tex[0], tex[1]).setDisplaySize(S, S);
       }
