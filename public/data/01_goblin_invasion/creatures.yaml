@@ -140,6 +140,8 @@ creatures:
     lootTable: beast_drop
     gold: 0
     immunities: [poison]
+    onHit:
+      - { status: poisoned, target: player, save: { stat: con, dc: 11 }, duration: 3 }
 
   cave_spider:
     extends: spider
@@ -151,6 +153,8 @@ creatures:
     sight: 5
     stats: { str: 12, dex: 16, con: 12, int: 1, wis: 10, cha: 2 }
     attack: { dice: "1d8+1", range: 1 }
+    onHit:
+      - { status: poisoned, target: player, save: { stat: con, dc: 13 }, duration: 4 }
 
   goblin_chief:
     extends: goblin_captain

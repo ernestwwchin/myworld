@@ -1,4 +1,4 @@
-import { S, COMBAT_RULES, WEAPON_DEFS, dnd } from '@/config';
+import { S, COMBAT_RULES, WEAPON_DEFS, PLAYER_STATS, dnd } from '@/config';
 import { bfs, wallBlk, withCombatLog } from '@/helpers';
 import { tileDist } from '@/systems/world-position-system';
 import { decideAction } from '@/systems/ai-profiles';
@@ -28,6 +28,7 @@ type Enemy = {
   searchTurnsRemaining: number;
   lastSeenPlayerTile: { x: number; y: number };
   _searchAbandonedAnnounced?: boolean;
+  onHit?: Array<{ status: string; target: string; save?: { stat: string; dc: number }; duration?: number }>;
 };
 
 export const CombatAIMixin = {
@@ -218,6 +219,7 @@ export const CombatAIMixin = {
       l.logRoll({ actor: enemy.displayName, target: 'You', result: isCrit ? 'crit' : 'hit', damage: dmg, rollDetail: rollLine, dmgDetail: `${dmgText} ${eDmgType}` }),
     );
     this.updateHUD();
+    this._processEnemyOnHitEffects(enemy);
     this.executeAbilityHook('on_hit', { source: enemy, target: 'player', isCrit, damage: dmg });
     this.executeAbilityHook('on_damage_taken', { source: enemy, target: 'player', amount: dmg, damageType: eDmgType });
     if ((this as unknown as { playerHP: number }).playerHP <= 0) {
@@ -309,6 +311,30 @@ export const CombatAIMixin = {
     }
     this.time.delayedCall(400, () => this.advanceEnemyTurn());
   },
+
+  _processEnemyOnHitEffects(this: GameScene, enemy: Enemy): void {
+    const effects = enemy.onHit;
+    if (!effects?.length) return;
+    for (const eff of effects) {
+      if (eff.target !== 'player') continue;
+      const save = eff.save;
+      if (save) {
+        const statVal = (PLAYER_STATS as Record<string, unknown>)[save.stat] as number ?? 10;
+        const mod = Math.floor((statVal - 10) / 2);
+        const roll = dnd.roll(1, 20) + mod;
+        if (roll >= save.dc) {
+          this.showStatus?.(`You resist ${eff.status} (${save.stat.toUpperCase()} save ${roll} vs DC ${save.dc}).`);
+          withCombatLog((l: any) => l.log(`You resist ${eff.status} (rolled ${roll} vs DC ${save.dc}).`, 'system', 'combat'));
+          continue;
+        }
+        this.showStatus?.(`${eff.status.toUpperCase()} — save failed (${save.stat.toUpperCase()} ${roll} vs DC ${save.dc})!`);
+        withCombatLog((l: any) => l.log(`You are ${eff.status}! (save ${roll} vs DC ${save.dc})`, 'system', 'combat'));
+      }
+      if (typeof this.applyStatusToActor === 'function') {
+        this.applyStatusToActor('player' as unknown as import('@/types/actors').Actor, eff.status, eff.duration);
+      }
+    }
+  },
 };
 
 declare module '@/game' {
@@ -321,6 +347,7 @@ declare module '@/game' {
     _buildAITargets(): AITarget[];
     _buildAIAllies(enemy: unknown): AITarget[];
     _finishEnemyTurn(enemy: unknown): void;
+    _processEnemyOnHitEffects(enemy: unknown): void;
     endEnemyTurn(enemy: unknown): void;
     handlePlayerDefeat(): void;
 

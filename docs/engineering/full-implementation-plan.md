@@ -133,33 +133,35 @@ Standalone modules with unit tests, not yet wired into game.
 ## Phase 4: YAML Content — Data-Driven Core
 
 ### 4A. Abilities YAML
-- [ ] `00_core/abilities.yaml` — all W1 abilities in YAML format
-- [ ] Attack, Dash, Disengage, Hide, Flee, Dodge, Help (common)
-- [ ] Ability `extends:` inheritance (reuse creature resolver pattern)
-- [ ] Ability `actionCost:` field (action / bonusAction / free)
-- [ ] Base templates: melee_attack, spell_bolt, spell_aoe, spell_buff
-- [ ] ModLoader: load abilities.yaml, merge into ABILITY_DEFS registry
+- [x] `00_core/abilities.yaml` — all W1 abilities in YAML format
+- [x] Attack, Dash, Disengage, Hide, Flee, Dodge, Help (common)
+- [x] Ability `actionCost:` field (action / bonusAction / free)
+- [x] Rogue: Cunning Action variants, Sneak Attack
+- [x] Fighter: Second Wind, Action Surge
+- [x] ModLoader: load abilities.yaml, merge into ABILITY_DEFS registry
+- [ ] Ability `extends:` inheritance (reuse creature resolver pattern — deferred)
 
 ### 4B. Statuses YAML
-- [ ] `00_core/statuses.yaml` — all W1 statuses with `boosts:` pipe strings
-- [ ] burning, poisoned, bleeding, frozen, stunned, blessed, haste, slow, etc.
-- [ ] Status `onTick:`, `onApply:`, `onRemove:` hooks as JS strings
-- [ ] Status `stackId`/`stackPriority` for mutual exclusion groups
-- [ ] Status `saveToRemove:` for save-to-shake-off
-- [ ] ModLoader: load statuses.yaml, merge into STATUS_DEFS registry
+- [x] `00_core/statuses.yaml` — all W1 statuses with `boosts:` pipe strings
+- [x] burning, poisoned, bleeding, stunned, blessed, haste, slow, restrained, hidden, dodging, fleeing
+- [x] Status `stackId`/`stackPriority` for mutual exclusion groups
+- [x] ModLoader: load statuses.yaml, merge into STATUS_DEFS registry
+- [ ] Status `saveToRemove:` for save-to-shake-off — partially via onTrigger (deferred)
 
 ### 4C. Creatures YAML update
-- [ ] Add `extends:` to goblin variants (goblin_archer extends goblin, etc.)
-- [ ] Add `ai: { profile, preferredRange }` to all creatures
-- [ ] Add `abilities:` list with trigger conditions
-- [ ] Add `resistances:`, `immunities:`, `vulnerabilities:` arrays
-- [ ] Add `onHit:` effects (e.g., spider bite → save vs poison)
+- [x] `extends:` on goblin variants (goblin_archer/warrior/captain/etc extend goblin)
+- [x] `ai: { profile, preferredRange }` on all creatures
+- [x] `resistances:`, `immunities:`, `vulnerabilities:` arrays on all creatures
+- [x] `onHit:` effects — spider/cave_spider bite → save vs poisoned
+- [ ] `abilities:` list with trigger conditions per creature (deferred to useAbility wiring)
 
 ### 4D. Items YAML update
-- [ ] Items reference abilities: scroll `casts:`, potion `casts:`
-- [ ] Weapon `weapon_abilities:[]` — granted abilities when equipped
-- [ ] Item `onUse:` hook for custom items
-- [ ] Throwable items with `throw_casts:` for alt ability
+- [x] `onUse:` effects: heal, removeStatus, applyStatus, modifyStat, useAbility
+- [x] Scrolls: shield, misty step, fireball, lightning bolt
+- [x] Potions: heal, greater heal, str, invis, fly, fire resist, antidote
+- [x] ModLoader: load items.yaml, merge into ITEM_DEFS registry
+- [ ] Weapon `weapon_abilities:[]` — granted on equip (deferred)
+- [ ] Throwable items (deferred)
 
 ---
 
