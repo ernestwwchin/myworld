@@ -1,4 +1,4 @@
-import { S, MODE, DOOR_RULES, TILE, MAP, mapState } from '@/config';
+import { S, MODE, DOOR_RULES, TILE, MAP, mapState, TERRAIN_DEFS, PLAYER_STATS, dnd } from '@/config';
 import { bfs, stringPull } from '@/helpers';
 import { tileToWorld, worldToTile } from '@/systems/world-position-system';
 import type { GameScene } from '@/game';
@@ -205,6 +205,7 @@ export const MovementSystemMixin = {
           console.warn('[EventRunner] tile trigger error:', _e);
         }
         this.checkFloorItemPickup();
+        this.checkTerrainEffect(next.x, next.y);
         const tileVal = MAP[next.y]?.[next.x];
         if (tileVal === TILE.STAIRS) {
           const meta = (window as unknown as { _MAP_META?: { nextStage?: string } })._MAP_META;
@@ -345,6 +346,44 @@ export const MovementSystemMixin = {
       this.checkSight();
     });
   },
+
+  checkTerrainEffect(this: GameScene, tx: number, ty: number): void {
+    const tileVal = MAP[ty]?.[tx];
+    if (tileVal == null) return;
+    const eff = TERRAIN_DEFS[tileVal as number];
+    if (!eff) return;
+
+    if (eff.message) this.showStatus?.(eff.message);
+
+    if (eff.damage && eff.damage !== '0') {
+      const dmg = dnd.rollDamageSpec(eff.damage, false).total;
+      const saveOk = eff.save ? (() => {
+        const statVal = (PLAYER_STATS as Record<string, unknown>)[eff.save!.stat] as number ?? 10;
+        const mod = Math.floor((statVal - 10) / 2);
+        const roll = dnd.roll(1, 20) + mod;
+        return roll >= eff.save!.dc;
+      })() : false;
+
+      if (!saveOk) {
+        (this as unknown as { playerHP: number }).playerHP = Math.max(0, (this as unknown as { playerHP: number }).playerHP - dmg);
+        this.spawnFloat?.(
+          (this as unknown as { player: { x: number } }).player?.x ?? tx * S + S / 2,
+          ((this as unknown as { player: { y: number } }).player?.y ?? ty * S + S / 2) - 10,
+          `-${dmg}`,
+          eff.floatColor ?? '#ff7043',
+        );
+        this.updateHUD?.();
+        if ((this as unknown as { playerHP: number }).playerHP <= 0 && typeof (this as unknown as { handlePlayerDefeat?: () => void }).handlePlayerDefeat === 'function') {
+          (this as unknown as { handlePlayerDefeat: () => void }).handlePlayerDefeat();
+        }
+      }
+    }
+
+    if (eff.status && typeof (this as unknown as { applyStatusToActor?: (...a: unknown[]) => void }).applyStatusToActor === 'function') {
+      (this as unknown as { applyStatusToActor: (actor: string, statusId: string, duration?: number) => void })
+        .applyStatusToActor('player', eff.status, eff.statusDuration);
+    }
+  },
 };
 
 declare module '@/game' {
@@ -361,6 +400,7 @@ declare module '@/game' {
     playActorMove(actor: Phaser.GameObjects.Sprite, type: string, far: boolean): void;
     showMoveRange(): void;
     checkFloorItemPickup(): void;
+    checkTerrainEffect(tx: number, ty: number): void;
     _finalWorldPos: FinalPos;
     _pathLineGfx: Phaser.GameObjects.Graphics | null;
     _holdMoveActive: boolean;

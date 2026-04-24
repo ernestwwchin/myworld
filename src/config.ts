@@ -6,7 +6,29 @@ export const TILE = {
   STAIRS: 5,
   WATER: 6,
   GRASS: 7,
+  FIRE: 8,
+  ACID: 9,
+  ICE: 10,
+  CONSECRATED: 11,
 } as const;
+
+export interface TerrainEffectDef {
+  damageType?: string;
+  damage?: string;
+  status?: string;
+  statusDuration?: number;
+  save?: { stat: string; dc: number };
+  message?: string;
+  floatColor?: string;
+}
+
+export const TERRAIN_DEFS: Partial<Record<number, TerrainEffectDef>> = {
+  [6]: { damageType: 'bludgeoning', damage: '0', message: 'You wade through water.', floatColor: '#7fc8f8' },
+  [8]: { damageType: 'fire', damage: '1d6', status: 'burning', statusDuration: 2, message: 'You step in fire!', floatColor: '#ff7043' },
+  [9]: { damageType: 'acid', damage: '1d4', status: 'poisoned', statusDuration: 2, save: { stat: 'con', dc: 12 }, message: 'Acid burns!', floatColor: '#8bc34a' },
+  [10]: { damageType: 'cold', damage: '1d4', status: 'restrained', statusDuration: 1, save: { stat: 'dex', dc: 12 }, message: 'Ice slows you!', floatColor: '#b3e5fc' },
+  [11]: { damageType: 'radiant', damage: '0', message: 'You feel a holy aura.', floatColor: '#fffde7' },
+};
 
 export const S = 48;
 
