@@ -182,8 +182,8 @@ Standalone modules with unit tests, not yet wired into game.
 - [ ] Restock on extract/new run — deferred
 
 ### 5C. Quest board MVP
-- [ ] Quest data in YAML — not yet implemented
-- [ ] Quest board interactable — still shows stub message
+- [x] Quest data in YAML — `quests.yaml` per mod, loaded into QUEST_DEFS
+- [x] Quest board interactable — `showQuestBoardPanel()` with accept buttons
 
 ---
 
@@ -195,11 +195,12 @@ Standalone modules with unit tests, not yet wired into game.
 - [ ] Expose rooms to encounter placement system
 
 ### 6B. Terrain effects
-- [ ] Terrain tile types: fire, water, acid, ice, consecrated
-- [ ] Per-tile effect on enter: damage, slow, heal, etc.
-- [ ] `spawn_terrain()` functor for abilities (fireball leaves fire)
-- [ ] Terrain duration: turns until terrain fades
-- [ ] Terrain visual: tile overlay / color tint
+- [x] Terrain tile types: fire(8), acid(9), ice(10), consecrated(11) — TILE const + rules.yaml symbols
+- [x] Per-tile effect on enter: `checkTerrainEffect()` in movement-system, damage+save+status
+- [x] TERRAIN_DEFS config map: fire 1d6+burning, acid 1d4+poisoned+save, ice 1d4+restrained+save
+- [ ] `spawn_terrain()` functor for abilities (fireball leaves fire) — deferred
+- [ ] Terrain duration: turns until terrain fades — deferred
+- [ ] Terrain visual: tile overlay / color tint — deferred
 
 ### 6C. Tile & sprite rework
 - [ ] Tile atlas consolidation (single spritesheet)
@@ -245,13 +246,13 @@ Standalone modules with unit tests, not yet wired into game.
 - [ ] Aura circle rendering (translucent overlay)
 
 ### 8B. Explore abilities
-- [ ] Context menu on entity tap (show available abilities)
-- [ ] `targetKind:` filtering (door, chest, NPC, trap)
-- [ ] Ability `condition:` eval on entity state
-- [ ] Lockpick (DEX vs lockDc), Break door (STR vs breakDc)
-- [ ] Check for traps (WIS perception vs trapDc)
-- [ ] Disarm trap (DEX vs trapDc, needs detected)
-- [ ] Detect magic, Persuade, Steal
+- [x] Lockpick (Sleight of Hand vs lockDc) — DoorEntity + ChestEntity
+- [x] Force Open / Break door (Athletics vs breakDc) — DoorEntity
+- [x] Check for traps (Perception vs trapDc) — ChestEntity, sets trapDetected flag
+- [x] Disarm trap (Sleight of Hand vs trapDc, needs detected) — ChestEntity
+- [x] abilities.yaml: lockpick/break_door/check_trap/disarm_trap explore-type entries
+- [x] entity-system passes lockDc/breakDc/trapDc from YAML
+- [ ] Detect magic, Persuade, Steal — deferred
 
 ### 8C. Additional functors
 - [ ] `stealthRoll()`, `interactEntity()`, `startDialog()`

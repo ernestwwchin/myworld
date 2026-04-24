@@ -3,6 +3,13 @@ import { T } from './templates';
 import { SidePanel } from './side-panel';
 import { withHotbar, withSidePanel } from '@/helpers';
 import type { GameScene } from '@/game';
+import type { StatusInstance } from '@/systems/status-engine';
+
+const STATUS_ICONS: Record<string, string> = {
+  burning: '🔥', poisoned: '☠', bleeding: '🩸', restrained: '❄',
+  sleep: '💤', blessed: '✨', haste: '⚡', slow: '🐢', hidden: '🌑',
+  stunned: '⭐', dodging: '🛡', fleeing: '🏃',
+};
 
 // ── DEV CONSOLE ──────────────────────────────────────
 let _devVisible = false;
@@ -490,6 +497,20 @@ export class GameUIController {
       const meta = (window as unknown as { _MAP_META?: { floor?: string; name?: string } })._MAP_META;
       floorEl.textContent = meta?.floor || meta?.name || '';
     }
+    this._updateStatusIcons();
+  }
+
+  _updateStatusIcons() {
+    const el = document.getElementById('status-icons');
+    if (!el) return;
+    const effects = (this.scene.playerEffects || []) as StatusInstance[];
+    if (!effects.length) { el.innerHTML = ''; return; }
+    el.innerHTML = effects.map((fx) => {
+      const icon = STATUS_ICONS[fx.id] || '◆';
+      const dur = fx.remaining > 0 ? `<span class="si-dur">${fx.remaining}</span>` : '';
+      const stacks = fx.stacks > 1 ? `<span class="si-dur">×${fx.stacks}</span>` : '';
+      return `<span class="si si-${fx.id}" title="${fx.id}"><span class="si-icon">${icon}</span>${dur}${stacks}</span>`;
+    }).join('');
   }
 
   updateResBar() {
