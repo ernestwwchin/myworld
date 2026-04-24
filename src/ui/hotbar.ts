@@ -218,6 +218,7 @@ export const Hotbar = {
     const ss = s as unknown as Record<string, unknown>;
     const pips = document.getElementById('res-pips');
     if (!pips) return;
+    this.render();
 
     const inCombat = s.mode === MODE.COMBAT;
     pips.classList.toggle('show', inCombat);
@@ -449,6 +450,29 @@ export const Hotbar = {
     this.render();
   },
 
+  _isSlotUnavailable(slot: Slot): boolean {
+    if (!slot.id || slot.type !== 'ability') return false;
+    const s = this._scene;
+    if (!s || s.mode !== MODE.COMBAT) return false;
+    const ss = s as unknown as Record<string, unknown>;
+    const def = this._getAbilityDef(slot.id);
+    if (!def) return false;
+    const rc = def.resourceCost as Record<string, unknown> | undefined;
+    if (rc?.action && Number(ss.playerAP || 0) <= 0) return true;
+    if (rc?.bonusAction) {
+      const baMax = Number(ss.playerBonusAPMax || 1);
+      const ba = Number(ss.playerBonusAP ?? baMax);
+      if (ba <= 0) return true;
+    }
+    if (def.type === 'action' && !rc && Number(ss.playerAP || 0) <= 0) return true;
+    if (def.type === 'bonusAction' && !rc) {
+      const baMax = Number(ss.playerBonusAPMax || 1);
+      const ba = Number(ss.playerBonusAP ?? baMax);
+      if (ba <= 0) return true;
+    }
+    return false;
+  },
+
   render() {
     const grid = document.getElementById('hotbar-grid');
     if (!grid || !this._catSlots) return;
@@ -467,6 +491,7 @@ export const Hotbar = {
           this._selectedSlot.row === r &&
           this._selectedSlot.col === c;
         const isUsed = slot._used;
+        const isUnavail = !isEmpty && !isUsed && this._isSlotUnavailable(slot);
         const isMoveFrom = this._moveMode && this._moveFrom &&
           this._moveFrom.cat === cat && this._moveFrom.row === r && this._moveFrom.col === c;
 
@@ -476,15 +501,19 @@ export const Hotbar = {
         if (typeClass) cls += ' ' + typeClass;
         if (isSelected) cls += ' selected';
         if (isUsed) cls += ' used';
+        if (isUnavail) cls += ' unavail';
         if (isMoveFrom) cls += ' move-from';
 
         const icon = isEmpty ? '+' : this._getSlotIcon(slot);
         const name = isEmpty ? '' : this._getSlotName(slot);
         const keyHint = r === 0 ? (c < 9 ? (c + 1) : '0') : '';
+        const tipData = isEmpty ? '' : `data-tip-cat="${cat}" data-tip-row="${r}" data-tip-col="${c}"`;
 
-        html += `<div class="${cls}" data-cat="${cat}" data-row="${r}" data-col="${c}"
+        html += `<div class="${cls}" data-cat="${cat}" data-row="${r}" data-col="${c}" ${tipData}
           onclick="Hotbar._activateSlot('${cat}',${r},${c})"
-          oncontextmenu="event.preventDefault();Hotbar._showDescription('${cat}',${r},${c})">
+          oncontextmenu="event.preventDefault();Hotbar._showDescription('${cat}',${r},${c})"
+          onmouseenter="Hotbar._showTooltip(event,'${cat}',${r},${c})"
+          onmouseleave="Hotbar._hideTooltip()">
           <div class="hb-icon">${icon}</div>
           <div class="hb-name">${name}</div>
           ${keyHint ? `<div class="hb-key">${keyHint}</div>` : ''}
@@ -705,6 +734,54 @@ export const Hotbar = {
     if (!(tpl?.hit as Record<string, unknown> | undefined)?.attackRoll && slot.id !== 'attack') return '';
     const isCurrent = slot.id === this.getDefaultAttackId();
     return `<button class="hbd-btn" onclick="Hotbar.setDefaultAttack('${slot.id}')" ${isCurrent ? 'disabled style="opacity:0.5"' : ''}>🖱 Set as LMB${isCurrent ? ' ✓' : ''}</button>`;
+  },
+
+  _tipEl: null as HTMLElement | null,
+  _tipTimer: 0,
+
+  _showTooltip(e: MouseEvent, cat: string, row: number, col: number) {
+    const slot = this.getSlot(cat, row, col);
+    if (!slot?.id) return;
+    const def = this._getAbilityDef(slot.id);
+    let content = '';
+    if (slot.type === 'item' && slot._item) {
+      const item = slot._item;
+      const desc = String(item.description || item.effect || '');
+      content = `<b>${String(item.name || item.id)}</b>${desc ? `<br><span style="color:#bbb;font-size:10px">${desc}</span>` : ''}`;
+    } else if (def) {
+      const typeLabel = this._getTypeLabel(slot.id);
+      const typeColor = this._getTypeColor(slot.id);
+      const cost = this._costText(def);
+      const unavail = this._isSlotUnavailable(slot);
+      content = `<b>${def.name || slot.id}</b><br><span style="color:${typeColor};font-size:10px">${typeLabel} · ${cost}</span>${def.description ? `<br><span style="color:#bbb;font-size:10px">${def.description}</span>` : ''}${unavail ? `<br><span style="color:#e74c3c;font-size:10px">⚡ No ${def.type === 'bonusAction' ? 'Bonus Action' : 'Action'} remaining</span>` : ''}`;
+    }
+    if (!content) return;
+
+    clearTimeout(this._tipTimer);
+    this._tipTimer = window.setTimeout(() => {
+      let tip = this._tipEl;
+      if (!tip) {
+        tip = document.createElement('div');
+        tip.id = 'hb-tooltip';
+        tip.style.cssText = 'position:fixed;z-index:200;pointer-events:none;background:rgba(10,10,20,0.97);border:1px solid rgba(240,192,96,0.4);border-radius:6px;padding:6px 10px;font-family:"Courier New",monospace;font-size:11px;color:#f0e6c8;max-width:200px;line-height:1.4;box-shadow:0 2px 12px rgba(0,0,0,0.6);';
+        document.body.appendChild(tip);
+        this._tipEl = tip;
+      }
+      tip.innerHTML = content;
+      const rect = (e.target as HTMLElement).getBoundingClientRect();
+      const tipW = 200;
+      let left = rect.left + rect.width / 2 - tipW / 2;
+      left = Math.max(4, Math.min(window.innerWidth - tipW - 4, left));
+      const top = rect.top - 8;
+      tip.style.left = left + 'px';
+      tip.style.top = (top - 80) + 'px';
+      tip.style.display = 'block';
+    }, 300);
+  },
+
+  _hideTooltip() {
+    clearTimeout(this._tipTimer);
+    if (this._tipEl) this._tipEl.style.display = 'none';
   },
 };
 
