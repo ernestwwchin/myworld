@@ -313,6 +313,37 @@ describe('roll functions', () => {
     r.savingThrow('dex', 15);
     assert.equal(r.hits, false);
   });
+
+  test('skillCheck: success when total >= dc', () => {
+    const r = new AbilityRunner(scene, mockDnd(14));
+    r.setContext({ source: 'player', target });
+    r.skillCheck('perception', 12);
+    assert.equal(r.hits, true);
+    assert.equal(r.rollResult!.dc, 12);
+  });
+
+  test('skillCheck: fail when total < dc', () => {
+    const r = new AbilityRunner(scene, mockDnd(5));
+    r.setContext({ source: 'player', target });
+    r.skillCheck('athletics', 20);
+    assert.equal(r.hits, false);
+  });
+
+  test('skillCheck: nat 20 always succeeds', () => {
+    const r = new AbilityRunner(scene, mockDnd(20));
+    r.setContext({ source: 'player', target });
+    r.skillCheck('stealth', 30);
+    assert.equal(r.hits, true);
+    assert.equal(r.rollResult!.crit, true);
+  });
+
+  test('stealthRoll: sets rollResult with dex modifier', () => {
+    const r = new AbilityRunner(scene, mockDnd(10));
+    r.setContext({ source: 'player', target });
+    r.stealthRoll();
+    assert.ok(r.rollResult !== null);
+    assert.equal(r.rollResult!.d20, 10);
+  });
 });
 
 // ── 6. Context isolation ──

@@ -336,6 +336,36 @@ export class AbilityRunner {
 
   // ── Roll Functions ──
 
+  skillCheck(skill: string, dc: number): void {
+    const SKILL_ABILITY: Record<string, string> = {
+      athletics: 'str', acrobatics: 'dex', sleightOfHand: 'dex', stealth: 'dex',
+      arcana: 'int', history: 'int', investigation: 'int', nature: 'int', religion: 'int',
+      animalHandling: 'wis', insight: 'wis', medicine: 'wis', perception: 'wis', survival: 'wis',
+      deception: 'cha', intimidation: 'cha', performance: 'cha', persuasion: 'cha',
+    };
+    const ability = SKILL_ABILITY[skill] || 'wis';
+    const mod = this._dnd.mod(this._scene.getActorStat(this.source, ability));
+    const prof = this._dnd.profBonus(this._scene.getActorStat(this.source, 'level') || 1);
+    const d20 = this._dnd.roll(1, 20);
+    const total = d20 + mod + prof;
+    const crit = d20 === 20;
+    const fumble = d20 === 1;
+    this.hits = crit || (!fumble && total >= dc);
+    this.rollResult = { d20, total, dc, crit, fumble };
+    this._scene.showStatus(
+      `${this._scene.actorLabel(this.source)} ${skill}: ${total} vs DC ${dc} — ${this.hits ? 'Success!' : 'Fail.'}`
+    );
+  }
+
+  stealthRoll(): void {
+    const mod = this._dnd.mod(this._scene.getActorStat(this.source, 'dex'));
+    const d20 = this._dnd.roll(1, 20);
+    const total = d20 + mod;
+    this.hits = total > 0;
+    this.rollResult = { d20, total, dc: 0, crit: d20 === 20, fumble: d20 === 1 };
+    this._scene.showStatus(`${this._scene.actorLabel(this.source)} stealth: ${total}`);
+  }
+
   attackRoll(type: 'melee' | 'ranged' = 'melee'): void {
     const stat = type === 'melee' ? 'str' : 'dex';
     const mod = this._dnd.mod(this._scene.getActorStat(this.source, stat));

@@ -192,9 +192,9 @@ Standalone modules with unit tests, not yet wired into game.
 ## Phase 6: Map & Terrain
 
 ### 6A. BSP room data export
-- [ ] BSP generator returns `rooms[]` with `{ x, y, w, h, type, connections }`
-- [ ] Room type detection: dead_end (1 connection), hub (3+), corridor
-- [ ] Expose rooms to encounter placement system
+- [x] BSP generator returns `rooms[]` with `{ x, y, w, h, type, connections }`
+- [x] Room type detection: dead_end (≤2 connections), hub (5+), normal — in encounter-placement.ts
+- [x] Expose rooms to encounter placement system — placeSquads() in encounter-placement.ts
 
 ### 6B. Terrain effects
 - [x] Terrain tile types: fire(8), acid(9), ice(10), consecrated(11) — TILE const + rules.yaml symbols
@@ -246,7 +246,7 @@ Standalone modules with unit tests, not yet wired into game.
 - [x] Aura source tracking via StatusEngine source field
 - [x] startAuraTicker()/stopAuraTicker() wired to scene create/shutdown
 - [x] Hobgoblin radius-3 slow aura as first showcase
-- [ ] Aura cleanup on bearer death — deferred
+- [x] Aura cleanup on bearer death — removeStatusesBySource on both kill paths
 - [ ] Aura circle rendering (translucent overlay) — deferred
 
 ### 8B. Explore abilities
@@ -259,10 +259,10 @@ Standalone modules with unit tests, not yet wired into game.
 - [ ] Detect magic, Persuade, Steal — deferred
 
 ### 8C. Additional functors
-- [ ] `stealthRoll()`, `interactEntity()`, `startDialog()`
-- [ ] `revealTrap()`, `triggerTrap()`, `disarmTrap()`
-- [ ] `revealMagic()`, `lootFrom()`, `enterCombat()`
-- [ ] `skillCheck()` — generic skill roll functor
+- [x] `skillCheck(skill, dc)` — generic skill roll functor; sets hits, logs result
+- [x] `stealthRoll()` — dex-based stealth roll, stores rollResult
+- [ ] `interactEntity()`, `startDialog()`, `enterCombat()`, `lootFrom()` — deferred (require scene coupling)
+- [ ] `revealTrap()`, `triggerTrap()`, `disarmTrap()`, `revealMagic()` — deferred
 
 ---
 
