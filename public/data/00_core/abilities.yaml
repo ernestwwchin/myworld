@@ -244,6 +244,33 @@ abilities:
         effects: []
 
     
+  # ── Explore Abilities ──
+  lockpick:
+    name: "Lockpick"
+    type: explore
+    range: adjacent
+    description: "Use Sleight of Hand to pick a lock (DC varies)."
+    requiresClass: Rogue
+
+  break_door:
+    name: "Force Open"
+    type: explore
+    range: adjacent
+    description: "Use Athletics to break down a locked door (DC varies)."
+
+  check_trap:
+    name: "Check for Traps"
+    type: explore
+    range: adjacent
+    description: "Use Perception to detect traps on a chest (DC varies)."
+
+  disarm_trap:
+    name: "Disarm Trap"
+    type: explore
+    range: adjacent
+    description: "Use Sleight of Hand to disarm a detected trap (DC varies)."
+    requiresClass: Rogue
+
   cunningAction_dash:
     name: "Cunning Action: Dash"
     type: bonusAction
