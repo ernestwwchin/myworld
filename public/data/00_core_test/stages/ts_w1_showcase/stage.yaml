@@ -74,6 +74,19 @@ encounters:
   - { creature: goblin, x: 55, y: 9, facing: 270, group: patrol }
 
 interactables:
+  - id: power_shrine
+    kind: interactable
+    x: 30
+    y: 9
+    state:
+      label: "Power Shrine"
+      icon: "⚡"
+      texture: deco_crystal
+      needsAdjacency: false
+      description: "A glowing shrine radiates power. Choose your class and become Level 10."
+      actions:
+        - { label: "Choose Class", icon: "⚡", action: jobselect }
+
   - id: test_stash
     kind: interactable
     x: 4

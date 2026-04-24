@@ -234,6 +234,201 @@ export function showShopPanel(scene: GameScene): void {
   render();
 }
 
+// ── Job Selector Panel ──
+
+interface JobDef {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  stats: { str: number; dex: number; con: number; int: number; wis: number; cha: number };
+  ac: number;
+  maxHP: number;
+  hitDie: number;
+  weaponId: string;
+  damageFormula: string;
+  atkRange: number;
+  profBonus: number;
+  savingThrows: string[];
+  skillProficiencies: string[];
+  expertiseSkills: string[];
+  features: string[];
+  sneakAttackDice: number;
+  gold: number;
+}
+
+const JOB_DEFS: JobDef[] = [
+  {
+    id: 'fighter',
+    name: 'Fighter',
+    icon: '⚔️',
+    description: 'Heavy armor, high HP, extra attacks. Str-based melee brawler.',
+    stats: { str: 18, dex: 13, con: 16, int: 10, wis: 12, cha: 10 },
+    ac: 17, maxHP: 100, hitDie: 10,
+    weaponId: 'longsword', damageFormula: '1d8+7', atkRange: 1,
+    profBonus: 4,
+    savingThrows: ['str', 'con'],
+    skillProficiencies: ['athletics', 'perception', 'intimidation', 'survival'],
+    expertiseSkills: [],
+    features: ['Second Wind', 'Action Surge', 'Extra Attack (×3)', 'Indomitable'],
+    sneakAttackDice: 0,
+    gold: 500,
+  },
+  {
+    id: 'rogue',
+    name: 'Rogue',
+    icon: '🗡️',
+    description: 'Sneak attack, high Dex, evasion. Strikes from the shadows.',
+    stats: { str: 10, dex: 20, con: 14, int: 14, wis: 13, cha: 12 },
+    ac: 16, maxHP: 80, hitDie: 8,
+    weaponId: 'shortsword', damageFormula: '1d6+8', atkRange: 1,
+    profBonus: 4,
+    savingThrows: ['dex', 'int'],
+    skillProficiencies: ['stealth', 'sleightOfHand', 'acrobatics', 'investigation', 'perception', 'deception'],
+    expertiseSkills: ['stealth', 'sleightOfHand'],
+    features: ['Sneak Attack (5d6)', 'Cunning Action', 'Evasion', 'Uncanny Dodge', 'Reliable Talent'],
+    sneakAttackDice: 5,
+    gold: 400,
+  },
+  {
+    id: 'wizard',
+    name: 'Wizard',
+    icon: '🧙',
+    description: 'Arcane spells, high Int, fragile but powerful. Knowledge is power.',
+    stats: { str: 8, dex: 14, con: 13, int: 20, wis: 15, cha: 12 },
+    ac: 13, maxHP: 70, hitDie: 6,
+    weaponId: 'quarterstaff', damageFormula: '1d6+2', atkRange: 1,
+    profBonus: 4,
+    savingThrows: ['int', 'wis'],
+    skillProficiencies: ['arcana', 'history', 'investigation', 'insight'],
+    expertiseSkills: ['arcana'],
+    features: ['Spellcasting (Int)', 'Arcane Recovery', 'Spell Mastery', 'Signature Spell'],
+    sneakAttackDice: 0,
+    gold: 350,
+  },
+  {
+    id: 'cleric',
+    name: 'Cleric',
+    icon: '✨',
+    description: 'Divine magic, healing, and radiant damage. The backbone of any party.',
+    stats: { str: 14, dex: 10, con: 16, int: 12, wis: 20, cha: 14 },
+    ac: 16, maxHP: 90, hitDie: 8,
+    weaponId: 'mace', damageFormula: '1d6+5', atkRange: 1,
+    profBonus: 4,
+    savingThrows: ['wis', 'cha'],
+    skillProficiencies: ['medicine', 'religion', 'insight', 'persuasion'],
+    expertiseSkills: [],
+    features: ['Divine Domain: Life', 'Channel Divinity', 'Divine Strike', 'Blessed Healer'],
+    sneakAttackDice: 0,
+    gold: 450,
+  },
+];
+
+export function showJobSelectorPanel(scene: GameScene): void {
+  const panel = createOverlay('job-selector-panel');
+
+  const render = () => {
+    panel.innerHTML = '';
+    panel.appendChild(closeBtn(panel));
+    panel.appendChild(heading('⚡ Power Shrine — Choose Your Class'));
+
+    const subtitle = document.createElement('p');
+    subtitle.textContent = 'Become Level 10. Choose your path.';
+    Object.assign(subtitle.style, { margin: '0 0 16px', color: '#aaa', fontSize: '13px' });
+    panel.appendChild(subtitle);
+
+    for (const job of JOB_DEFS) {
+      const card = document.createElement('div');
+      Object.assign(card.style, {
+        display: 'flex', flexDirection: 'column', gap: '4px',
+        padding: '12px', margin: '8px 0',
+        background: 'rgba(255,255,255,0.06)', borderRadius: '8px',
+        border: '1px solid #444', cursor: 'pointer',
+      });
+
+      const cardHeader = document.createElement('div');
+      Object.assign(cardHeader.style, { display: 'flex', justifyContent: 'space-between', alignItems: 'center' });
+
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = `${job.icon} ${job.name}`;
+      Object.assign(nameSpan.style, { fontSize: '18px', fontWeight: 'bold', color: '#f0c060' });
+
+      const statsSpan = document.createElement('span');
+      statsSpan.textContent = `AC ${job.ac}  HP ${job.maxHP}`;
+      Object.assign(statsSpan.style, { fontSize: '13px', color: '#aaa' });
+
+      cardHeader.appendChild(nameSpan);
+      cardHeader.appendChild(statsSpan);
+
+      const desc = document.createElement('p');
+      desc.textContent = job.description;
+      Object.assign(desc.style, { margin: '4px 0', fontSize: '13px', color: '#ccc' });
+
+      const featList = document.createElement('p');
+      featList.textContent = job.features.join(' · ');
+      Object.assign(featList.style, { margin: '4px 0', fontSize: '12px', color: '#888', fontStyle: 'italic' });
+
+      const selectBtn = document.createElement('button');
+      selectBtn.textContent = `Choose ${job.name}`;
+      Object.assign(selectBtn.style, {
+        marginTop: '8px', padding: '12px', background: '#2a5a8a',
+        color: '#fff', border: 'none', borderRadius: '6px',
+        fontSize: '16px', cursor: 'pointer', minHeight: '48px',
+        fontWeight: 'bold',
+      });
+
+      selectBtn.onclick = () => {
+        applyJobToPlayer(job, scene);
+        panel.style.display = 'none';
+      };
+
+      card.appendChild(cardHeader);
+      card.appendChild(desc);
+      card.appendChild(featList);
+      card.appendChild(selectBtn);
+      panel.appendChild(card);
+    }
+  };
+
+  render();
+}
+
+function applyJobToPlayer(job: JobDef, scene: GameScene): void {
+  PLAYER_STATS.name = job.name;
+  PLAYER_STATS.class = job.name;
+  PLAYER_STATS.level = 10;
+  PLAYER_STATS.xp = 0;
+
+  PLAYER_STATS.str = job.stats.str;
+  PLAYER_STATS.dex = job.stats.dex;
+  PLAYER_STATS.con = job.stats.con;
+  PLAYER_STATS.int = job.stats.int;
+  PLAYER_STATS.wis = job.stats.wis;
+  PLAYER_STATS.cha = job.stats.cha;
+
+  PLAYER_STATS.ac = job.ac;
+  PLAYER_STATS.baseAC = job.ac;
+  PLAYER_STATS.maxHP = job.maxHP;
+  PLAYER_STATS.currentHP = job.maxHP;
+  PLAYER_STATS.hitDie = job.hitDie;
+  PLAYER_STATS.weaponId = job.weaponId;
+  PLAYER_STATS.damageFormula = job.damageFormula;
+  PLAYER_STATS.atkRange = job.atkRange;
+  PLAYER_STATS.profBonus = job.profBonus;
+  PLAYER_STATS.sneakAttackDice = job.sneakAttackDice;
+  PLAYER_STATS.gold = (PLAYER_STATS.gold ?? 0) + job.gold;
+  PLAYER_STATS.features = [...job.features];
+  PLAYER_STATS.savingThrows = new Set(job.savingThrows);
+  PLAYER_STATS.skillProficiencies = new Set(job.skillProficiencies);
+  PLAYER_STATS.expertiseSkills = new Set(job.expertiseSkills);
+
+  const s = scene as unknown as { playerHP: number; playerMaxHP: number };
+  s.playerHP = job.maxHP;
+  s.playerMaxHP = job.maxHP;
+  scene.updateHUD?.();
+  scene.showStatus?.(`⚡ ${job.icon} You are now a Level 10 ${job.name}! +${job.gold} gold!`);
+}
+
 // ── Run Summary Panel ──
 
 export function showRunSummary(summary: Record<string, unknown>): void {
