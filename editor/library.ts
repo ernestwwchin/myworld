@@ -1,9 +1,11 @@
-import type { SavedStamp, Stamp } from './types';
+import type { SavedStamp, Stamp, StampCategory } from './types';
 import { getAllStamps, saveStamp, deleteStamp, newStampId, exportToSaved, exportAllStamps, importStampsFromFile, downloadJSON } from './storage';
 import { buildStampExport, showStatus } from './export';
 import { loadStampIntoEditor } from './controls';
 import { renderAll } from './renderer';
 import * as state from './state';
+import { stampData } from './stamps';
+import { ASCII_TO_OBJ } from './data';
 
 let activeStampId: string | null = null;
 
@@ -17,16 +19,17 @@ export function saveCurrentStamp(): void {
   const tags = readTags();
   const difficulty = readDifficulty();
   const theme = readTheme();
+  const category = readCategory();
 
   if (activeStampId) {
     // Update existing
-    const saved = exportToSaved(data, { id: activeStampId, tags, difficulty, theme });
+    const saved = exportToSaved(data, { id: activeStampId, tags, difficulty, theme, category });
     saveStamp(saved);
     showStatus(`Saved "${data.name}"`);
   } else {
     // Create new
     const id = newStampId();
-    const saved = exportToSaved(data, { id, tags, difficulty, theme });
+    const saved = exportToSaved(data, { id, tags, difficulty, theme, category });
     saveStamp(saved);
     activeStampId = id;
     showStatus(`Created "${data.name}"`);
@@ -41,8 +44,9 @@ export function saveAsNewStamp(): void {
   const tags = readTags();
   const difficulty = readDifficulty();
   const theme = readTheme();
+  const category = readCategory();
   const id = newStampId();
-  const saved = exportToSaved(data, { id, tags, difficulty, theme });
+  const saved = exportToSaved(data, { id, tags, difficulty, theme, category });
   saveStamp(saved);
   activeStampId = id;
   showStatus(`Created "${data.name}"`);
@@ -188,4 +192,85 @@ function readDifficulty(): number {
 
 function readTheme(): string {
   return (document.getElementById('edTheme') as HTMLSelectElement | null)?.value || 'stone';
+}
+
+function readCategory(): StampCategory {
+  return ((document.getElementById('edCategory') as HTMLSelectElement | null)?.value || 'room') as StampCategory;
+}
+
+// ── Rebuild all built-in stamps with auto-filled visual layers ──
+
+export function rebuildAllBuiltinStamps(): number {
+  // Save current editor state
+  const prevCells = state.cells;
+  const prevW = state.gridW;
+  const prevH = state.gridH;
+  const prevName = state.stampName;
+
+  let count = 0;
+
+  for (const stamp of stampData) {
+    const rows = stamp.grid.split('\n');
+    const h = rows.length;
+    const w = Math.max(...rows.map(r => r.length));
+
+    // Set up state for this stamp
+    state.setGridSize(w, h);
+    state.setCells([]);
+    state.setStampName(stamp.name || 'Untitled');
+
+    // Parse grid into cells
+    for (let r = 0; r < h; r++) {
+      state.cells[r] = [];
+      for (let c = 0; c < w; c++) {
+        const ch = (rows[r] || '')[c];
+        if (ch && ASCII_TO_OBJ[ch]) {
+          state.cells[r][c] = state.makeCell('walkable', ASCII_TO_OBJ[ch]);
+        } else if (ch === '#') {
+          state.cells[r][c] = state.makeCell('blocked');
+        } else if (ch === '.' || ch === '·') {
+          state.cells[r][c] = state.makeCell('walkable');
+        } else if (ch === 'W') {
+          const cell = state.makeCell('walkable');
+          cell.visuals.ground = ['floor_1','floor_2'][((r + c) % 2)];
+          cell.visuals.decoration = 'floor_1'; // placeholder tint for water
+          state.cells[r][c] = cell;
+        } else if (ch === 'G') {
+          const cell = state.makeCell('walkable');
+          cell.visuals.ground = ['floor_3','floor_4'][((r + c) % 2)];
+          state.cells[r][c] = cell;
+        } else if (ch === '~') {
+          const cell = state.makeCell('walkable');
+          cell.visuals.ground = 'hole';
+          state.cells[r][c] = cell;        } else {
+          state.cells[r][c] = state.makeCell('void');
+        }
+      }
+    }
+
+    // Auto-fill visual layers
+    state.autoFillVisuals();
+
+    // Build export data
+    const exportData = buildStampExport();
+
+    // Save to library
+    const id = `builtin_${(stamp.name || 'stamp').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase()}`;
+    const saved = exportToSaved(exportData, {
+      id,
+      tags: stamp.tags || [],
+      difficulty: stamp.difficulty ?? 0,
+      theme: stamp.theme || 'stone',
+      category: stamp.category || 'room',
+    });
+    saveStamp(saved);
+    count++;
+  }
+
+  // Restore editor state
+  state.setGridSize(prevW, prevH);
+  state.setCells(prevCells);
+  state.setStampName(prevName);
+
+  return count;
 }

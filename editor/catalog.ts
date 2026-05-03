@@ -2,7 +2,8 @@ import { TILE_BASE, STAMP_TILE_MAP } from './data';
 import { loadImg, getCachedImg, preloadAll } from './image-loader';
 import { stampData } from './stamps';
 import { loadStampIntoEditor } from './controls';
-import type { TileDef, SpriteDef, AnimDef } from './types';
+import { getAllStamps, deleteStamp, importStampsFromFile, exportAllStamps, downloadJSON } from './storage';
+import type { TileDef, SpriteDef, AnimDef, SavedStamp } from './types';
 
 // ── Loaded JSON data ──
 let tilesData: Record<string, TileDef> = {};
@@ -215,41 +216,111 @@ async function renderStampCanvas(canvasId: string, gridStr: string): Promise<voi
 }
 
 // ── Stamp browser ──
-export function renderStamps(stamps = stampData): void {
+
+let stampSearchQuery = '';
+let stampCategoryFilter = 'all';
+
+function getFilteredStamps(): SavedStamp[] {
+  let stamps = getAllStamps();
+  if (stampCategoryFilter !== 'all') {
+    stamps = stamps.filter(s => (s.category || 'room') === stampCategoryFilter);
+  }
+  if (stampSearchQuery) {
+    const q = stampSearchQuery.toLowerCase();
+    stamps = stamps.filter(s =>
+      s.name.toLowerCase().includes(q) ||
+      (s.tags || []).some(t => t.includes(q)) ||
+      (s.theme || '').includes(q)
+    );
+  }
+  return stamps;
+}
+
+export function renderStamps(stamps?: SavedStamp[]): void {
   const grid = document.getElementById('stampGrid');
   if (!grid) return;
+  const list = stamps ?? getFilteredStamps();
   const counter = document.getElementById('stampCount');
-  if (counter) counter.textContent = `${stamps.length} room stamps`;
+  if (counter) counter.textContent = `${list.length} stamps`;
 
-  grid.innerHTML = stamps.map((stamp, i) => {
+  grid.innerHTML = list.map((s, i) => {
     const canvasId = `stampCanvas_${i}`;
+    const cat = s.category || 'room';
+    const tags = (s.tags || []).map(tag => `<span class="tag">${tag}</span>`).join('');
     return `
-    <div class="stamp-card">
+    <div class="stamp-card" data-stamp-id="${s.id}">
       <div class="stamp-preview" style="flex-direction:column;align-items:center;">
         <canvas id="${canvasId}" style="image-rendering:pixelated;margin-bottom:8px;"></canvas>
         <details style="width:100%;"><summary style="cursor:pointer;font-size:0.75rem;color:var(--text-dim);">ASCII grid</summary>
-          <pre style="margin-top:6px;">${stamp.grid}</pre></details>
+          <pre style="margin-top:6px;">${s.grid}</pre></details>
       </div>
       <div class="stamp-info">
-        <h4>${stamp.name}</h4>
-        <span class="theme-badge theme-${stamp.theme}">${stamp.theme}</span>
-        <div class="tile-tags">${stamp.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</div>
-        <div class="stamp-meta"><div class="meta-item"><strong>Size:</strong> ${stamp.size}</div></div>
-        <button class="edit-stamp-btn" data-stamp-idx="${i}"
-                style="margin-top:8px;padding:4px 12px;border:1px solid var(--accent);border-radius:4px;background:var(--bg-mid);color:var(--accent);cursor:pointer;font-size:0.8rem;">
-          ✏️ Edit in Tile Editor
-        </button>
+        <h4>${s.name}</h4>
+        <span class="theme-badge theme-${s.theme || 'stone'}">${s.theme || 'stone'}</span>
+        <span class="category-badge category-${cat}">${cat}</span>
+        <div class="tile-tags">${tags}</div>
+        <div class="stamp-meta"><div class="meta-item"><strong>Size:</strong> ${s.w}×${s.h}</div><div class="meta-item"><strong>Difficulty:</strong> ${s.difficulty ?? 0}</div></div>
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button class="edit-stamp-btn" data-stamp-id="${s.id}"
+                  style="padding:4px 12px;border:1px solid var(--accent);border-radius:4px;background:var(--bg-mid);color:var(--accent);cursor:pointer;font-size:0.8rem;flex:1;">
+            ✏️ Edit
+          </button>
+          <button class="delete-stamp-btn" data-stamp-id="${s.id}"
+                  style="padding:4px 12px;border:1px solid #e74c3c;border-radius:4px;background:var(--bg-mid);color:#e74c3c;cursor:pointer;font-size:0.8rem;">
+            ✕
+          </button>
+        </div>
       </div>
     </div>`;
   }).join('');
 
-  stamps.forEach((stamp, i) => renderStampCanvas(`stampCanvas_${i}`, stamp.grid));
+  list.forEach((s, i) => renderStampCanvas(`stampCanvas_${i}`, s.grid));
 
   grid.querySelectorAll<HTMLButtonElement>('.edit-stamp-btn').forEach(btn => {
     btn.onclick = () => {
-      const idx = parseInt(btn.dataset.stampIdx!);
-      const stamp = stamps[idx];
-      if (stamp) loadStampIntoEditor(stamp);
+      const id = btn.dataset.stampId!;
+      const stamp = list.find(s => s.id === id);
+      if (!stamp) return;
+      // Switch to Tile Editor tab
+      const edTab = document.querySelector<HTMLElement>('[data-view="tileeditor"]');
+      if (edTab) edTab.click();
+      // Load stamp into editor
+      const asStamp = {
+        name: stamp.name,
+        size: `${stamp.w}x${stamp.h}`,
+        tags: stamp.tags || [],
+        grid: stamp.grid,
+        difficulty: stamp.difficulty ?? 0,
+        theme: stamp.theme || 'stone',
+        category: stamp.category || 'room',
+        visualLayers: stamp.visualLayers as any,
+      };
+      loadStampIntoEditor(asStamp);
+      // Sync metadata
+      const nameEl = document.getElementById('edName') as HTMLInputElement | null;
+      if (nameEl) nameEl.value = stamp.name;
+      const tagsEl = document.getElementById('edTags') as HTMLInputElement | null;
+      if (tagsEl) tagsEl.value = (stamp.tags || []).join(', ');
+      const diffEl = document.getElementById('edDifficulty') as HTMLSelectElement | null;
+      if (diffEl) diffEl.value = String(stamp.difficulty ?? 0);
+      const themeEl = document.getElementById('edTheme') as HTMLSelectElement | null;
+      if (themeEl) themeEl.value = stamp.theme || 'stone';
+      const catEl = document.getElementById('edCategory') as HTMLSelectElement | null;
+      if (catEl) catEl.value = stamp.category || 'room';
+      // Dispatch event for PalettePanel sync
+      window.dispatchEvent(new CustomEvent('editor:stamp-loaded', {
+        detail: { w: stamp.w, h: stamp.h, name: stamp.name },
+      }));
+    };
+  });
+
+  grid.querySelectorAll<HTMLButtonElement>('.delete-stamp-btn').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.stampId!;
+      const stamp = list.find(s => s.id === id);
+      if (!stamp || !confirm(`Delete "${stamp.name}"?`)) return;
+      deleteStamp(id);
+      renderStamps();
     };
   });
 }
@@ -297,6 +368,12 @@ export function setupViewTabs(): void {
       const view = tab.dataset.view!;
       document.getElementById(`${view}View`)?.classList.add('active');
 
+      // Toggle aside content: filters vs stamp library
+      const filters = document.getElementById('asideFilters');
+      const stampLib = document.getElementById('asideStampLibrary');
+      if (filters) filters.style.display = view === 'tileeditor' ? 'none' : '';
+      if (stampLib) stampLib.style.display = view === 'tileeditor' ? '' : 'none';
+
       if (view !== 'characters') {
         activeAnimations.forEach(interval => clearInterval(interval));
         activeAnimations.clear();
@@ -304,6 +381,7 @@ export function setupViewTabs(): void {
         setTimeout(() => spriteList.forEach(s => startAnimation(s.spriteKey, 'idle')), 100);
       }
       if (view === 'autotile') initAutotileDemo();
+      if (view === 'stamps') renderStamps();
     });
   });
 }
@@ -330,7 +408,26 @@ export function setupFilters(): void {
 
   const stampSearch = document.getElementById('stampSearch') as HTMLInputElement | null;
   if (stampSearch) stampSearch.addEventListener('input', () => {
-    const q = stampSearch.value.toLowerCase();
-    renderStamps(stampData.filter(s => s.name.toLowerCase().includes(q) || s.tags.some(t => t.includes(q)) || s.theme.includes(q)));
+    stampSearchQuery = stampSearch.value.toLowerCase();
+    renderStamps();
+  });
+
+  document.querySelectorAll<HTMLElement>('#stampCategoryFilters .tag').forEach(tag => {
+    tag.addEventListener('click', () => {
+      document.querySelectorAll('#stampCategoryFilters .tag').forEach(t => t.classList.remove('active'));
+      tag.classList.add('active');
+      stampCategoryFilter = tag.dataset.filter || 'all';
+      renderStamps();
+    });
+  });
+
+  // Stamp toolbar actions
+  const stampImportBtn = document.getElementById('stampImportBtn');
+  if (stampImportBtn) stampImportBtn.addEventListener('click', () => {
+    importStampsFromFile().then(() => renderStamps());
+  });
+  const stampExportBtn = document.getElementById('stampExportBtn');
+  if (stampExportBtn) stampExportBtn.addEventListener('click', () => {
+    exportAllStamps();
   });
 }

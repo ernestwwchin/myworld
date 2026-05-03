@@ -1,6 +1,6 @@
 import { LOGIC, OBJECTS } from './data';
 import * as state from './state';
-import type { StampExport } from './types';
+import type { StampExport, ConnectorEntry } from './types';
 import { downloadJSON } from './storage';
 
 /** Build a StampExport from the current editor grid (pure data, no side effects). */
@@ -33,7 +33,7 @@ export function buildStampExport(): StampExport {
     }
   }
 
-  // Connectable edges
+  // Connectable edges (backward-compatible: only open walkable edges)
   const connectable = { north: [] as number[], south: [] as number[], west: [] as number[], east: [] as number[] };
   for (let c = 2; c < state.gridW - 2; c++) {
     if (!LOGIC[state.cells[2][c].logic].blocked) connectable.north.push(c);
@@ -42,6 +42,27 @@ export function buildStampExport(): StampExport {
   for (let r = 2; r < state.gridH - 2; r++) {
     if (!LOGIC[state.cells[r][2].logic].blocked) connectable.west.push(r);
     if (!LOGIC[state.cells[r][state.gridW - 3].logic].blocked) connectable.east.push(r);
+  }
+
+  // Connector edges (typed: open = walkable edge, doorable = blocked edge with walkable interior)
+  const connectors = {
+    north: [] as ConnectorEntry[], south: [] as ConnectorEntry[],
+    west: [] as ConnectorEntry[], east: [] as ConnectorEntry[],
+  };
+  const addConnector = (side: 'north' | 'south' | 'west' | 'east', interiorR: number, interiorC: number, edgeR: number, edgeC: number, index: number) => {
+    if (interiorR < 0 || interiorR >= state.gridH || interiorC < 0 || interiorC >= state.gridW) return;
+    if (LOGIC[state.cells[interiorR][interiorC].logic].blocked) return;
+    if (edgeR < 0 || edgeR >= state.gridH || edgeC < 0 || edgeC >= state.gridW) return;
+    const edgeBlocked = LOGIC[state.cells[edgeR][edgeC].logic].blocked;
+    connectors[side].push({ index, type: edgeBlocked ? 'doorable' : 'open' });
+  };
+  for (let c = 2; c < state.gridW - 2; c++) {
+    addConnector('north', 2, c, 0, c, c);
+    addConnector('south', state.gridH - 3, c, state.gridH - 1, c, c);
+  }
+  for (let r = 2; r < state.gridH - 2; r++) {
+    addConnector('west', r, 2, r, 0, r);
+    addConnector('east', r, state.gridW - 3, r, state.gridW - 1, r);
   }
 
   // Collect objects
@@ -80,6 +101,7 @@ export function buildStampExport(): StampExport {
     grid: ascii,
     bspGrid,
     connectable,
+    connectors,
     spawns: spawns.length > 0 ? spawns : undefined,
     stairs: stairsPos ?? undefined,
     objects: objects.length > 0 ? objects : undefined,

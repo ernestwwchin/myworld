@@ -1,6 +1,19 @@
 import type { SavedStamp, StampExport } from './types';
 
 const STORAGE_KEY = 'editor_stamps';
+const VERSION_KEY = 'editor_stamps_version';
+export const STAMP_VERSION = 4;  // Bump to force re-seed
+
+// ── Version check — returns true if stamps need re-seed ──
+
+export function needsReseed(): boolean {
+  const stored = localStorage.getItem(VERSION_KEY);
+  return !stored || parseInt(stored, 10) < STAMP_VERSION;
+}
+
+export function setStampVersion(): void {
+  localStorage.setItem(VERSION_KEY, String(STAMP_VERSION));
+}
 
 // ── Read all saved stamps ──
 
@@ -40,6 +53,12 @@ export function deleteStamp(id: string): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
 }
 
+// ── Delete all stamps ──
+
+export function clearAllStamps(): void {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
 // ── Generate a unique id ──
 
 export function newStampId(): string {
@@ -50,7 +69,7 @@ export function newStampId(): string {
 
 export function exportToSaved(
   data: StampExport,
-  meta?: { id?: string; tags?: string[]; difficulty?: number; theme?: string },
+  meta?: { id?: string; tags?: string[]; difficulty?: number; theme?: string; category?: string },
 ): SavedStamp {
   const now = Date.now();
   return {
@@ -59,6 +78,7 @@ export function exportToSaved(
     tags: meta?.tags || [],
     difficulty: meta?.difficulty ?? 0,
     theme: meta?.theme || 'stone',
+    category: (meta?.category as SavedStamp['category']) || 'room',
     createdAt: now,
     updatedAt: now,
   };

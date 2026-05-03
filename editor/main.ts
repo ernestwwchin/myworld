@@ -39,4 +39,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     observer.observe(panel, { attributes: true, attributeFilter: ['class'] });
   }
+
+  // Wire "Browse Stamps" button in aside to switch to stamps tab
+  const browseBtn = document.getElementById('asideBrowseStamps');
+  if (browseBtn) {
+    browseBtn.addEventListener('click', () => {
+      const stampsTab = document.querySelector<HTMLElement>('[data-view="stamps"]');
+      if (stampsTab) stampsTab.click();
+    });
+  }
+
+  // Update aside current stamp indicator when a stamp is loaded
+  window.addEventListener('editor:stamp-loaded', (e: Event) => {
+    const detail = (e as CustomEvent).detail;
+    const el = document.getElementById('asideCurrentStamp');
+    if (el && detail) {
+      el.textContent = `${detail.name || 'Untitled'} (${detail.w}×${detail.h})`;
+    }
+  });
 });

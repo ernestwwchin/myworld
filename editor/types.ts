@@ -1,3 +1,18 @@
+// ── Tool & Layer types ──
+
+export type ToolType = 'brush' | 'eraser' | 'fill' | 'rectangle' | 'select';
+export type LayerType = 'ground' | 'structure' | 'decoration' | 'objects' | 'logic';
+
+export interface LayerState {
+  id: LayerType;
+  label: string;
+  visible: boolean;
+  opacity: number;         // 0–1
+  locked: boolean;         // logic layer: visibility locked on
+}
+
+// ── Cell types ──
+
 /** Visual layers for a single cell */
 export interface CellVisuals {
   ground: string | null;
@@ -12,7 +27,14 @@ export interface Cell {
   visuals: CellVisuals;
 }
 
-export type LogicType = 'walkable' | 'blocked' | 'void' | 'doorable';
+export type LogicType = 'walkable' | 'blocked' | 'void';
+
+/** Auto-detected connector edge entry for stamp export */
+export type ConnectorType = 'open' | 'doorable';
+export interface ConnectorEntry {
+  index: number;
+  type: ConnectorType;
+}
 export type VisualLayer = 'ground' | 'structure' | 'decoration';
 export type ObjectType = 'door' | 'chest' | 'trap' | 'column' | 'crate' | 'stairs' | 'shrine' | 'enemy_spawn';
 
@@ -30,6 +52,43 @@ export interface ObjectDef {
   ascii: string;
 }
 
+// ── Selection & clipboard ──
+
+export interface SelectionRect {
+  startR: number;
+  startC: number;
+  endR: number;
+  endC: number;
+}
+
+export interface Clipboard {
+  cells: Cell[][];
+  w: number;
+  h: number;
+}
+
+// ── Undo/Redo ──
+
+export interface HistorySnapshot {
+  cells: Cell[][];
+  gridW: number;
+  gridH: number;
+}
+
+// ── Connection point override ──
+
+export type ConnectionSide = 'north' | 'south' | 'west' | 'east';
+
+export interface ConnectOverride {
+  side: ConnectionSide;
+  index: number;       // position along the edge
+  forced: boolean;     // true = force on, false = force off
+}
+
+// ── Stamp types ──
+
+export type StampCategory = 'room' | 'corridor' | 'door';
+
 export interface Stamp {
   name: string;
   size: string;
@@ -37,6 +96,7 @@ export interface Stamp {
   grid: string;
   difficulty: number;
   theme: string;
+  category?: StampCategory;
   visualLayers?: Record<string, Partial<CellVisuals>>;
 }
 
@@ -47,6 +107,7 @@ export interface StampExport {
   grid: string;
   bspGrid: number[][];
   connectable: { north: number[]; south: number[]; west: number[]; east: number[] };
+  connectors?: { north: ConnectorEntry[]; south: ConnectorEntry[]; west: ConnectorEntry[]; east: ConnectorEntry[] };
   spawns?: { x: number; y: number }[];
   stairs?: { x: number; y: number };
   objects?: { type: string; x: number; y: number }[];
@@ -59,9 +120,12 @@ export interface SavedStamp extends StampExport {
   tags: string[];
   difficulty: number;
   theme: string;
+  category: StampCategory;
   createdAt: number;
   updatedAt: number;
 }
+
+// ── Catalog types ──
 
 /** Tile catalog entry from tiles.json */
 export interface TileDef {

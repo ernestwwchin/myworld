@@ -6,10 +6,9 @@ export const CELL_SIZE = 32;
 // ── Logic types — what BSP cares about ──
 
 export const LOGIC: Record<LogicType, LogicDef> = {
-  walkable: { bsp: 0, color: '#2d6e3f', label: '·', blocked: false },
-  blocked:  { bsp: 1, color: '#c0392b', label: '#', blocked: true },
+  walkable: { bsp: 0, color: '#22c55e', label: '·', blocked: false },
+  blocked:  { bsp: 1, color: '#ef4444', label: '#', blocked: true },
   void:     { bsp: 1, color: '#1a1d24', label: ' ', blocked: true },
-  doorable: { bsp: 1, color: '#2980b9', label: 'D', blocked: true },
 };
 
 // ── Object types — gameplay content placed on cells ──

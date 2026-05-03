@@ -17,15 +17,14 @@ export async function renderAll(): Promise<void> {
     }
   }
   await preloadAll(needed);
-  renderTileView();
-  renderLogicView();
+  renderCanvas();
   updateSelectedInfo();
 }
 
-// ── Tile view (visual) ──
+// ── Single composited canvas ──
 
-function renderTileView(): void {
-  const canvas = document.getElementById('edTileCanvas') as HTMLCanvasElement | null;
+export function renderCanvas(): void {
+  const canvas = document.getElementById('edCanvas') as HTMLCanvasElement | null;
   if (!canvas) return;
   const ctx = canvas.getContext('2d')!;
   const S = CELL_SIZE;
@@ -33,46 +32,83 @@ function renderTileView(): void {
   canvas.height = state.gridH * S;
   ctx.imageSmoothingEnabled = false;
 
+  const groundLayer = state.getLayer('ground');
+  const structureLayer = state.getLayer('structure');
+  const decorationLayer = state.getLayer('decoration');
+  const objectsLayer = state.getLayer('objects');
+  const logicLayer = state.getLayer('logic');
+
   for (let r = 0; r < state.gridH; r++) {
     for (let c = 0; c < state.gridW; c++) {
       const cell = state.cells[r][c];
 
+      // Background fill
       ctx.fillStyle = '#1a1d24';
       ctx.fillRect(c * S, r * S, S, S);
 
-      // Draw 3 visual sub-layers in order
-      for (const layer of ['ground', 'structure', 'decoration'] as const) {
-        const tileName = cell.visuals[layer];
-        if (tileName) {
-          const img = getCachedImg(tileName);
+      // Layer 1: Ground
+      if (groundLayer?.visible && cell.visuals.ground) {
+        ctx.globalAlpha = groundLayer.opacity;
+        const img = getCachedImg(cell.visuals.ground);
+        if (img) ctx.drawImage(img, c * S, r * S, S, S);
+        ctx.globalAlpha = 1;
+      }
+
+      // Layer 2: Structure
+      if (structureLayer?.visible && cell.visuals.structure) {
+        ctx.globalAlpha = structureLayer.opacity;
+        const img = getCachedImg(cell.visuals.structure);
+        if (img) ctx.drawImage(img, c * S, r * S, S, S);
+        ctx.globalAlpha = 1;
+      }
+
+      // Layer 3: Decoration
+      if (decorationLayer?.visible && cell.visuals.decoration) {
+        ctx.globalAlpha = decorationLayer.opacity;
+        const img = getCachedImg(cell.visuals.decoration);
+        if (img) ctx.drawImage(img, c * S, r * S, S, S);
+        ctx.globalAlpha = 1;
+      }
+
+      // Layer 4: Objects
+      if (objectsLayer?.visible && cell.object) {
+        ctx.globalAlpha = objectsLayer.opacity;
+
+        const objSprite = state.resolveObjSprite(r, c);
+        if (objSprite) {
+          const img = getCachedImg(objSprite);
           if (img) ctx.drawImage(img, c * S, r * S, S, S);
         }
+
+        // Markers for objects without sprites
+        if (cell.object === 'enemy_spawn') {
+          ctx.fillStyle = 'rgba(239,68,68,0.6)';
+          ctx.beginPath();
+          ctx.moveTo(c * S + S / 2, r * S + 4);
+          ctx.lineTo(c * S + S - 4, r * S + S / 2);
+          ctx.lineTo(c * S + S / 2, r * S + S - 4);
+          ctx.lineTo(c * S + 4, r * S + S / 2);
+          ctx.closePath();
+          ctx.fill();
+        }
+        if (cell.object === 'stairs') {
+          ctx.fillStyle = 'rgba(224,86,160,0.7)';
+          ctx.font = 'bold 18px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('>', c * S + S / 2, r * S + S / 2);
+        }
+
+        ctx.globalAlpha = 1;
       }
 
-      // Object sprite on top
-      const objSprite = state.resolveObjSprite(r, c);
-      if (objSprite) {
-        const img = getCachedImg(objSprite);
-        if (img) ctx.drawImage(img, c * S, r * S, S, S);
-      }
-
-      // Markers for objects without sprites
-      if (cell.object === 'enemy_spawn') {
-        ctx.fillStyle = 'rgba(239,68,68,0.6)';
-        ctx.beginPath();
-        ctx.moveTo(c * S + S / 2, r * S + 4);
-        ctx.lineTo(c * S + S - 4, r * S + S / 2);
-        ctx.lineTo(c * S + S / 2, r * S + S - 4);
-        ctx.lineTo(c * S + 4, r * S + S / 2);
-        ctx.closePath();
-        ctx.fill();
-      }
-      if (cell.object === 'stairs') {
-        ctx.fillStyle = 'rgba(224,86,160,0.7)';
-        ctx.font = 'bold 18px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('>', c * S + S / 2, r * S + S / 2);
+      // Layer 5: Logic overlay (always rendered, opacity adjustable)
+      if (logicLayer?.visible && logicLayer.opacity > 0) {
+        const lDef = LOGIC[cell.logic];
+        ctx.globalAlpha = logicLayer.opacity;
+        ctx.fillStyle = lDef.color;
+        ctx.fillRect(c * S, r * S, S, S);
+        ctx.globalAlpha = 1;
       }
 
       // Subtle grid
@@ -80,69 +116,159 @@ function renderTileView(): void {
       ctx.strokeRect(c * S, r * S, S, S);
     }
   }
+
+  // Connection point indicators (only when logic layer is visible)
+  const logicVis = state.getLayer('logic');
+  if (logicVis?.visible && logicVis.opacity > 0) {
+    drawConnectionPoints(ctx);
+  }
+
+  // Rectangle tool preview
+  drawRectPreview(ctx);
+
+  // Selection box
   drawSelection(ctx);
 }
 
-// ── Logic view ──
+// ── Connector edge indicators ──
+// Green = open connector (edge walkable, corridor attaches directly)
+// Blue = doorable connector (edge blocked, generator breaks wall + places door)
 
-const SYMBOLS: Record<string, { sym: string; fg: string; size: number }> = {
-  walkable: { sym: '·', fg: '#4ade80', size: 22 },
-  blocked:  { sym: '█', fg: '#ff6b6b', size: 20 },
-  void:     { sym: ' ', fg: '#555', size: 20 },
-  doorable: { sym: 'D', fg: '#60a5fa', size: 18 },
-};
-
-function renderLogicView(): void {
-  const canvas = document.getElementById('edLogicCanvas') as HTMLCanvasElement | null;
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d')!;
+function drawConnectionPoints(ctx: CanvasRenderingContext2D): void {
   const S = CELL_SIZE;
-  canvas.width = state.gridW * S;
-  canvas.height = state.gridH * S;
-  ctx.imageSmoothingEnabled = false;
 
-  for (let r = 0; r < state.gridH; r++) {
-    for (let c = 0; c < state.gridW; c++) {
-      const cell = state.cells[r][c];
-      const lDef = LOGIC[cell.logic];
-      const sym = SYMBOLS[cell.logic] ?? SYMBOLS.walkable;
+  const drawIndicator = (r: number, c: number, color: string) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(c * S + 2, r * S + 2, S - 4, S - 4);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(c * S + 1, r * S + 1, S - 2, S - 2);
+    ctx.lineWidth = 1;
+  };
 
-      ctx.fillStyle = lDef.color;
-      ctx.fillRect(c * S, r * S, S, S);
-      ctx.fillStyle = 'rgba(0,0,0,0.15)';
-      ctx.fillRect(c * S, r * S, S, S);
+  type EdgeEntry = { index: number; type: 'open' | 'doorable' };
 
-      // Big symbol
-      ctx.fillStyle = sym.fg;
-      ctx.font = `bold ${sym.size}px monospace`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(sym.sym, c * S + S / 2, r * S + S / 2 - (cell.object ? 4 : 0));
-
-      // Object icon below (yellow, smaller)
-      if (cell.object) {
-        ctx.font = 'bold 14px monospace';
-        ctx.fillStyle = '#fbbf24';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText(OBJECTS[cell.object].icon, c * S + S / 2, r * S + S - 2);
-      }
-
-      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-      ctx.strokeRect(c * S, r * S, S, S);
+  const collectEdge = (
+    interiorR: (i: number) => number, interiorC: (i: number) => number,
+    edgeR: (i: number) => number, edgeC: (i: number) => number,
+    count: number, start: number,
+  ): EdgeEntry[] => {
+    const entries: EdgeEntry[] = [];
+    for (let i = start; i < count - 2; i++) {
+      const ir = interiorR(i), ic = interiorC(i);
+      if (ir < 0 || ir >= state.gridH || ic < 0 || ic >= state.gridW) continue;
+      if (LOGIC[state.cells[ir][ic].logic].blocked) continue;
+      // Interior is walkable — check edge cell
+      const er = edgeR(i), ec = edgeC(i);
+      if (er < 0 || er >= state.gridH || ec < 0 || ec >= state.gridW) continue;
+      const edgeBlocked = LOGIC[state.cells[er][ec].logic].blocked;
+      entries.push({ index: i, type: edgeBlocked ? 'doorable' : 'open' });
     }
-  }
-  drawSelection(ctx);
+    return entries;
+  };
+
+  const renderEdge = (entries: EdgeEntry[], side: string) => {
+    // Group into runs of same type
+    const runs: { type: 'open' | 'doorable'; indices: number[] }[] = [];
+    let current: { type: 'open' | 'doorable'; indices: number[] } | null = null;
+    for (const e of entries) {
+      if (current && current.type === e.type && e.index === current.indices[current.indices.length - 1] + 1) {
+        current.indices.push(e.index);
+      } else {
+        if (current) runs.push(current);
+        current = { type: e.type, indices: [e.index] };
+      }
+    }
+    if (current) runs.push(current);
+
+    for (const run of runs) {
+      const bright = run.indices.length >= 3;
+      const alpha = bright ? 0.6 : 0.35;
+      const color = run.type === 'open'
+        ? `rgba(34,197,94,${alpha})`    // green
+        : `rgba(56,189,248,${alpha})`;  // blue
+      for (const pos of run.indices) {
+        const override = state.connectOverrides.find(o => o.side === side && o.index === pos);
+        if (override !== undefined) {
+          if (override.forced) drawIndicator(
+            side === 'north' ? 0 : side === 'south' ? state.gridH - 1 : pos,
+            side === 'west' ? 0 : side === 'east' ? state.gridW - 1 : pos,
+            'rgba(34,197,94,0.7)'
+          );
+          continue;
+        }
+        if (side === 'north') drawIndicator(0, pos, color);
+        else if (side === 'south') drawIndicator(state.gridH - 1, pos, color);
+        else if (side === 'west') drawIndicator(pos, 0, color);
+        else if (side === 'east') drawIndicator(pos, state.gridW - 1, color);
+      }
+    }
+  };
+
+  // North: interior=row 2, edge=row 0
+  renderEdge(collectEdge(
+    () => 2, (i) => i, () => 0, (i) => i, state.gridW, 2,
+  ), 'north');
+
+  // South: interior=row gridH-3, edge=row gridH-1
+  renderEdge(collectEdge(
+    () => state.gridH - 3, (i) => i, () => state.gridH - 1, (i) => i, state.gridW, 2,
+  ), 'south');
+
+  // West: interior=col 2, edge=col 0
+  renderEdge(collectEdge(
+    (i) => i, () => 2, (i) => i, () => 0, state.gridH, 2,
+  ), 'west');
+
+  // East: interior=col gridW-3, edge=col gridW-1
+  renderEdge(collectEdge(
+    (i) => i, () => state.gridW - 3, (i) => i, () => state.gridW - 1, state.gridH, 2,
+  ), 'east');
+}
+
+// ── Rectangle tool preview ──
+
+function drawRectPreview(ctx: CanvasRenderingContext2D): void {
+  if (!state.rectPreview) return;
+  const S = CELL_SIZE;
+  const { startR, startC, endR, endC } = state.rectPreview;
+  const minR = Math.min(startR, endR);
+  const maxR = Math.max(startR, endR);
+  const minC = Math.min(startC, endC);
+  const maxC = Math.max(startC, endC);
+  ctx.strokeStyle = '#f0c060';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+  ctx.strokeRect(minC * S, minR * S, (maxC - minC + 1) * S, (maxR - minR + 1) * S);
+  ctx.setLineDash([]);
+  ctx.lineWidth = 1;
 }
 
 // ── Selection highlight ──
 
 function drawSelection(ctx: CanvasRenderingContext2D): void {
-  if (!state.selectedCell) return;
-  const S = CELL_SIZE;
-  ctx.strokeStyle = '#f0c060';
-  ctx.lineWidth = 3;
-  ctx.strokeRect(state.selectedCell.c * S + 1, state.selectedCell.r * S + 1, S - 2, S - 2);
-  ctx.lineWidth = 1;
+  if (state.selectedCell) {
+    const S = CELL_SIZE;
+    ctx.strokeStyle = '#f0c060';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(state.selectedCell.c * S + 1, state.selectedCell.r * S + 1, S - 2, S - 2);
+    ctx.lineWidth = 1;
+  }
+
+  if (state.selection) {
+    const S = CELL_SIZE;
+    const { startR, startC, endR, endC } = state.selection;
+    const minR = Math.min(startR, endR);
+    const maxR = Math.max(startR, endR);
+    const minC = Math.min(startC, endC);
+    const maxC = Math.max(startC, endC);
+    ctx.strokeStyle = '#60a5fa';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 3]);
+    ctx.strokeRect(minC * S, minR * S, (maxC - minC + 1) * S, (maxR - minR + 1) * S);
+    ctx.setLineDash([]);
+    ctx.lineWidth = 1;
+  }
 }
 
 // ── Selected cell info panel ──

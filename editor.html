@@ -19,52 +19,63 @@
     </header>
 
     <aside>
-      <h2>Filters</h2>
-      <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:10px;">
-        <span id="tileCount">Loading...</span>
-      </div>
-      <input type="text" class="search-box" id="searchBox" placeholder="Search tiles...">
+      <div id="asideFilters">
+        <h2>Filters</h2>
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:10px;">
+          <span id="tileCount">Loading...</span>
+        </div>
+        <input type="text" class="search-box" id="searchBox" placeholder="Search tiles...">
 
-      <div class="filter-group">
-        <label class="filter-label">Category</label>
-        <div class="filter-tags" id="categoryFilters">
-          <span class="tag active" data-filter="all">All</span>
-          <span class="tag" data-filter="floor">Floor</span>
-          <span class="tag" data-filter="wall">Wall</span>
-          <span class="tag" data-filter="door">Door</span>
-          <span class="tag" data-filter="container">Container</span>
-          <span class="tag" data-filter="prop">Props</span>
-          <span class="tag" data-filter="switch">Switches</span>
-          <span class="tag" data-filter="consumable">Consumables</span>
-          <span class="tag" data-filter="weapon">Weapons</span>
-          <span class="tag" data-filter="ui">UI</span>
+        <div class="filter-group">
+          <label class="filter-label">Category</label>
+          <div class="filter-tags" id="categoryFilters">
+            <span class="tag active" data-filter="all">All</span>
+            <span class="tag" data-filter="floor">Floor</span>
+            <span class="tag" data-filter="wall">Wall</span>
+            <span class="tag" data-filter="door">Door</span>
+            <span class="tag" data-filter="container">Container</span>
+            <span class="tag" data-filter="prop">Props</span>
+            <span class="tag" data-filter="switch">Switches</span>
+            <span class="tag" data-filter="consumable">Consumables</span>
+            <span class="tag" data-filter="weapon">Weapons</span>
+            <span class="tag" data-filter="ui">UI</span>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Map Role</label>
+          <div class="filter-tags" id="mapRoleFilters">
+            <span class="tag" data-filter="ground">Ground</span>
+            <span class="tag" data-filter="wall-face">Wall Face</span>
+            <span class="tag" data-filter="wall-top">Wall Top</span>
+            <span class="tag" data-filter="wall-edge">Wall Edge</span>
+            <span class="tag" data-filter="wall-decoration">Wall Deco</span>
+            <span class="tag" data-filter="door">Door</span>
+            <span class="tag" data-filter="pickup">Pickup</span>
+            <span class="tag" data-filter="hazard">Hazard</span>
+            <span class="tag" data-filter="pillar">Pillar</span>
+            <span class="tag" data-filter="transition">Transition</span>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Properties</label>
+          <div class="filter-tags" id="propFilters">
+            <span class="tag" data-filter="walkable">Walkable</span>
+            <span class="tag" data-filter="solid">Solid</span>
+            <span class="tag" data-filter="interactive">Interactive</span>
+            <span class="tag" data-filter="decoration">Decoration</span>
+            <span class="tag" data-filter="hazard">Hazard</span>
+          </div>
         </div>
       </div>
-
-      <div class="filter-group">
-        <label class="filter-label">Map Role</label>
-        <div class="filter-tags" id="mapRoleFilters">
-          <span class="tag" data-filter="ground">Ground</span>
-          <span class="tag" data-filter="wall-face">Wall Face</span>
-          <span class="tag" data-filter="wall-top">Wall Top</span>
-          <span class="tag" data-filter="wall-edge">Wall Edge</span>
-          <span class="tag" data-filter="wall-decoration">Wall Deco</span>
-          <span class="tag" data-filter="door">Door</span>
-          <span class="tag" data-filter="pickup">Pickup</span>
-          <span class="tag" data-filter="hazard">Hazard</span>
-          <span class="tag" data-filter="pillar">Pillar</span>
-          <span class="tag" data-filter="transition">Transition</span>
-        </div>
-      </div>
-
-      <div class="filter-group">
-        <label class="filter-label">Properties</label>
-        <div class="filter-tags" id="propFilters">
-          <span class="tag" data-filter="walkable">Walkable</span>
-          <span class="tag" data-filter="solid">Solid</span>
-          <span class="tag" data-filter="interactive">Interactive</span>
-          <span class="tag" data-filter="decoration">Decoration</span>
-          <span class="tag" data-filter="hazard">Hazard</span>
+      <div id="asideStampLibrary" style="display:none">
+        <h2 style="color:var(--accent);font-size:1rem;margin-bottom:10px;">Current Stamp</h2>
+        <div id="asideCurrentStamp" style="font-size:0.85rem;color:var(--text-dim);">No stamp loaded</div>
+        <div style="margin-top:12px;">
+          <button id="asideBrowseStamps" style="width:100%;padding:8px;border:1px solid var(--accent);border-radius:4px;background:var(--bg-mid);color:var(--accent);cursor:pointer;font-size:0.85rem;">
+            📋 Browse Stamps
+          </button>
         </div>
       </div>
     </aside>
@@ -112,28 +123,24 @@
       <!-- Stamps View -->
       <div id="stampsView" class="view-panel">
         <div style="background:var(--bg-mid);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:20px;">
-          <h3 style="color:var(--accent);margin-bottom:15px;">Tile Legend</h3>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;font-size:0.9rem;">
-            <div><code style="color:var(--accent);">#</code> = Wall</div>
-            <div><code style="color:var(--accent);">.</code> = Floor</div>
-            <div><code style="color:var(--accent);">P</code> = Pillar/Column</div>
-            <div><code style="color:var(--accent);">C</code> = Chest</div>
-            <div><code style="color:var(--accent);">@</code> = Enemy Spawn</div>
-            <div><code style="color:var(--accent);">T</code> = Trap</div>
-            <div><code style="color:var(--accent);">S</code> = Shrine/Altar</div>
-            <div><code style="color:var(--accent);">W</code> = Water</div>
-            <div><code style="color:var(--accent);">~</code> = Pit/Hole</div>
-            <div><code style="color:var(--accent);">G</code> = Grass</div>
-            <div><code style="color:var(--accent);">B</code> = Box/Crate</div>
-            <div><code style="color:var(--accent);">D</code> = Door</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h3 style="color:var(--accent);margin:0;">Stamp Browser</h3>
+            <div style="display:flex;gap:6px;">
+              <button id="stampImportBtn" style="padding:4px 12px;border:1px solid var(--border);border-radius:4px;background:var(--bg-dark);color:var(--text);cursor:pointer;font-size:0.8rem;">Import .json</button>
+              <button id="stampExportBtn" style="padding:4px 12px;border:1px solid var(--border);border-radius:4px;background:var(--bg-dark);color:var(--text);cursor:pointer;font-size:0.8rem;">Export All</button>
+            </div>
           </div>
-          <div style="margin-top:15px;padding-top:15px;border-top:1px solid var(--border);">
-            <input type="text" id="stampSearch" placeholder="Search stamps..."
-                   style="width:100%;padding:8px;background:var(--bg-dark);border:1px solid var(--border);color:var(--text);border-radius:4px;">
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;" id="stampCategoryFilters">
+            <span class="tag active" data-filter="all">All</span>
+            <span class="tag" data-filter="room">Room</span>
+            <span class="tag" data-filter="corridor">Corridor</span>
+            <span class="tag" data-filter="door">Door</span>
           </div>
+          <input type="text" id="stampSearch" placeholder="Search stamps by name, tag, or theme..."
+                 style="width:100%;padding:8px;background:var(--bg-dark);border:1px solid var(--border);color:var(--text);border-radius:4px;">
         </div>
         <div style="margin-bottom:15px;color:var(--text-dim);font-size:0.9rem;">
-          <span id="stampCount">35+ room stamps</span>
+          <span id="stampCount">0 stamps</span>
         </div>
         <div class="stamp-grid" id="stampGrid"></div>
       </div>

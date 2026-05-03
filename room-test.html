@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Room Generator Test</title>
+<style>
+  body { background:#222034; color:#eee; font-family:monospace; margin:20px; }
+  h2 { color:#60a5fa; border-bottom:1px solid #333; padding-bottom:4px; }
+  h3 { color:#f59e0b; }
+  p.note { color:#888; font-size:12px; margin:4px 0 8px; }
+  .room-grid { display:inline-grid; gap:0; margin:8px 0 24px; border:2px solid #444; }
+  .room-grid .cell { position:relative; width:64px; height:64px; overflow:visible; }
+  .room-grid .cell .coord {
+    position:absolute; top:1px; left:2px; font-size:9px;
+    color:rgba(255,255,255,0.35); z-index:5; pointer-events:none;
+  }
+  .room-grid .cell .floor-id {
+    position:absolute; bottom:1px; right:2px; font-size:8px;
+    color:rgba(100,255,100,0.6); z-index:5; pointer-events:none;
+  }
+  .room-grid .cell canvas { position:absolute; image-rendering:pixelated; }
+</style>
+</head>
+<body>
+
+<h2>Room Generator Test</h2>
+<p class="note">Autotile wall picker with void-fill + brick-variant support. Floor layers: plain / dirt-overlay / half-floor.</p>
+
+<h3>Debug: Half-floor tiles rendered standalone (no wall overlay)</h3>
+<p class="note">Each tile drawn at 4× scale directly from atlas. Compare these to what appears in the room below.</p>
+<div id="debug-tiles" style="display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 24px;"></div>
+
+<h3>1. Simple room (dungeon)</h3>
+<div class="room-grid" id="room-simple"></div>
+
+<h3>2. Two rooms — 2-wide corridor</h3>
+<div class="room-grid" id="room-corridor"></div>
+
+<h3>3. Simple room — bloody theme</h3>
+<div class="room-grid" id="room-bloody"></div>
+
+<h3>4. Edge room — walls at grid boundary</h3>
+<p class="note">Walls along row 0 / col 0 → void tiles fill the OOB side black.</p>
+<div class="room-grid" id="room-edge"></div>
+
+<h3>5. L-shaped room</h3>
+<p class="note">Inner corners, T-junctions, varied connectivity.</p>
+<div class="room-grid" id="room-lshape"></div>
+
+<h3>6. 1-wide corridor maze</h3>
+<p class="note">All 16 connectivity combos, dead-ends, crossings.</p>
+<div class="room-grid" id="room-maze"></div>
+
+<h3>7. Large room — brick variant showcase</h3>
+<p class="note">Big perimeter → ~20% of wall tiles randomly use brick variants. Interior pillars.</p>
+<div class="room-grid" id="room-large"></div>
+
+<hr>
+<h3>8. Simple room (sewer)</h3>
+<div class="room-grid" id="room-sewer"></div>
+
+<h3>9. Sewer corridor</h3>
+<div class="room-grid" id="room-sewer-corridor"></div>
+
+<h3>10. Sewer edge room</h3>
+<div class="room-grid" id="room-sewer-edge"></div>
+
+<h3>11. Sewer L-shape</h3>
+<div class="room-grid" id="room-sewer-lshape"></div>
+
+<script>
+// ── Config ──
+const TILESETS = {
+  dungeon: {
+    wall:  '/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_v1.7/atlas_walls_high-16x32.png',
+    floor: '/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_v1.7/atlas_floor-16x16.png',
+  },
+  sewer: {
+    wall:  '/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_sewers_v0.3/atlas_walls_high-16x32.png',
+    floor: '/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_sewers_v0.3/floor.png',
+  },
+};
+const SCALE = 4, CELL = 16 * SCALE; // 64px
+
+// ── Helpers ──
+function at(grid, r, c) {
+  if (r < 0 || r >= grid.length || c < 0 || c >= grid[0].length) return 'void';
+  return grid[r][c];
+}
+
+function tileHash(r, c, mod) {
+  let h = (r * 2654435761 ^ c * 2246822519) >>> 0;
+  h = ((h >> 16) ^ h) * 0x45d9f3b >>> 0;
+  h = ((h >> 16) ^ h) >>> 0;
+  return h % mod;
+}
+
+// ── Base autotile: 4-bit connectivity → [col, row] in Set A ──
+function getWallTile(grid, r, c) {
+  const isWall = (r2, c2) =>
+    r2 >= 0 && r2 < grid.length && c2 >= 0 && c2 < grid[0].length && grid[r2][c2] === 'wall';
+  const N = isWall(r - 1, c), S = isWall(r + 1, c);
+  const E = isWall(r, c + 1), W = isWall(r, c - 1);
+  const row = (!N && S) ? 0 : (N && S) ? 1 : (N && !S) ? 2 : 3;
+  const col = (!E && !W) ? 0 : (E && !W) ? 1 : (E && W) ? 2 : 3;
+  return [col, row];
+}
+
+// ── Void tile lookup ──
+// NOT used in normal autotile — these are special-purpose tiles for:
+// pools, hidden rooms, pits, map-boundary fills, etc.
+// Key = base Set-A 'col,row'. Value = { voidFlags: [[atlasC, atlasR], ...] }
+// Flags: L = west is void, R = east is void, S = south is void
+// Kept here as reference for manual placement features.
+const DUNGEON_VOID = {
+  '3,1': { R:[[5,0]],  L:[[7,1]] },
+  '1,1': { L:[[6,0]],  R:[[4,1]] },
+  '3,2': { R:[[5,1]], RS:[[5,1]] },
+  '1,2': { L:[[6,1]], LS:[[6,1]] },
+  '3,0': { R:[[5,2]],  L:[[11,0]] },
+  '1,0': { R:[[8,0]],  L:[[6,2]] },
+  '2,1': { L:[[4,3],[9,1]], R:[[7,3],[10,2]] },
+  '0,1': { R:[[8,1]],  L:[[11,2]] },
+  '2,2': { LRS:[[9,0]] },
+  '2,3': { LRS:[[10,0]] },
+};
+const SEWER_VOID = {
+  '2,0': { R:[[5,0]],  L:[[6,0]] },
+  '1,1': { R:[[4,1]] },
+  '3,2': { LRS:[[5,1]] },
+  '1,2': { LRS:[[6,1]] },
+  '3,1': { L:[[7,1]] },
+  '3,0': { R:[[5,2]],  L:[[11,0]] },
+  '1,0': { R:[[8,0]],  L:[[6,2]] },
+  '2,1': { L:[[4,3],[9,1]], R:[[7,3],[10,2]] },
+  '0,1': { R:[[8,1]],  L:[[11,2]] },
+  '2,2': { LRS:[[9,0]] },
+  '2,3': { LRS:[[10,0]] },
+};
+
+// ── Brick variant lookup ──
+// ~20% random swap for visual variety
+const DUNGEON_BRICK = {
+  '2,1': [[4,0],[7,0]],
+  '1,1': [[4,2]],
+  '3,1': [[7,2]],
+  '2,2': [[6,3]],
+  '1,2': [[8,3]],
+  '2,3': [[9,3]],
+  '2,0': [[10,3]],
+  '3,2': [[11,3]],
+};
+const SEWER_BRICK = {
+  '2,1': [[4,0],[7,0]],
+  '1,1': [[4,2]],
+  '3,1': [[7,2]],
+  '2,2': [[5,3],[6,3]],
+};
+
+// ── Enhanced wall tile picker ──
+// Only adds brick-variant variety (~20%). Void tiles are NOT auto-selected;
+// they're special-purpose (pools, hidden rooms, pits) and placed manually.
+function getWallTileEx(grid, r, c, tileset) {
+  const [baseCol, baseRow] = getWallTile(grid, r, c);
+  const key = baseCol + ',' + baseRow;
+
+  const brickMap = tileset === 'sewer' ? SEWER_BRICK : DUNGEON_BRICK;
+
+  // Brick variant ~20%
+  if (brickMap[key] && tileHash(r, c, 5) === 0) {
+    const opts = brickMap[key];
+    return opts[tileHash(r + 7, c + 13, opts.length)];
+  }
+
+  return [baseCol, baseRow];
+}
+
+// ── Floor maps per tileset ──
+const FLOOR_MAPS = {
+  dungeon: {
+    hasOverlays: true,
+    plain: [[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[1,0],[2,0]],
+    topDirtOverlay: [[4,0],[5,0]],
+    topDirtLessLeftOvl:  [3,0],
+    topDirtLessRightOvl: [6,0],
+    bottomDirtOverlay:   [6,3],
+    halfDirtTopL: [4,6], halfDirtTopR: [5,6],
+    halfTopL: [4,2], halfTopR: [5,2],
+    halfMidL: [4,3], halfMidR: [5,3],
+    halfBotL: [4,4], halfBotR: [5,4],
+    halfCleanL: [4,5], halfCleanR: [5,5],
+  },
+  sewer: {
+    hasOverlays: false,
+    noHalfFloor: true, // sewer atlas has no half-floor tiles — use plain floor
+    // Cols 0-5 row 0: plain floor variants. Only [0,0] — others look like traps.
+    plain: [[0,0]],
+    // Row 3 cols 1-2: full-width top dirt (dark top edge, floor bottom)
+    // [0,3] and [3,3] are "less" variants — excluded from main array
+    topDirtBaked:          [[1,3],[2,3]],
+    topDirtLessLeftBaked:  [0,3],  // top dirt, less on left (wall opens west)
+    topDirtLessRightBaked: [3,3],  // top dirt, less on right (wall opens east)
+    // Row 2 cols 0-3: dark bottom edge — floor next to south wall (unused for now)
+    bottomDirtBaked:       [[1,2],[2,2]],
+    bottomDirtLessLeftBaked:  [0,2],  // bottom dirt, less on left
+    bottomDirtLessRightBaked: [3,2],  // bottom dirt, less on right
+    // Row 1 cols 0-3: left/right dirt (dark edge on one side)
+    leftDirtBaked:  [[0,1],[2,1]],  // dark left edge — wall to west
+    rightDirtBaked: [[1,1],[3,1]],  // dark right edge — wall to east
+    // No native half-floor tiles in sewer atlas.
+    // All half slots point to plain floor — renderer checks noHalfFloor flag.
+    halfDirtTopL: null, halfDirtTopR: null,
+    halfTopL: null, halfTopR: null,
+    halfMidL: null, halfMidR: null,
+    halfBotL: null, halfBotR: null,
+    halfCleanL: null, halfCleanR: null,
+  },
+};
+
+// ── Image loading ──
+const imgCache = {};
+let totalToLoad = 0, totalLoaded = 0;
+function loadImg(url) {
+  if (imgCache[url]) return imgCache[url];
+  totalToLoad++;
+  const img = new Image();
+  img.onload = () => { if (++totalLoaded >= totalToLoad) drawAll(); };
+  img.src = url;
+  imgCache[url] = img;
+  return img;
+}
+for (const ts of Object.values(TILESETS)) { loadImg(ts.wall); loadImg(ts.floor); }
+
+function drawAll() {
+  document.querySelectorAll('canvas[data-type]').forEach(c => {
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    const type = c.dataset.type;
+    const col = +c.dataset.col, row = +c.dataset.row;
+    const ts = TILESETS[c.dataset.tileset || 'dungeon'];
+    const wallImg = imgCache[ts.wall], floorImg = imgCache[ts.floor];
+    if (type === 'floor') {
+      ctx.drawImage(floorImg, col * 16, row * 16, 16, 16, 0, 0, c.width, c.height);
+    } else if (type === 'floor-half') {
+      // Draw only left or right half of a floor tile
+      const side = c.dataset.side; // 'L' or 'R'
+      const sx = col * 16 + (side === 'R' ? 8 : 0);
+      const dx = side === 'R' ? c.width / 2 : 0;
+      ctx.drawImage(floorImg, sx, row * 16, 8, 16, dx, 0, c.width / 2, c.height);
+    } else if (type === 'dirt-overlay') {
+      ctx.drawImage(floorImg, col * 16, row * 16, 16, 16, 0, 0, c.width, c.height);
+      if (c.dataset.tint) {
+        ctx.globalCompositeOperation = 'source-atop';
+        ctx.fillStyle = c.dataset.tint;
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+    } else if (type === 'wallhigh') {
+      ctx.drawImage(wallImg, col * 16, row * 32, 16, 32, 0, 0, c.width, c.height);
+    }
+  });
+
+  // Debug: render half-floor tiles standalone
+  const dbg = document.getElementById('debug-tiles');
+  if (dbg && !dbg.hasChildNodes()) {
+    const floorImg = imgCache[TILESETS.dungeon.floor];
+    const tiles = [
+      ['4,2 halfTopL', 4, 2],
+      ['4,3 halfMidL', 4, 3],
+      ['4,4 halfBotL', 4, 4],
+      ['4,5 halfCleanL', 4, 5],
+      ['4,6 halfDirtTopL', 4, 6],
+      ['5,2 halfTopR', 5, 2],
+      ['5,3 halfMidR', 5, 3],
+      ['5,4 halfBotR', 5, 4],
+      ['5,5 halfCleanR', 5, 5],
+      ['5,6 halfDirtTopR', 5, 6],
+    ];
+    for (const [label, tc, tr] of tiles) {
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'text-align:center;';
+      const cv = document.createElement('canvas');
+      cv.width = 64; cv.height = 64;
+      cv.style.cssText = 'image-rendering:pixelated;border:1px solid #555;background:#222034;';
+      const cx = cv.getContext('2d');
+      cx.imageSmoothingEnabled = false;
+      cx.drawImage(floorImg, tc * 16, tr * 16, 16, 16, 0, 0, 64, 64);
+      wrap.appendChild(cv);
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'font-size:10px;color:#8f8;margin-top:2px;';
+      lbl.textContent = label;
+      wrap.appendChild(lbl);
+      dbg.appendChild(wrap);
+    }
+  }
+}
+
+// ── Canvas factories ──
+let _ts = 'dungeon';
+let _currentCell = null; // set by renderer for debug labels
+
+function floorCanvas(col, row) {
+  const c = document.createElement('canvas');
+  c.width = CELL; c.height = CELL;
+  c.style.cssText = 'left:0;top:0;width:64px;height:64px;z-index:1;';
+  c.dataset.type = 'floor'; c.dataset.col = col; c.dataset.row = row;
+  c.dataset.tileset = _ts;
+  if (_currentCell) _currentCell._floorTileId = col+','+row;
+  return c;
+}
+
+// Draws only left or right half of a plain floor tile (for tilesets with no native half-floor)
+function halfFloorCanvas(col, row, side) {
+  const c = document.createElement('canvas');
+  c.width = CELL; c.height = CELL;
+  c.style.cssText = 'left:0;top:0;width:64px;height:64px;z-index:1;';
+  c.dataset.type = 'floor-half'; c.dataset.col = col; c.dataset.row = row;
+  c.dataset.side = side; // 'L' or 'R'
+  c.dataset.tileset = _ts;
+  if (_currentCell) _currentCell._floorTileId = col+','+row+side;
+  return c;
+}
+
+function dirtOverlay(col, row, tint) {
+  const c = document.createElement('canvas');
+  c.width = CELL; c.height = CELL;
+  c.style.cssText = 'left:0;top:0;width:64px;height:64px;z-index:2;';
+  c.dataset.type = 'dirt-overlay'; c.dataset.col = col; c.dataset.row = row;
+  c.dataset.tileset = _ts;
+  if (tint) c.dataset.tint = tint;
+  return c;
+}
+
+function wallHighCanvas(col, row) {
+  const c = document.createElement('canvas');
+  c.width = CELL; c.height = CELL * 2;
+  c.style.cssText = 'left:0;top:-64px;width:64px;height:128px;z-index:3;';
+  c.dataset.type = 'wallhigh'; c.dataset.col = col; c.dataset.row = row;
+  c.dataset.tileset = _ts;
+  return c;
+}
+
+// ── Room renderer ──
+function renderRoom(id, grid, theme) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const rows = grid.length, cols = grid[0].length;
+  el.style.gridTemplateColumns = `repeat(${cols}, 64px)`;
+  const tint = theme && theme.dirtTint || null;
+  _ts = (theme && theme.tileset) || 'dungeon';
+  const fm = FLOOR_MAPS[_ts];
+
+  function pick(arr, r, c) { return arr[tileHash(r, c, arr.length)]; }
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      _currentCell = cell;
+      const type = grid[r][c];
+
+      // ── Floor layer ──
+      if (type === 'floor') {
+        const northIsWall = at(grid, r - 1, c) === 'wall';
+        const southIsWall = at(grid, r + 1, c) === 'wall';
+        const westIsVoid  = at(grid, r, c - 1) === 'void';
+        const eastIsVoid  = at(grid, r, c + 1) === 'void';
+        const [bCol, bRow] = pick(fm.plain, r, c);
+
+        if (fm.noHalfFloor) {
+          // Sewer: no half-floor or dirt-half tiles — baked dirt tiles
+          if (northIsWall) {
+            const eastIsFloor = at(grid, r, c + 1) === 'floor';
+            const westIsFloor = at(grid, r, c - 1) === 'floor';
+            const eastOpen = eastIsFloor && at(grid, r - 1, c + 1) !== 'wall';
+            const westOpen = westIsFloor && at(grid, r - 1, c - 1) !== 'wall';
+            if (eastOpen && westOpen) {
+              cell.appendChild(floorCanvas(bCol, bRow));
+            } else if (westOpen) {
+              cell.appendChild(floorCanvas(...fm.topDirtLessLeftBaked));
+            } else if (eastOpen) {
+              cell.appendChild(floorCanvas(...fm.topDirtLessRightBaked));
+            } else {
+              const [dC,dR] = pick(fm.topDirtBaked, r, c);
+              cell.appendChild(floorCanvas(dC, dR));
+            }
+          } else if (southIsWall) {
+            // Bottom dirt skipped — doesn't look good in narrow corridors
+            cell.appendChild(floorCanvas(bCol, bRow));
+          } else {
+            cell.appendChild(floorCanvas(bCol, bRow));
+          }
+        } else if (northIsWall && westIsVoid) {
+          cell.appendChild(floorCanvas(...fm.halfDirtTopL));
+        } else if (northIsWall && eastIsVoid) {
+          cell.appendChild(floorCanvas(...fm.halfDirtTopR));
+        } else if (northIsWall) {
+          const eastIsFloor = at(grid, r, c + 1) === 'floor';
+          const westIsFloor = at(grid, r, c - 1) === 'floor';
+          const eastOpen = eastIsFloor && at(grid, r - 1, c + 1) !== 'wall';
+          const westOpen = westIsFloor && at(grid, r - 1, c - 1) !== 'wall';
+          if (eastOpen && westOpen) {
+            cell.appendChild(floorCanvas(bCol, bRow));
+          } else if (fm.hasOverlays) {
+            cell.appendChild(floorCanvas(bCol, bRow));
+            if (eastOpen)      cell.appendChild(dirtOverlay(...fm.topDirtLessRightOvl, tint));
+            else if (westOpen) cell.appendChild(dirtOverlay(...fm.topDirtLessLeftOvl, tint));
+            else { const [dC,dR] = pick(fm.topDirtOverlay, r, c); cell.appendChild(dirtOverlay(dC, dR, tint)); }
+          } else {
+            if (eastOpen)      cell.appendChild(floorCanvas(...fm.topDirtLessRightBaked));
+            else if (westOpen) cell.appendChild(floorCanvas(...fm.topDirtLessLeftBaked));
+            else { const [dC,dR] = pick(fm.topDirtBaked, r, c); cell.appendChild(floorCanvas(dC, dR)); }
+          }
+        } else if (southIsWall) {
+          // Bottom dirt removed — doesn't look good in narrow corridors
+          cell.appendChild(floorCanvas(bCol, bRow));
+        } else {
+          cell.appendChild(floorCanvas(bCol, bRow));
+        }
+
+      } else if (type === 'wall') {
+        // Half-floor behind the wall face
+        // If tileset has no half-floor tiles, clip plain floor to half
+        if (fm.noHalfFloor) {
+          const eIsFloor = at(grid, r, c+1)==='floor';
+          const wIsFloor = at(grid, r, c-1)==='floor';
+          const sIsFloor = at(grid, r+1, c)==='floor';
+          const nIsFloor = at(grid, r-1, c)==='floor';
+          const [fC,fR] = pick(fm.plain, r, c);
+          if (eIsFloor && wIsFloor) {
+            // Both sides — full floor
+            cell.appendChild(floorCanvas(fC, fR));
+          } else if (eIsFloor && !wIsFloor) {
+            // Room to east only — show right half; use left-dirt tile (dark on left = wall side)
+            const [rC,rR] = fm.leftDirtBaked ? pick(fm.leftDirtBaked, r, c) : [fC, fR];
+            cell.appendChild(halfFloorCanvas(rC, rR, 'R'));
+          } else if (wIsFloor && !eIsFloor) {
+            // Room to west only — show left half; use right-dirt tile (dark on right = wall side)
+            const [lC,lR] = fm.rightDirtBaked ? pick(fm.rightDirtBaked, r, c) : [fC, fR];
+            cell.appendChild(halfFloorCanvas(lC, lR, 'L'));
+          } else if (sIsFloor || nIsFloor) {
+            // Floor above/below but not to sides — full floor
+            cell.appendChild(floorCanvas(fC, fR));
+          }
+        } else {
+        // E/W: which horizontal side faces the room?
+        const eIsRoom = at(grid, r, c + 1) === 'floor';
+        const wIsRoom = at(grid, r, c - 1) === 'floor';
+        // N/S: is floor directly above or below?
+        const sIsFloor = at(grid, r + 1, c) === 'floor';
+        const nIsFloor = at(grid, r - 1, c) === 'floor';
+        const nIsWall = at(grid, r - 1, c) === 'wall';
+        const sIsWall = at(grid, r + 1, c) === 'wall';
+
+        if (eIsRoom && !wIsRoom) {
+          // Check the floor neighbor's vertical context (walkable floor run)
+          const floorN = at(grid, r - 1, c + 1) === 'floor';
+          const floorS = at(grid, r + 1, c + 1) === 'floor';
+          if (floorN && floorS)   cell.appendChild(floorCanvas(...fm.halfMidL));
+          else if (floorS)        cell.appendChild(floorCanvas(...fm.halfTopL));
+          else if (floorN)        cell.appendChild(floorCanvas(...fm.halfBotL));
+          else                    cell.appendChild(floorCanvas(...fm.halfCleanL));
+        } else if (wIsRoom && !eIsRoom) {
+          const floorN = at(grid, r - 1, c - 1) === 'floor';
+          const floorS = at(grid, r + 1, c - 1) === 'floor';
+          if (floorN && floorS)   cell.appendChild(floorCanvas(...fm.halfMidR));
+          else if (floorS)        cell.appendChild(floorCanvas(...fm.halfTopR));
+          else if (floorN)        cell.appendChild(floorCanvas(...fm.halfBotR));
+          else                    cell.appendChild(floorCanvas(...fm.halfCleanR));
+        } else if (eIsRoom && wIsRoom) {
+          const [fC,fR] = pick(fm.plain, r, c);
+          cell.appendChild(floorCanvas(fC, fR));
+        } else if (sIsFloor || nIsFloor) {
+          const [fC,fR] = pick(fm.plain, r, c);
+          cell.appendChild(floorCanvas(fC, fR));
+        }
+        } // end !noHalfFloor
+        // else: void on all sides → no floor (isolated wall in void)
+      }
+
+      // ── Wall layer ──
+      if (type === 'wall') {
+        const [wCol, wRow] = getWallTileEx(grid, r, c, _ts);
+        cell.appendChild(wallHighCanvas(wCol, wRow));
+      }
+
+      // Coordinate label
+      const coord = document.createElement('div');
+      coord.className = 'coord';
+      coord.textContent = c + ',' + r;
+      cell.appendChild(coord);
+
+      // Floor tile debug label — shows atlas [col,row] used
+      if (cell._floorTileId) {
+        const fid = document.createElement('div');
+        fid.className = 'floor-id';
+        fid.textContent = cell._floorTileId;
+        cell.appendChild(fid);
+      }
+
+      el.appendChild(cell);
+    }
+  }
+
+  // ASCII grid legend below the room
+  const pre = document.createElement('pre');
+  pre.style.cssText = 'color:#888;font-size:11px;line-height:1.3;margin:4px 0 0;';
+  let txt = '  ';
+  for (let c = 0; c < cols; c++) txt += (c % 10);
+  txt += '\n';
+  for (let r = 0; r < rows; r++) {
+    txt += (r < 10 ? ' ' : '') + r + ' ';
+    for (let c = 0; c < cols; c++) {
+      const t = grid[r][c];
+      txt += t === 'wall' ? '#' : t === 'floor' ? '.' : ' ';
+    }
+    txt += '\n';
+  }
+  txt += '  Legend: # = wall  . = floor  (space) = void';
+  pre.textContent = txt;
+  el.parentElement.insertBefore(pre, el.nextSibling);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Room definitions
+// ══════════════════════════════════════════════════════════════════
+
+// Simple 5×7 floor + wall border + void margin
+function buildSimpleRoom() {
+  const W = 9, H = 10;
+  const g = Array.from({length:H}, () => Array(W).fill('void'));
+  for (let r=1; r<=8; r++)
+    for (let c=1; c<=7; c++)
+      g[r][c] = (r===1||r===8||c===1||c===7) ? 'wall' : 'floor';
+  return g;
+}
+
+// Two rooms + 2-wide vertical corridor
+function buildCorridor() {
+  const W = 10, H = 14;
+  const g = Array.from({length:H}, () => Array(W).fill('void'));
+  for (let r=1; r<=5; r++)
+    for (let c=1; c<=7; c++)
+      g[r][c] = (r===1||r===5||c===1||c===7) ? 'wall' : 'floor';
+  for (let r=8; r<=12; r++)
+    for (let c=2; c<=8; c++)
+      g[r][c] = (r===8||r===12||c===2||c===8) ? 'wall' : 'floor';
+  for (let r=5; r<=8; r++) {
+    if (g[r][3] !== 'floor') g[r][3] = 'wall';
+    if (g[r][6] !== 'floor') g[r][6] = 'wall';
+    g[r][4] = 'floor'; g[r][5] = 'floor';
+  }
+  return g;
+}
+
+// Walls flush with grid boundary → void tiles needed
+function buildEdgeRoom() {
+  const W = 8, H = 7;
+  const g = Array.from({length:H}, () => Array(W).fill('void'));
+  for (let r=0; r<=5; r++)
+    for (let c=0; c<=6; c++)
+      g[r][c] = (r===0||r===5||c===0||c===6) ? 'wall' : 'floor';
+  return g;
+}
+
+// L-shape: horizontal arm + vertical arm
+function buildLRoom() {
+  const W = 12, H = 10;
+  const g = Array.from({length:H}, () => Array(W).fill('void'));
+  // horizontal arm
+  for (let r=1; r<=4; r++)
+    for (let c=1; c<=10; c++)
+      g[r][c] = (r===1||r===4||c===1||c===10) ? 'wall' : 'floor';
+  // vertical arm
+  for (let r=4; r<=8; r++)
+    for (let c=1; c<=5; c++)
+      g[r][c] = (r===8||c===1||c===5) ? 'wall' : 'floor';
+  // open inner junction
+  g[4][2]='floor'; g[4][3]='floor'; g[4][4]='floor';
+  return g;
+}
+
+// 1-wide corridor maze
+// Strategy: carve floor paths first, then wall-fill all void cells
+// adjacent to any floor (including diagonals) to fully enclose.
+function buildMaze() {
+  const W = 13, H = 11;
+  const g = Array.from({length:H}, () => Array(W).fill('void'));
+
+  // Carve floor corridors
+  // horizontal: [row, startCol, endCol]
+  [[2,1,11],[6,1,7],[8,5,11]].forEach(([r,c0,c1]) => {
+    for (let c=c0; c<=c1; c++) g[r][c] = 'floor';
+  });
+  // vertical: [col, startRow, endRow]
+  [[1,1,9],[7,1,5],[11,1,9],[5,6,8]].forEach(([c,r0,r1]) => {
+    for (let r=r0; r<=r1; r++) g[r][c] = 'floor';
+  });
+
+  // Wall-fill: any void cell adjacent (8-dir) to a floor cell becomes wall
+  const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+  for (let r=0; r<H; r++) {
+    for (let c=0; c<W; c++) {
+      if (g[r][c] !== 'void') continue;
+      for (const [dr,dc] of dirs) {
+        const nr = r+dr, nc = c+dc;
+        if (nr>=0 && nr<H && nc>=0 && nc<W && g[nr][nc] === 'floor') {
+          g[r][c] = 'wall';
+          break;
+        }
+      }
+    }
+  }
+  return g;
+}
+
+// Large room with interior pillars
+function buildLargeRoom() {
+  const W = 16, H = 12;
+  const g = Array.from({length:H}, () => Array(W).fill('void'));
+  for (let r=1; r<=10; r++)
+    for (let c=1; c<=14; c++)
+      g[r][c] = (r===1||r===10||c===1||c===14) ? 'wall' : 'floor';
+  // pillar pairs
+  g[4][5]='wall'; g[4][10]='wall';
+  g[7][5]='wall'; g[7][10]='wall';
+  return g;
+}
+
+// ── Render all rooms ──
+renderRoom('room-simple',   buildSimpleRoom());
+renderRoom('room-corridor', buildCorridor());
+renderRoom('room-bloody',   buildSimpleRoom(), { dirtTint:'rgba(120,20,15,0.7)' });
+renderRoom('room-edge',     buildEdgeRoom());
+renderRoom('room-lshape',   buildLRoom());
+renderRoom('room-maze',     buildMaze());
+renderRoom('room-large',    buildLargeRoom());
+
+renderRoom('room-sewer',          buildSimpleRoom(), { tileset:'sewer' });
+renderRoom('room-sewer-corridor', buildCorridor(),   { tileset:'sewer' });
+renderRoom('room-sewer-edge',     buildEdgeRoom(),   { tileset:'sewer' });
+renderRoom('room-sewer-lshape',   buildLRoom(),      { tileset:'sewer' });
+</script>
+</body>
+</html>
