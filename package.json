@@ -6,6 +6,8 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
+    "showcase": "vite --open tile-showcase.html",
+    "generate-showcase": "find public/assets/vendor public/assets/tiles -name \"*.png\" -o -name \"*.jpg\" -o -name \"*.jpeg\" -o -name \"*.gif\" | sort > assets_list.txt && python3 scripts/generate_showcase.py && rm assets_list.txt",
     "build": "vite build",
     "preview": "vite preview --port 3100 --strictPort",
     "typecheck": "tsc --noEmit",

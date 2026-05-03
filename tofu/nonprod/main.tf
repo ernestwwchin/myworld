@@ -18,13 +18,9 @@ provider "aws" {
   region = "ap-southeast-1"
 }
 
-data "terraform_remote_state" "shared" {
-  backend = "s3"
-  config = {
-    bucket = "myworld-tfstate-${var.account_id}"
-    key    = "shared/terraform.tfstate"
-    region = "ap-southeast-1"
-  }
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
 }
 
 module "myworld" {
@@ -34,8 +30,11 @@ module "myworld" {
   account_id         = var.account_id
   domain             = var.domain
   cache_ttl          = var.cache_ttl
-  acm_cert_arn       = data.terraform_remote_state.shared.outputs.acm_cert_arn
-  oidc_provider_arn  = data.terraform_remote_state.shared.outputs.oidc_provider_arn
   enable_pr_previews = true
   pr_wildcard_domain = "*.ernestwwchin.com"
+
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
 }

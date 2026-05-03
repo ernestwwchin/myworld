@@ -28,8 +28,25 @@ import '@/demoplay';
   const GAME_W = mapState.cols * S || 640;
   const GAME_H = mapState.rows * S || 480;
 
+  const rendererType = (() => {
+    try {
+      const c = document.createElement('canvas');
+      c.width = 1; c.height = 1;
+      const gl = c.getContext('webgl2') ?? c.getContext('webgl') ?? c.getContext('experimental-webgl') as WebGLRenderingContext | null;
+      if (!gl) return Phaser.CANVAS;
+      const tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      const fb = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) return Phaser.CANVAS;
+    } catch { return Phaser.CANVAS; }
+    return Phaser.AUTO;
+  })();
+
   const game = new Phaser.Game({
-    type: Phaser.AUTO,
+    type: rendererType,
     width: GAME_W,
     height: GAME_H,
     backgroundColor: '#0a0a0f',

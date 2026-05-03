@@ -19,16 +19,6 @@ variable "cache_ttl" {
   default     = 0
 }
 
-variable "acm_cert_arn" {
-  description = "ARN of the shared ACM wildcard certificate"
-  type        = string
-}
-
-variable "oidc_provider_arn" {
-  description = "ARN of the GitHub OIDC provider"
-  type        = string
-}
-
 variable "enable_pr_previews" {
   description = "Enable PR preview subdomain routing (nonprod only)"
   type        = bool

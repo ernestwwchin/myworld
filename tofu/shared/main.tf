@@ -5,25 +5,12 @@ resource "aws_iam_openid_connect_provider" "github" {
   thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
 }
 
-# Wildcard cert covers *.ernestwwchin.com — shared across all environments
-resource "aws_acm_certificate" "wildcard" {
-  provider                  = aws.us_east_1
-  domain_name               = "*.ernestwwchin.com"
-  subject_alternative_names = ["ernestwwchin.com"]
-  validation_method         = "DNS"
-
-  lifecycle {
-    create_before_destroy = true
-  }
-
-  tags = {
-    Project = "myworld"
-  }
-}
-
-resource "aws_acm_certificate_validation" "wildcard" {
-  provider        = aws.us_east_1
-  certificate_arn = aws_acm_certificate.wildcard.arn
+# Wildcard cert managed by infra-global — look up by domain
+data "aws_acm_certificate" "wildcard" {
+  provider    = aws.us_east_1
+  domain      = "*.ernestwwchin.com"
+  statuses    = ["ISSUED"]
+  most_recent = true
 }
 
 data "aws_caller_identity" "current" {}

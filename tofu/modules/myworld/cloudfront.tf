@@ -60,7 +60,7 @@ resource "aws_cloudfront_distribution" "game" {
   aliases = var.enable_pr_previews && var.pr_wildcard_domain != "" ? [var.domain, var.pr_wildcard_domain] : [var.domain]
 
   viewer_certificate {
-    acm_certificate_arn      = var.acm_cert_arn
+    acm_certificate_arn      = data.aws_acm_certificate.wildcard.arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2021"
   }

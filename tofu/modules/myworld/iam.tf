@@ -9,7 +9,7 @@ resource "aws_iam_role" "deploy" {
         Sid    = "GitHubActionsOIDC"
         Effect = "Allow"
         Principal = {
-          Federated = var.oidc_provider_arn
+          Federated = data.aws_iam_openid_connect_provider.github.arn
         }
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
