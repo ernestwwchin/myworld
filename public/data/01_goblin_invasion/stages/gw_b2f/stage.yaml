@@ -11,28 +11,15 @@ generator:
   stairs: true
 
 encounters:
-  # Squad: Goblin Patrol (×2)
-  - squad: patrol
-    creatures: [goblin, goblin_archer]
+  - creature: goblin
+    count: 3
+  - creature: goblin_archer
     count: 2
-    placement: corridor
-
-  # Squad: Barracks
-  - squad: barracks
-    creatures: [goblin_warrior, goblin_warrior, goblin_archer]
+  - creature: goblin_warrior
+    count: 2
+  - creature: goblin_shaman
     count: 1
-    placement: room_center
-
-  # Squad: Spider Nest
-  - squad: spider_nest
-    creatures: [spider, spider]
+  - creature: spider
+    count: 2
+  - creature: goblin_captain
     count: 1
-    placement: room_dead_end
-
-  # Squad: Captain's Guard
-  - squad: captain_guard
-    creatures:
-      - { creature: goblin_captain, name: "Captain" }
-      - creature: goblin_warrior
-    count: 1
-    placement: room_near_stairs
