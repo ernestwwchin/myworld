@@ -112,6 +112,16 @@ export TF_VAR_cache_ttl=0
 tofu init && tofu apply
 ```
 
+## Asset Backup
+
+Tilemap research assets (downloaded tilesets, sprite packs) are stored in a private S3 bucket under the `tilemap-research/` prefix. Local copy lives in `temp/tilemap/` (gitignored).
+
+To restore (requires AWS credentials):
+
+```bash
+aws s3 sync s3://${ASSET_BUCKET}/tilemap-research/ temp/tilemap/
+```
+
 ## License
 
 All rights reserved. This source code is provided for viewing purposes only. You may not use, copy, modify, or distribute any part of this project without explicit written permission from the author.
