@@ -105,6 +105,8 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 .hb-slot:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2);}
 .hb-slot.selected{border-color:rgba(240,192,96,0.8)!important;box-shadow:0 0 8px rgba(240,192,96,0.4);}
 .hb-slot.used{opacity:0.3;pointer-events:none;}
+.hb-slot.unavail{opacity:0.45;filter:grayscale(60%);}
+.hb-slot.unavail .hb-icon{opacity:0.6;}
 .hb-slot.empty{border-style:dashed;border-left:3px dashed rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.06);}
 .hb-slot.empty .hb-icon{color:rgba(255,255,255,0.12);font-size:20px;}
 .hb-slot.move-from{border-color:#64b5f6!important;box-shadow:0 0 6px rgba(100,181,246,0.4);}
@@ -199,6 +201,19 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
 #hp-wrap{width:160px;height:10px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;margin-top:2px;}
 #hp-bar{height:100%;width:100%;background:linear-gradient(90deg,#c0392b,#e74c3c);border-radius:4px;transition:width 0.4s;}
 #hud-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;}
+#status-icons{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px;min-height:0;}
+.si{display:inline-flex;align-items:center;gap:2px;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.18);border-radius:10px;padding:1px 5px 1px 3px;font-size:10px;color:#f0e6c8;white-space:nowrap;}
+.si-icon{font-size:11px;line-height:1;}
+.si-dur{color:#aaa;font-size:9px;}
+.si.si-burning{border-color:rgba(255,112,67,0.6);color:#ff7043;}
+.si.si-poisoned{border-color:rgba(139,195,74,0.6);color:#8bc34a;}
+.si.si-bleeding{border-color:rgba(204,0,0,0.6);color:#e57373;}
+.si.si-restrained{border-color:rgba(179,229,252,0.6);color:#b3e5fc;}
+.si.si-sleep{border-color:rgba(100,160,255,0.6);color:#7fb0ff;}
+.si.si-blessed{border-color:rgba(255,253,231,0.6);color:#fffde7;}
+.si.si-haste{border-color:rgba(46,204,113,0.6);color:#2ecc71;}
+.si.si-slow{border-color:rgba(160,82,45,0.6);color:#a0522d;}
+.si.si-hidden{border-color:rgba(120,120,180,0.6);color:#9090cc;}
 
 #mode-banner{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:50;opacity:0;transition:opacity 0.3s;}
 #mode-banner.show{opacity:1;}
@@ -315,9 +330,10 @@ body{background:#0a0a0f;overflow:hidden;width:100vw;height:100vh;font-family:'Co
             <span class="hl">Adventurer</span>
             <div id="hp-wrap"><div id="hp-bar"></div></div>
             <span class="hl">HP <span id="hp-text" style="color:#f0e6c8">12/12</span></span>
+            <div id="status-icons"></div>
           </div>
           <div id="hud-right">
-            <span class="hl">Floor</span><span class="hv">B1F</span>
+            <span class="hl">Floor</span><span class="hv" id="floor-text">B1F</span>
             <span class="hl" style="margin-top:4px">Pos</span><span class="hv" id="pos-text">—</span>
             <span class="hl" style="margin-top:4px">Light</span><span class="hv" id="light-text">—</span>
           </div>

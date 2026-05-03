@@ -75,6 +75,10 @@ tileSymbols:
   "S": 5      # STAIRS
   "~": 6      # WATER
   "G": 7      # GRASS
+  "F": 8      # FIRE
+  "A": 9      # ACID
+  "I": 10     # ICE
+  "H": 11     # CONSECRATED (holy)
 
 xpThresholds:
   - 0

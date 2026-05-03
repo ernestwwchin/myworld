@@ -1,4 +1,5 @@
 import { InteractableEntity } from '@/entities/interactable-entity';
+import { dnd, PLAYER_STATS } from '@/config';
 import type { GameScene } from '@/game';
 import type { InventoryItem } from '@/config';
 import type { MenuOption } from '@/types/entities';
@@ -97,6 +98,9 @@ export class ChestEntity extends InteractableEntity {
   behavior: string;
   trapDamage: number;
   trapTriggered: boolean;
+  trapDetected: boolean;
+  lockDc: number;
+  trapDc: number;
   loot: InventoryItem[];
   gold: number;
   lootTable: string | null;
@@ -111,6 +115,9 @@ export class ChestEntity extends InteractableEntity {
     this.behavior = String(def.behavior || (this.locked ? 'locked' : 'standard')).toLowerCase();
     this.trapDamage = Number(def.trapDamage || 0);
     this.trapTriggered = false;
+    this.trapDetected = false;
+    this.lockDc = Number(def.lockDc || 13);
+    this.trapDc = Number(def.trapDc || 0);
     this.loot = Array.isArray(def.loot) ? [...(def.loot as InventoryItem[])] : [];
     this.gold = Number(def.gold || 0);
     const stateData = def.state as { lootTable?: string } | undefined;
@@ -140,8 +147,20 @@ export class ChestEntity extends InteractableEntity {
 
   override getMenuOptions(_scene: GameScene | null): MenuOption[] {
     if (this.open) return [{ label: 'Chest (opened)', icon: '📭', action: 'open', enabled: false }];
-    if (this.locked) return [{ label: 'Unlock Chest', icon: '🔑', action: 'open', enabled: false }];
-    return [{ label: 'Open Chest', icon: '📦', action: 'open', enabled: true }];
+    const opts: MenuOption[] = [];
+    if (this.trapDc > 0 && !this.trapDetected && !this.trapTriggered) {
+      opts.push({ label: 'Check for Traps', icon: '👁', action: 'check_trap', enabled: true });
+    }
+    if (this.trapDetected && !this.trapTriggered) {
+      opts.push({ label: 'Disarm Trap', icon: '🔧', action: 'disarm_trap', enabled: true });
+    }
+    if (this.locked) {
+      if (this.lockDc > 0) opts.push({ label: 'Lockpick Chest', icon: '🔓', action: 'lockpick_chest', enabled: true });
+      if (!opts.some((o) => o.action === 'lockpick_chest')) opts.push({ label: 'Unlock Chest', icon: '🔑', action: 'open', enabled: false });
+    } else {
+      opts.push({ label: 'Open Chest', icon: '📦', action: 'open', enabled: true });
+    }
+    return opts;
   }
 
   override interact(scene: GameScene | null, action: string, _opts: Record<string, unknown> = {}): { ok: boolean; reason?: string; kind: string } {
@@ -149,6 +168,52 @@ export class ChestEntity extends InteractableEntity {
       const s = scene as unknown as { tryOpenChest?: (x: number, y: number) => boolean };
       const ok = s?.tryOpenChest?.(this.x, this.y);
       return { ok: !!ok, kind: 'chest' };
+    }
+    const _fireSkillHook = (skill: string, dc: number, success: boolean, total: number) =>
+      (scene as unknown as { executeAbilityHook?(h: string, ctx: Record<string, unknown>): void })?.executeAbilityHook?.('on_skill_check', { skill, dc, success, total });
+
+    if (action === 'check_trap') {
+      const result = dnd.skillCheck('perception', PLAYER_STATS as unknown as Record<string, unknown>, this.trapDc);
+      _fireSkillHook('perception', this.trapDc, result.success, result.total);
+      if (result.success) {
+        this.trapDetected = true;
+        scene?.showStatus?.(`You spot a trap! (${result.total} vs DC ${this.trapDc})`);
+      } else {
+        scene?.showStatus?.(`Nothing seems dangerous. (${result.total} vs DC ${this.trapDc})`);
+      }
+      return { ok: result.success, kind: 'chest' };
+    }
+    if (action === 'disarm_trap') {
+      const result = dnd.skillCheck('sleightOfHand', PLAYER_STATS as unknown as Record<string, unknown>, this.trapDc);
+      _fireSkillHook('sleightOfHand', this.trapDc, result.success, result.total);
+      if (result.success) {
+        this.trapTriggered = true;
+        scene?.showStatus?.(`Trap disarmed! (${result.total} vs DC ${this.trapDc})`);
+      } else {
+        const dmg = this.trapDamage || 4;
+        const s = scene as GameScene & { player?: { x: number; y: number }; playerHP?: number; spawnFloat?: (x: number, y: number, t: string, c: string) => void; updateHUD?: () => void; handlePlayerDefeat?: () => void };
+        this.trapTriggered = true;
+        s?.showStatus?.(`Trap triggered! You take ${dmg} damage. (${result.total} vs DC ${this.trapDc})`);
+        s?.spawnFloat?.(s.player?.x ?? 0, (s.player?.y ?? 0) - 10, `-${dmg}`, '#e74c3c');
+        if (s && typeof s.playerHP === 'number') {
+          s.playerHP = Math.max(0, s.playerHP - dmg);
+          s?.updateHUD?.();
+          if (s.playerHP <= 0) s.handlePlayerDefeat?.();
+        }
+        scene?.cameras?.main?.shake(200, 0.005);
+      }
+      return { ok: result.success, kind: 'chest' };
+    }
+    if (action === 'lockpick_chest') {
+      const result = dnd.skillCheck('sleightOfHand', PLAYER_STATS as unknown as Record<string, unknown>, this.lockDc);
+      _fireSkillHook('sleightOfHand', this.lockDc, result.success, result.total);
+      if (result.success) {
+        this.locked = false;
+        scene?.showStatus?.(`Chest unlocked! (${result.total} vs DC ${this.lockDc})`);
+      } else {
+        scene?.showStatus?.(`Couldn't pick the lock. (${result.total} vs DC ${this.lockDc})`);
+      }
+      return { ok: result.success, kind: 'chest' };
     }
     return { ok: false, reason: 'Unknown chest action.', kind: 'chest' };
   }

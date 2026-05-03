@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Tile Showcase - MyWorld</title>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>🎨 Interactive Tile Showcase</h1>
+      <div class="view-tabs">
+        <button class="view-tab active" data-view="tiles">Tiles</button>
+        <button class="view-tab" data-view="characters">Characters</button>
+        <button class="view-tab" data-view="autotile">Autotiling</button>
+        <button class="view-tab" data-view="stamps">Room Stamps</button>
+        <button class="view-tab" data-view="tileeditor">Tile Editor</button>
+      </div>
+    </header>
+
+    <aside>
+      <div id="asideFilters">
+        <h2>Filters</h2>
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:10px;">
+          <span id="tileCount">Loading...</span>
+        </div>
+        <input type="text" class="search-box" id="searchBox" placeholder="Search tiles...">
+
+        <div class="filter-group">
+          <label class="filter-label">Category</label>
+          <div class="filter-tags" id="categoryFilters">
+            <span class="tag active" data-filter="all">All</span>
+            <span class="tag" data-filter="floor">Floor</span>
+            <span class="tag" data-filter="wall">Wall</span>
+            <span class="tag" data-filter="door">Door</span>
+            <span class="tag" data-filter="container">Container</span>
+            <span class="tag" data-filter="prop">Props</span>
+            <span class="tag" data-filter="switch">Switches</span>
+            <span class="tag" data-filter="consumable">Consumables</span>
+            <span class="tag" data-filter="weapon">Weapons</span>
+            <span class="tag" data-filter="ui">UI</span>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Map Role</label>
+          <div class="filter-tags" id="mapRoleFilters">
+            <span class="tag" data-filter="ground">Ground</span>
+            <span class="tag" data-filter="wall-face">Wall Face</span>
+            <span class="tag" data-filter="wall-top">Wall Top</span>
+            <span class="tag" data-filter="wall-edge">Wall Edge</span>
+            <span class="tag" data-filter="wall-decoration">Wall Deco</span>
+            <span class="tag" data-filter="door">Door</span>
+            <span class="tag" data-filter="pickup">Pickup</span>
+            <span class="tag" data-filter="hazard">Hazard</span>
+            <span class="tag" data-filter="pillar">Pillar</span>
+            <span class="tag" data-filter="transition">Transition</span>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Properties</label>
+          <div class="filter-tags" id="propFilters">
+            <span class="tag" data-filter="walkable">Walkable</span>
+            <span class="tag" data-filter="solid">Solid</span>
+            <span class="tag" data-filter="interactive">Interactive</span>
+            <span class="tag" data-filter="decoration">Decoration</span>
+            <span class="tag" data-filter="hazard">Hazard</span>
+          </div>
+        </div>
+      </div>
+      <div id="asideStampLibrary" style="display:none">
+        <h2 style="color:var(--accent);font-size:1rem;margin-bottom:10px;">Current Stamp</h2>
+        <div id="asideCurrentStamp" style="font-size:0.85rem;color:var(--text-dim);">No stamp loaded</div>
+        <div style="margin-top:12px;">
+          <button id="asideBrowseStamps" style="width:100%;padding:8px;border:1px solid var(--accent);border-radius:4px;background:var(--bg-mid);color:var(--accent);cursor:pointer;font-size:0.85rem;">
+            📋 Browse Stamps
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <!-- Tiles View -->
+      <div id="tilesView" class="view-panel active">
+        <div class="tile-grid" id="tileGrid"></div>
+      </div>
+
+      <!-- Characters View -->
+      <div id="charactersView" class="view-panel">
+        <div class="character-grid" id="characterGrid"></div>
+      </div>
+
+      <!-- Autotiling View -->
+      <div id="autotileView" class="view-panel">
+        <div class="autotile-demo">
+          <div class="demo-section">
+            <h3>Paint Mode</h3>
+            <div class="canvas-container">
+              <canvas id="paintCanvas" width="320" height="320"></canvas>
+            </div>
+            <div class="tool-buttons">
+              <button class="tool-btn" id="paintWall">Paint Wall</button>
+              <button class="tool-btn" id="paintFloor">Paint Floor</button>
+              <button class="tool-btn" id="clearCanvas">Clear</button>
+            </div>
+            <p style="margin-top:10px;font-size:0.85rem;color:var(--text-dim);">
+              Click tiles to paint. Autotiling applies automatically.
+            </p>
+          </div>
+          <div class="demo-section">
+            <h3>Bitmask Reference</h3>
+            <div class="canvas-container">
+              <canvas id="bitmaskCanvas" width="320" height="400"></canvas>
+            </div>
+            <p style="font-size:0.85rem;color:var(--text-dim);">
+              Visual reference showing all 47 unique tile configurations.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stamps View -->
+      <div id="stampsView" class="view-panel">
+        <div style="background:var(--bg-mid);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:20px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h3 style="color:var(--accent);margin:0;">Stamp Browser</h3>
+            <div style="display:flex;gap:6px;">
+              <button id="stampImportBtn" style="padding:4px 12px;border:1px solid var(--border);border-radius:4px;background:var(--bg-dark);color:var(--text);cursor:pointer;font-size:0.8rem;">Import .json</button>
+              <button id="stampExportBtn" style="padding:4px 12px;border:1px solid var(--border);border-radius:4px;background:var(--bg-dark);color:var(--text);cursor:pointer;font-size:0.8rem;">Export All</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;" id="stampCategoryFilters">
+            <span class="tag active" data-filter="all">All</span>
+            <span class="tag" data-filter="room">Room</span>
+            <span class="tag" data-filter="corridor">Corridor</span>
+            <span class="tag" data-filter="door">Door</span>
+          </div>
+          <input type="text" id="stampSearch" placeholder="Search stamps by name, tag, or theme..."
+                 style="width:100%;padding:8px;background:var(--bg-dark);border:1px solid var(--border);color:var(--text);border-radius:4px;">
+        </div>
+        <div style="margin-bottom:15px;color:var(--text-dim);font-size:0.9rem;">
+          <span id="stampCount">0 stamps</span>
+        </div>
+        <div class="stamp-grid" id="stampGrid"></div>
+      </div>
+
+      <!-- Tile Editor View — Svelte mounts here -->
+      <div id="tileeditorView" class="view-panel"></div>
+    </main>
+  </div>
+
+  <script type="module" src="/editor/main.ts"></script>
+</body>
+</html>

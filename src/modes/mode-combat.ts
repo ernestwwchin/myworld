@@ -1,6 +1,7 @@
 import { S, MODE, COMBAT_RULES, WEAPON_DEFS, dnd, mapState } from '@/config';
 import { bfs, hasLOS, inFOV, roomIdAt, withHotbar, withCombatLog, _getRoomTopology } from '@/helpers';
 import { tileDist, pathTileCost } from '@/systems/world-position-system';
+import { assignCreatureNames } from '@/systems/encounter-placement';
 import type { GameScene } from '@/game';
 
 type Enemy = {
@@ -337,7 +338,7 @@ export const ModeCombatMixin = {
       const opDmgText = this.formatDamageBreakdown(dr);
       const opDmgType = wpn ? wpn.damageType : '';
       withCombatLog((l: any) =>
-        l.logRoll({ actor: 'You', target: enemy.displayName, result: isCrit ? 'crit' : 'hit', damage: dmg, rollDetail: opRollLine, dmgDetail: `${opDmgText}${opDmgType ? ' ' + opDmgType : ''}`, extra: 'opener' }),
+        l.logRoll({ actor: 'You', target: enemy.displayName, result: isCrit ? 'crit' : 'hit', damage: dmg, rollDetail: opRollLine, dmgDetail: opDmgText, dmgType: opDmgType, extra: 'opener' }),
       );
 
       const ratio = Math.max(0, enemy.hp / enemy.maxHp);
@@ -350,6 +351,9 @@ export const ModeCombatMixin = {
       if (enemy.hp <= 0) {
         enemy.alive = false;
         enemy.inCombat = true;
+        if (typeof this.removeStatusesBySource === 'function') {
+          this.removeStatusesBySource('player', enemy as unknown as import('@/types/actors').Actor);
+        }
         this.tweens.add({
           targets: [enemy.img, enemy.hpBg, enemy.hpFg, enemy.lbl, enemy.sightRing].filter((o) => o && (o as Phaser.GameObjects.GameObject).active),
           alpha: 0,
@@ -445,6 +449,7 @@ export const ModeCombatMixin = {
     const triggerSet = new Set<Enemy>((triggers || []).filter((e) => e && e.alive));
     const alerted = this._buildAlertedEnemySet(triggers, opts);
     this.combatGroup = [...alerted];
+    assignCreatureNames(this.combatGroup as unknown as Enemy[]);
     (this.combatGroup as unknown as Enemy[]).forEach((e) => (e.inCombat = true));
 
     (this.combatGroup as unknown as Enemy[]).forEach((e) => {
@@ -516,6 +521,8 @@ export const ModeCombatMixin = {
       l.log(`Join reasons: ${reasonDetails}`, 'system', 'combat');
     });
     this.updateFogOfWar();
+    this.combatRound = 1;
+    this.executeAbilityHook('on_combat_start', { combatants: this.combatGroup });
     this.time.delayedCall(700, () => { this.buildInitBar(); this.startNextTurn(); });
   },
 
@@ -570,11 +577,22 @@ export const ModeCombatMixin = {
         this.showStatus('Combat ended — you moved to a different area.');
         withCombatLog((l: any) => l.log('Left combat area.', 'system', 'combat'));
       } else {
-        this.flashBanner('COMBAT OVER', 'explore');
-        this.showStatus('Victory! Continue exploring.');
-        withCombatLog((l: any) => l.log('Victory!', 'player', 'combat'));
+        const w = window as unknown as { ModLoader?: { shouldResolveBossVictory?: (scene: unknown, reason: string) => boolean; resolveRunOutcome: (scene: unknown, outcome: string) => void } };
+        if (w.ModLoader?.shouldResolveBossVictory?.(this, reason)) {
+          this.flashBanner('BOSS DEFEATED!', 'explore');
+          this.showStatus('The Warchief falls! Victory!');
+          withCombatLog((l: any) => l.log('Boss defeated! Victory!', 'player', 'combat'));
+          this.time.delayedCall(2000, () => {
+            w.ModLoader!.resolveRunOutcome(this, 'victory');
+          });
+        } else {
+          this.flashBanner('COMBAT OVER', 'explore');
+          this.showStatus('Victory! Continue exploring.');
+          withCombatLog((l: any) => l.log('Victory!', 'player', 'combat'));
+        }
       }
       withCombatLog((l: any) => l.logSep());
+      this.executeAbilityHook('on_combat_end', { reason });
       this.resetActionButtons();
       withHotbar((h: any) => h.resetUsed());
       this.time.delayedCall(300, () => { this.drawSightOverlays(); this.updateFogOfWar(); });
@@ -672,7 +690,10 @@ export const ModeCombatMixin = {
       return;
     }
 
-    if (this.turnIndex < 0 || this.turnIndex >= this.turnOrder.length) this.turnIndex = 0;
+    if (this.turnIndex < 0 || this.turnIndex >= this.turnOrder.length) {
+      this.turnIndex = 0;
+      this.combatRound++;
+    }
     const cur = this.turnOrder[this.turnIndex];
     this.buildInitBar();
 
@@ -694,6 +715,7 @@ export const ModeCombatMixin = {
         this.time.delayedCall(250, () => this.endPlayerTurn(true));
         return;
       }
+      this.executeAbilityHook('on_turn_start', { actor: 'player' });
       combatSelf.playerAP = 1;
       combatSelf.playerMoves = Number(COMBAT_RULES.playerMovePerTurn || 5);
       combatSelf.playerMovesUsed = 0;
@@ -729,6 +751,7 @@ export const ModeCombatMixin = {
       const enemy = cur.enemy as Enemy;
       const st = this.processStatusEffectsForActor(enemy, 'turn_start');
       if (st.skipTurn) { this.time.delayedCall(220, () => this.endEnemyTurn(enemy)); return; }
+      this.executeAbilityHook('on_turn_start', { actor: enemy });
       document.getElementById('action-bar')?.classList.remove('show');
       document.getElementById('res-pips')?.classList.remove('show');
       this.turnHL.setAlpha(0);
@@ -744,7 +767,10 @@ export const ModeCombatMixin = {
     if ((this as unknown as { ui?: { dismissEnemyPopup: () => void } }).ui) {
       (this as unknown as { ui: { dismissEnemyPopup: () => void } }).ui.dismissEnemyPopup();
     }
-    if (!fromStatusSkip) this.processStatusEffectsForActor('player', 'turn_end');
+    if (!fromStatusSkip) {
+      this.processStatusEffectsForActor('player', 'turn_end');
+      this.executeAbilityHook('on_turn_end', { actor: 'player' });
+    }
     if (typeof (this as unknown as { tickStatMods?: () => void }).tickStatMods === 'function') {
       (this as unknown as { tickStatMods: () => void }).tickStatMods();
     }
@@ -1147,6 +1173,7 @@ export const ModeCombatMixin = {
       withCombatLog((l: any) =>
         l.logRoll({ actor: 'You', target: enemy.displayName, result: isMiss ? 'crit' : 'miss', rollDetail: rollDisplay, extra: wasHidden ? 'advantage' : '' }),
       );
+      this.executeAbilityHook('on_miss', { source: 'player', target: enemy, ability: abilityId });
       self._afterPlayerDice = () => { this.showMoveRange(); };
       if (isMiss) {
         self.diceWaiting = 'player';
@@ -1158,15 +1185,28 @@ export const ModeCombatMixin = {
     }
 
     const dr = this.resolveAbilityDamage(abilityId, 'player', isCrit);
-    const dmg = Math.max(1, dr.total);
-    enemy.hp -= dmg;
-    this.applyAbilityOnHitStatuses(abilityId, 'player', enemy);
-
+    const rawDmg = Math.max(1, dr.total);
     const wpn = WEAPON_DEFS[ps.weaponId ?? ''];
+    const dmgType = wpn?.damageType || 'bludgeoning';
+    const targetDerived = (enemy as Record<string, unknown>).derived as { resistances?: Set<string>; immunities?: Set<string>; vulnerabilities?: Set<string> } | undefined;
+    let dmg = rawDmg;
+    let resistLabel = '';
+    if (targetDerived) {
+      if (targetDerived.immunities?.has(dmgType)) { dmg = 0; resistLabel = ' (immune)'; }
+      else if (targetDerived.resistances?.has(dmgType) && targetDerived.vulnerabilities?.has(dmgType)) { /* cancel */ }
+      else if (targetDerived.vulnerabilities?.has(dmgType)) { dmg = rawDmg * 2; resistLabel = ' (vulnerable!)'; }
+      else if (targetDerived.resistances?.has(dmgType)) { dmg = Math.max(1, Math.floor(rawDmg / 2)); resistLabel = ' (resisted)'; }
+    }
+    if (dmg > 0) enemy.hp -= dmg;
+    this.applyAbilityOnHitStatuses(abilityId, 'player', enemy);
+    this.executeAbilityHook('on_hit', { source: 'player', target: enemy, ability: abilityId, isCrit, damage: dmg });
+    this.executeAbilityHook('on_damage_dealt', { source: 'player', target: enemy, amount: dmg, damageType: dmgType });
+
     const floatColor = this.dmgColor(wpn && wpn.damageType);
     this.tweens.add({ targets: enemy.img, alpha: 0.15, duration: 80, yoyo: true, repeat: 3 });
     const ew = this.enemyWorldPos(enemy);
-    this.spawnFloat(ew.x, ew.y - S / 2, isCrit ? `💥${dmg}` : `-${dmg}`, isCrit ? '#f39c12' : floatColor);
+    const floatText = dmg === 0 ? 'IMMUNE' : isCrit ? `💥${dmg}${resistLabel}` : `-${dmg}${resistLabel}`;
+    this.spawnFloat(ew.x, ew.y - S / 2, floatText, dmg === 0 ? '#7fc8f8' : isCrit ? '#f39c12' : floatColor);
     const ratio = Math.max(0, enemy.hp / enemy.maxHp);
     if (enemy.hpFg) {
       enemy.hpFg.setDisplaySize((S - 8) * ratio, 5);
@@ -1179,16 +1219,17 @@ export const ModeCombatMixin = {
       ? `d20(${atkRoll2}|${atkRoll}↑) ${totalMod >= 0 ? '+ ' + totalMod : '- ' + Math.abs(totalMod)} = ${atkTotal} | AC ${enemy.ac}`
       : this.formatRollLine(atkRoll, totalMod, atkTotal, enemy.ac);
     this.showStatus(`${isCrit ? 'CRIT! ' : ''}${wasHidden ? 'SNEAK ' : ''}${abilityName} hit ${enemy.displayName} for ${dmg}! ${rollDisplay} | ${dmgText}`);
-    const pWpn = WEAPON_DEFS[ps.weaponId ?? ''];
-    const pDmgType = pWpn ? pWpn.damageType : '';
     withCombatLog((l: any) =>
-      l.logRoll({ actor: 'You', target: enemy.displayName, result: isCrit ? 'crit' : 'hit', damage: dmg, rollDetail: rollDisplay, dmgDetail: `${dmgText}${pDmgType ? ' ' + pDmgType : ''}`, extra: wasHidden ? 'sneak attack' : '' }),
+      l.logRoll({ actor: 'You', target: enemy.displayName, result: isCrit ? 'crit' : 'hit', damage: dmg, rollDetail: rollDisplay, dmgDetail: dmgText, dmgType: dmgType, resistLabel: resistLabel.trim() || '', extra: wasHidden ? 'sneak attack' : '' }),
     );
 
     self._afterPlayerDice = () => {
       try {
         if (enemy.hp <= 0) {
           enemy.alive = false; enemy.inCombat = false;
+          if (typeof this.removeStatusesBySource === 'function') {
+            this.removeStatusesBySource('player', enemy as unknown as import('@/types/actors').Actor);
+          }
           this.tweens.add({
             targets: [enemy.img, enemy.hpBg, enemy.hpFg, enemy.lbl, enemy.sightRing].filter((o) => o && (o as Phaser.GameObjects.GameObject).active),
             alpha: 0,
@@ -1211,6 +1252,7 @@ export const ModeCombatMixin = {
             l.log(`${enemy.displayName} defeated! +${enemy.xp || 50} XP`, 'player', 'combat'),
           );
           (this.pStats as PStats).xp += enemy.xp || 50;
+          this.executeAbilityHook('on_kill', { source: 'player', target: enemy });
           try { this.checkLevelUp(); } catch (err) { console.warn('[Combat] Level-up check failed on kill:', err); }
           if ((this.combatGroup as unknown as Enemy[]).every((e) => !e.alive)) {
             this.time.delayedCall(600, () => this.exitCombat());

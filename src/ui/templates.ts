@@ -12,7 +12,10 @@ export const T = {
   closeBtn: (onclick: string) =>
     `<div style="color:#555;font-size:9px;cursor:pointer" onclick="${onclick}">✕</div>`,
 
-  charHeader: (p: Record<string, unknown>, hp: number, maxHP: number) => `
+  charHeader: (p: Record<string, unknown>, hp: number, maxHP: number) => {
+    const derived = p.derived as Record<string, number> | undefined;
+    const effAc = Number(p.ac) + (derived?.ac || 0);
+    return `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div style="color:#c9a84c;letter-spacing:3px;font-size:11px">CHARACTER</div>
       ${T.closeBtn('toggleStats()')}
@@ -20,8 +23,9 @@ export const T = {
     <div style="background:rgba(41,128,185,0.15);border:1px solid rgba(41,128,185,0.3);border-radius:4px;padding:8px;margin-bottom:10px;text-align:center">
       <div style="color:#f0c060;font-size:15px;letter-spacing:2px">${p.name}</div>
       <div style="color:#7fc8f8;font-size:12px;margin-top:2px">${p.class} · Level ${p.level}</div>
-      <div style="color:#aaa;font-size:11px;margin-top:1px">HP ${hp}/${maxHP} · AC ${p.ac} · Prof +${p.profBonus}</div>
-    </div>`,
+      <div style="color:#aaa;font-size:11px;margin-top:1px">HP ${hp}/${maxHP} · AC ${effAc}${derived?.ac ? ` <span style="color:#66bb6a;font-size:10px">(+${derived.ac})</span>` : ''} · Prof +${p.profBonus}</div>
+    </div>`;
+  },
 
   xpSection: (p: Record<string, unknown>) => {
     const level = Number(p.level);
@@ -37,20 +41,43 @@ export const T = {
   },
 
   abilitySection: (p: Record<string, unknown>) => {
+    const derived = p.derived as Record<string, number> | undefined;
     const m = (s: unknown) => T.sign(dnd.mod(Number(s)));
     return `
     ${T.section('ABILITY SCORES', '10px')}
-    ${['str','dex','con','int','wis','cha'].map(s => `
+    ${['str','dex','con','int','wis','cha'].map(s => {
+      const boost = derived?.[s === 'int' ? 'int' : s] || 0;
+      const effVal = Number(p[s]) + boost;
+      const saveProfBonus = (p.savingThrows as Set<string>)?.has(s) ? Number(p.profBonus) : 0;
+      const saveBoost = derived?.saves ? (derived.saves as unknown as Record<string, number>)?.[s] || 0 : 0;
+      const saveAll = derived?.saveAll || 0;
+      const effSave = dnd.mod(effVal) + saveProfBonus + saveBoost + saveAll;
+      const saveBoostTotal = saveBoost + saveAll + (boost ? Math.floor(boost / 2) : 0);
+      return `
     <div class="sr">
       <span class="sn">${s.toUpperCase()}</span>
-      <span class="sv">${p[s]}</span>
-      <span class="sm">${m(p[s])}</span>
-      <span style="color:#666;font-size:10px">save${(p.savingThrows as Set<string>)?.has(s) ? ` (${T.sign(dnd.mod(Number(p[s])) + Number(p.profBonus))})` : `(${m(p[s])})`}</span>
-    </div>`).join('')}`;
+      <span class="sv">${effVal}${T.boostDiff(boost)}</span>
+      <span class="sm">${T.sign(dnd.mod(effVal))}</span>
+      <span style="color:#666;font-size:10px">save (${T.sign(effSave)}${T.boostDiff(saveBoostTotal)})</span>
+    </div>`;
+    }).join('')}`;
+  },
+
+  boostDiff: (delta: number, positive = true): string => {
+    if (!delta) return '';
+    const good = positive ? delta > 0 : delta < 0;
+    const color = good ? '#66bb6a' : '#ef5350';
+    return ` <span style="color:${color};font-size:10px">(${delta > 0 ? '+' : ''}${delta})</span>`;
   },
 
   combatSection: (p: Record<string, unknown>) => {
     const m = (s: unknown) => T.sign(dnd.mod(Number(s)));
+    const derived = p.derived as Record<string, number> | undefined;
+    const acBoost = derived?.ac || 0;
+    const effAc = Number(p.ac) + acBoost;
+    const movBoost = derived?.movement || 0;
+    const baseSpeed = 6;
+    const effSpeed = baseSpeed + movBoost;
     const dmg = dnd.damageSpecToString(p.damageFormula || '1d4');
     const equippedWeapon = p.equippedWeapon as Record<string, unknown> | undefined;
     const equippedArmor = p.equippedArmor as Record<string, unknown> | undefined;
@@ -62,9 +89,9 @@ export const T = {
       : '— none';
     return `
     ${T.section('COMBAT', '10px')}
-    ${T.row('AC', p.ac)}
+    ${T.row('AC', `${effAc}${T.boostDiff(acBoost)}`)}
     ${T.row('Attack', `d20+${dnd.mod(Number(p.str)) + Number(p.profBonus)} / ${dmg}`)}
-    ${T.row('Speed', '6 tiles (30ft)')}
+    ${T.row('Speed', `${effSpeed} tiles${T.boostDiff(movBoost)}`)}
     ${T.row('Initiative', m(p.dex))}
     ${T.section('EQUIPMENT', '8px')}
     ${T.row('Weapon', wpnLabel)}

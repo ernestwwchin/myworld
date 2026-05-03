@@ -6,7 +6,29 @@ export const TILE = {
   STAIRS: 5,
   WATER: 6,
   GRASS: 7,
+  FIRE: 8,
+  ACID: 9,
+  ICE: 10,
+  CONSECRATED: 11,
 } as const;
+
+export interface TerrainEffectDef {
+  damageType?: string;
+  damage?: string;
+  status?: string;
+  statusDuration?: number;
+  save?: { stat: string; dc: number };
+  message?: string;
+  floatColor?: string;
+}
+
+export const TERRAIN_DEFS: Partial<Record<number, TerrainEffectDef>> = {
+  [6]: { damageType: 'bludgeoning', damage: '0', message: 'You wade through water.', floatColor: '#7fc8f8' },
+  [8]: { damageType: 'fire', damage: '1d6', status: 'burning', statusDuration: 2, message: 'You step in fire!', floatColor: '#ff7043' },
+  [9]: { damageType: 'acid', damage: '1d4', status: 'poisoned', statusDuration: 2, save: { stat: 'con', dc: 12 }, message: 'Acid burns!', floatColor: '#8bc34a' },
+  [10]: { damageType: 'cold', damage: '1d4', status: 'restrained', statusDuration: 1, save: { stat: 'dex', dc: 12 }, message: 'Ice slows you!', floatColor: '#b3e5fc' },
+  [11]: { damageType: 'radiant', damage: '0', message: 'You feel a holy aura.', floatColor: '#fffde7' },
+};
 
 export const S = 48;
 
@@ -189,6 +211,27 @@ export const STATUS_DEFS: Record<string, StatusDef> = {
 };
 
 export const CLASSES_DATA: Record<string, Record<string, unknown>> = {};
+
+export interface QuestDef {
+  id: string;
+  title: string;
+  description: string;
+  icon?: string;
+  type?: string;
+  reward?: { gold?: number; xp?: number; items?: string[] };
+  objectives?: Array<{ id: string; label: string; count?: number }>;
+  [key: string]: unknown;
+}
+
+export const QUEST_DEFS: Record<string, QuestDef> = {};
+
+export interface ShopDef {
+  id: string;
+  price: number;
+  stock?: number;
+}
+
+export const SHOP_DEFS: ShopDef[] = [];
 
 export interface InventoryItem {
   id: string;
@@ -506,6 +549,8 @@ if (typeof window !== 'undefined') {
   w.ITEM_DEFS = ITEM_DEFS;
   w.STATUS_DEFS = STATUS_DEFS;
   w.CLASSES_DATA = CLASSES_DATA;
+  w.QUEST_DEFS = QUEST_DEFS;
+  w.SHOP_DEFS = SHOP_DEFS;
   w.PLAYER_STATS = PLAYER_STATS;
   w.ENEMY_DEFS = ENEMY_DEFS;
   w.dnd = dnd;

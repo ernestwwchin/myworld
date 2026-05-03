@@ -21,6 +21,12 @@ For AI tools and developers working on the codebase. The Claude-loaded entry poi
 
 ## Assets
 
+- [**🎨 Tile System**](../tile-system.md) — **Complete tile reference (catalog, autotiling, sprites, stamps)**
+  - [Tile Catalog](./tile-catalog.md) — 400+ tiles with usage tags
+  - [Autotiling Guide](./autotiling.md) — 3x3 minimal bitmask system
+  - [Character Sprites](./character-sprites.md) — All animations and monsters
+  - [BSP Room Stamps](./bsp-room-stamps.md) — Prefab room templates
+  - [Map Builder](./map-builder.md) — Room rendering, layers, tile stamper, autotile
 - [sprites.md](sprites.md) — sprite atlas, Phaser integration, display sizing
 - [tileset-sourcing.md](tileset-sourcing.md) — tileset selection, licensing, asset shortlist
 - [ui-design-bg3.md](ui-design-bg3.md) — BG3-inspired UI patterns at code level

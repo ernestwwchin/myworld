@@ -1,4 +1,5 @@
 import { InteractableEntity } from '@/entities/interactable-entity';
+import { dnd, PLAYER_STATS } from '@/config';
 import type { GameScene } from '@/game';
 import type { MenuOption } from '@/types/entities';
 
@@ -43,6 +44,8 @@ export class DoorEntity extends InteractableEntity {
   keyId: string | null;
   behavior: string;
   closeDelayMs: number;
+  lockDc: number;
+  breakDc: number;
 
   constructor(def: Record<string, unknown> = {}) {
     super({ ...def, kind: 'door' });
@@ -52,6 +55,8 @@ export class DoorEntity extends InteractableEntity {
     this.keyId = (def.keyId as string) || null;
     this.behavior = String(def.behavior || (this.locked ? 'locked' : 'standard')).toLowerCase();
     this.closeDelayMs = Number(def.closeDelayMs || 0);
+    this.lockDc = Number(def.lockDc || 15);
+    this.breakDc = Number(def.breakDc || 18);
   }
 
   override getIcon(): string { return '🚪'; }
@@ -59,7 +64,11 @@ export class DoorEntity extends InteractableEntity {
 
   override getMenuOptions(_scene: GameScene | null): MenuOption[] {
     if (this.locked) {
-      return [{ label: 'Unlock Door', icon: '🔑', action: 'toggle', enabled: false }];
+      const opts: MenuOption[] = [];
+      if (this.lockDc > 0) opts.push({ label: 'Lockpick', icon: '🔓', action: 'lockpick', enabled: true });
+      if (this.breakDc > 0) opts.push({ label: 'Force Open', icon: '💪', action: 'break_door', enabled: true });
+      if (!opts.length) opts.push({ label: 'Unlock Door', icon: '🔑', action: 'toggle', enabled: false });
+      return opts;
     }
     const label = this.open ? 'Close Door' : 'Open Door';
     return [{ label, icon: '🚪', action: 'toggle', enabled: true }];
@@ -73,6 +82,30 @@ export class DoorEntity extends InteractableEntity {
     if (action === 'toggle') {
       const result = this.toggle(scene, opts);
       return { ...result, kind: 'door' };
+    }
+    if (action === 'lockpick') {
+      const result = dnd.skillCheck('sleightOfHand', PLAYER_STATS as unknown as Record<string, unknown>, this.lockDc);
+      (scene as unknown as { executeAbilityHook?(h: string, ctx: Record<string, unknown>): void })?.executeAbilityHook?.('on_skill_check', { skill: 'sleightOfHand', dc: this.lockDc, success: result.success, total: result.total });
+      if (result.success) {
+        this.locked = false;
+        scene?.showStatus?.(`Lockpick success! (${result.total} vs DC ${this.lockDc})`);
+        this.toggle(scene, opts);
+      } else {
+        scene?.showStatus?.(`Lockpick failed. (${result.total} vs DC ${this.lockDc})`);
+      }
+      return { ok: result.success, kind: 'door' };
+    }
+    if (action === 'break_door') {
+      const result = dnd.skillCheck('athletics', PLAYER_STATS as unknown as Record<string, unknown>, this.breakDc);
+      (scene as unknown as { executeAbilityHook?(h: string, ctx: Record<string, unknown>): void })?.executeAbilityHook?.('on_skill_check', { skill: 'athletics', dc: this.breakDc, success: result.success, total: result.total });
+      if (result.success) {
+        this.locked = false;
+        scene?.showStatus?.(`Forced the door open! (${result.total} vs DC ${this.breakDc})`);
+        this.toggle(scene, opts);
+      } else {
+        scene?.showStatus?.(`Couldn't force the door. (${result.total} vs DC ${this.breakDc})`);
+      }
+      return { ok: result.success, kind: 'door' };
     }
     return { ok: false, reason: 'Unknown door action.', kind: 'door' };
   }

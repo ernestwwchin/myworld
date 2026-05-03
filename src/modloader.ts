@@ -2,10 +2,26 @@ import yaml from 'js-yaml';
 import {
   TILE, COMBAT_RULES, STATUS_RULES, FOG_RULES, LIGHT_RULES, DOOR_RULES,
   MAP, mapState, DND_XP, ASI_LEVELS, SKILLS,
-  WEAPON_DEFS, ABILITY_DEFS, ITEM_DEFS, STATUS_DEFS, CLASSES_DATA,
+  WEAPON_DEFS, ABILITY_DEFS, ITEM_DEFS, STATUS_DEFS, CLASSES_DATA, QUEST_DEFS, SHOP_DEFS,
   PLAYER_STATS, ENEMY_DEFS, dnd,
 } from '@/config';
 import { MapGen } from '@/mapgen';
+import { resolveAllCreatures } from '@/systems/creature-resolver';
+import { placeSquads, assignCreatureNames } from '@/systems/encounter-placement';
+import type { SquadDef, FlatEncounterDef } from '@/systems/encounter-placement';
+
+function buildBaseDerived(tmpl: any): Record<string, unknown> {
+  const resistances = new Set<string>(tmpl.resistances || []);
+  const immunities = new Set<string>(tmpl.immunities || []);
+  const vulnerabilities = new Set<string>(tmpl.vulnerabilities || []);
+  return {
+    ac: 0, str: 0, dex: 0, con: 0, wis: 0, int: 0, cha: 0,
+    maxHp: 0, damage: 0, movement: 0, movementMultiplier: 1,
+    saves: {}, saveAll: 0,
+    advantages: new Set(), disadvantages: new Set(), autoFails: new Set(),
+    immunities, resistances, vulnerabilities,
+  };
+}
 
 type Dict = Record<string, unknown>;
 type Tile = number | string;
@@ -78,6 +94,7 @@ interface ModData {
   statusRules: Dict;
   lootTables: Dict;
   items: Dict;
+  quests?: Dict;
   worlds?: Dict;
   storylines?: any[];
   _stageEvents?: unknown[];
@@ -264,7 +281,7 @@ export const ModLoader = {
     const inBounds = (x: number, y: number) => x >= 0 && y >= 0 && x < cols && y < rows;
     const isWalkable = (x: number, y: number) => {
       const v = grid[y]?.[x];
-      return v === TILE.FLOOR || v === TILE.GRASS || v === TILE.WATER;
+      return v === TILE.FLOOR || v === TILE.GRASS || v === TILE.WATER || v === TILE.FIRE || v === TILE.ACID || v === TILE.ICE || v === TILE.CONSECRATED;
     };
 
     for (let d = 1; d <= 4; d++) {
@@ -292,7 +309,7 @@ export const ModLoader = {
     const cols = grid[0]?.length || 0;
     if (x < 0 || y < 0 || x >= cols || y >= rows) return false;
     const v = grid[y]?.[x];
-    return v === TILE.FLOOR || v === TILE.GRASS || v === TILE.WATER || v === TILE.STAIRS;
+    return v === TILE.FLOOR || v === TILE.GRASS || v === TILE.WATER || v === TILE.STAIRS || v === TILE.FIRE || v === TILE.ACID || v === TILE.ICE || v === TILE.CONSECRATED;
   },
 
   _findNearestWalkableTile(grid: Tile[][], fromTile: { x: number; y: number } | null): { x: number; y: number } | null {
@@ -962,7 +979,7 @@ export const ModLoader = {
 
     const modData: ModData = {
       rules: {}, classes: {}, weapons: {}, creatures: {}, maps: {},
-      abilities: {}, statuses: {}, statusRules: {}, lootTables: {}, items: {},
+      abilities: {}, statuses: {}, statusRules: {}, lootTables: {}, items: {}, quests: {},
     };
 
     this._stageRegistry = {};
@@ -997,6 +1014,19 @@ export const ModLoader = {
         const it = (await this.loadYaml(`data/${modId}/items.yaml`)) as any;
         if (it?.items && typeof it.items === 'object') Object.assign(modData.items, it.items);
       } catch { /* no items.yaml — ok */ }
+
+      try {
+        const qt = (await this.loadYaml(`data/${modId}/quests.yaml`)) as any;
+        if (qt?.quests && typeof qt.quests === 'object') Object.assign(modData.quests!, qt.quests);
+      } catch { /* no quests.yaml — ok */ }
+
+      try {
+        const sh = (await this.loadYaml(`data/${modId}/shop.yaml`)) as any;
+        if (Array.isArray(sh?.shop)) {
+          SHOP_DEFS.length = 0;
+          for (const item of sh.shop) SHOP_DEFS.push({ id: item.id, price: item.price, stock: item.stock });
+        }
+      } catch { /* no shop.yaml — ok */ }
 
       try {
         const sl = (await this.loadYaml(`data/${modId}/storylines.yaml`)) as any;
@@ -1082,7 +1112,11 @@ export const ModLoader = {
     this.applyAbilities(modData);
     this.applyStatuses(modData);
     this.applyItems(modData);
+    this.applyQuests(modData);
     this.applyMap(modData, activeMap);
+    if (modData.creatures && typeof modData.creatures === 'object') {
+      modData.creatures = resolveAllCreatures(modData.creatures as Record<string, any>);
+    }
     this.applyCreatures(modData, activeMap);
     this.applyPlayer(playerFile.player, modData);
 
@@ -1279,6 +1313,13 @@ export const ModLoader = {
     }
   },
 
+  applyQuests(data: any): void {
+    if (!data.quests) return;
+    for (const [id, quest] of Object.entries<any>(data.quests)) {
+      QUEST_DEFS[id] = { id, ...quest };
+    }
+  },
+
   applyMap(data: any, activeMap: string | null): void {
     if (!activeMap) return;
     if (!data.maps || !data.maps[activeMap]) return;
@@ -1357,35 +1398,98 @@ export const ModLoader = {
     const mapDef = data.maps[activeMap];
     const isGenerated = !!mapDef.generator;
     ENEMY_DEFS.length = 0;
-    for (const enc of (mapDef.encounters || [])) {
-      const tmpl = data.creatures[enc.creature];
-      if (!tmpl) continue;
-      const weaponId: string | null = tmpl.attack?.weaponId || null;
-      const weapon = weaponId ? data.weapons?.[weaponId] : null;
-      const damageFormula = dnd.damageSpecToString(weapon?.damageDice || tmpl.attack?.dice || '1d4');
-      const atkRange = weapon?.range || tmpl.attack?.range || 1;
-      const count = isGenerated ? Number(enc.count || 1) : 1;
-      for (let i = 0; i < count; i++) {
+
+    const genResult = mapDef._genResult as { rooms?: Array<{ x1: number; y1: number; x2: number; y2: number; cx: number; cy: number; w: number; h: number }>; grid?: number[][] } | undefined;
+    const hasRooms = genResult?.rooms && genResult.rooms.length > 0 && genResult.grid;
+    const encounters = mapDef.encounters || [];
+    const hasSquads = encounters.some((e: any) => e.squad || (e.creatures && Array.isArray(e.creatures)));
+
+    if (isGenerated && hasRooms && hasSquads) {
+      const placed = placeSquads(
+        encounters as Array<SquadDef | FlatEncounterDef>,
+        genResult!.rooms!,
+        genResult!.grid!,
+        Number((mapState as any).FLOOR ?? 0),
+        mapDef.playerStart || { x: 0, y: 0 },
+        mapDef._stairsPos || null,
+      );
+      for (const p of placed) {
+        const tmpl = data.creatures[p.creature];
+        if (!tmpl) continue;
+        const weaponId: string | null = tmpl.attack?.weaponId || null;
+        const weapon = weaponId ? data.weapons?.[weaponId] : null;
+        const damageFormula = dnd.damageSpecToString(weapon?.damageDice || tmpl.attack?.dice || '1d4');
+        const atkRange = weapon?.range || tmpl.attack?.range || 1;
         ENEMY_DEFS.push({
-          tx: isGenerated ? -1 : enc.x,
-          ty: isGenerated ? -1 : enc.y,
+          tx: p.tx, ty: p.ty,
           type: tmpl.type,
-          name: enc.name || tmpl.name || null,
+          name: p.name || tmpl.name || null,
           hp: tmpl.hp, maxHp: tmpl.hp,
           sight: tmpl.sight, spd: tmpl.speed, icon: tmpl.icon,
-          facing: enc.facing ?? 0, fov: tmpl.fov, group: enc.group,
+          facing: 0, fov: tmpl.fov, group: p.group,
           stats: { ...tmpl.stats },
           ac: tmpl.ac, weaponId: weaponId || '', damageFormula, atkRange,
           xp: tmpl.xp, cr: tmpl.cr,
-          lootTable: enc.lootTable || tmpl.lootTable || null,
-          loot: enc.loot || tmpl.loot || [],
-          gold: Number(enc.gold ?? tmpl.gold ?? 0),
-          ai: { ...(tmpl.ai || {}), ...(enc.ai || {}) },
-          effects: [...(tmpl.effects || tmpl.statuses || []), ...(enc.effects || enc.statuses || [])],
+          lootTable: tmpl.lootTable || null,
+          loot: tmpl.loot || [],
+          gold: Number(tmpl.gold ?? 0),
+          ai: { ...(tmpl.ai || {}), ...(p.ai || {}) },
+          effects: [...(tmpl.effects || tmpl.statuses || [])],
+          onHit: tmpl.onHit ? [...tmpl.onHit] : [],
+          aura: tmpl.aura ? { ...tmpl.aura } : undefined,
           skillProficiencies: new Set(tmpl.skillProficiencies || []),
           level: tmpl.level || 1,
+          hidden: p.hidden,
+          derived: buildBaseDerived(tmpl),
         });
       }
+    } else {
+      for (const enc of encounters) {
+        const creatureId = enc.creature || (enc.creatures?.[0] && typeof enc.creatures[0] === 'string' ? enc.creatures[0] : null);
+        const tmpl = creatureId ? data.creatures[creatureId] : null;
+        if (!tmpl) continue;
+        const weaponId: string | null = tmpl.attack?.weaponId || null;
+        const weapon = weaponId ? data.weapons?.[weaponId] : null;
+        const damageFormula = dnd.damageSpecToString(weapon?.damageDice || tmpl.attack?.dice || '1d4');
+        const atkRange = weapon?.range || tmpl.attack?.range || 1;
+        const count = isGenerated ? Number(enc.count || 1) : 1;
+        for (let i = 0; i < count; i++) {
+          ENEMY_DEFS.push({
+            tx: isGenerated ? -1 : enc.x,
+            ty: isGenerated ? -1 : enc.y,
+            type: tmpl.type,
+            name: enc.name || tmpl.name || null,
+            hp: tmpl.hp, maxHp: tmpl.hp,
+            sight: tmpl.sight, spd: tmpl.speed, icon: tmpl.icon,
+            facing: enc.facing ?? 0, fov: tmpl.fov, group: enc.group,
+            stats: { ...tmpl.stats },
+            ac: tmpl.ac, weaponId: weaponId || '', damageFormula, atkRange,
+            xp: tmpl.xp, cr: tmpl.cr,
+            lootTable: enc.lootTable || tmpl.lootTable || null,
+            loot: enc.loot || tmpl.loot || [],
+            gold: Number(enc.gold ?? tmpl.gold ?? 0),
+            ai: { ...(tmpl.ai || {}), ...(enc.ai || {}) },
+            effects: [...(tmpl.effects || tmpl.statuses || []), ...(enc.effects || enc.statuses || [])],
+            onHit: tmpl.onHit ? [...tmpl.onHit] : [],
+            aura: tmpl.aura ? { ...tmpl.aura } : undefined,
+            skillProficiencies: new Set(tmpl.skillProficiencies || []),
+            level: tmpl.level || 1,
+            derived: buildBaseDerived(tmpl),
+          });
+        }
+      }
+    }
+
+    // Difficulty budget diagnostic
+    const totalXP = ENEMY_DEFS.reduce((sum: number, e: any) => sum + (Number(e.xp) || 0), 0);
+    const playerLevel = Number(PLAYER_STATS.level || 1);
+    const budget = playerLevel * 100 * 4; // medium × party-of-1 approximation
+    mapDef._encounterXP = totalXP;
+    mapDef._difficultyBudget = budget;
+    if (totalXP > budget * 2) {
+      console.warn(`[Difficulty] ${activeMap}: XP ${totalXP} exceeds deadly budget ${budget * 2} (${ENEMY_DEFS.length} enemies, player Lv${playerLevel})`);
+    } else {
+      console.log(`[Difficulty] ${activeMap}: XP ${totalXP}/${budget} budget (${ENEMY_DEFS.length} enemies, player Lv${playerLevel})`);
     }
   },
 

@@ -26,6 +26,7 @@ import { LightSystemMixin } from '@/systems/light-system';
 import { MovementSystemMixin } from '@/systems/movement-system';
 import { SightSystemMixin } from '@/systems/sight-system';
 import { StatusEffectSystemMixin } from '@/systems/status-effect-system';
+import { AuraSystemMixin } from '@/systems/aura-system';
 import { WorldPositionSystemMixin } from '@/systems/world-position-system';
 
 import { CombatAIMixin } from '@/modes/combat-ai';
@@ -69,6 +70,7 @@ export class GameScene extends Phaser.Scene {
   combatGroup: unknown[] = [];
   turnOrder: { id: string; surprised?: boolean; enemy?: unknown; roll?: number; mod?: number; init?: number }[] = [];
   turnIndex = 0;
+  combatRound = 0;
   playerAP = 1;
   playerMoves = 5;
   playerMovesUsed = 0;
@@ -249,6 +251,7 @@ export class GameScene extends Phaser.Scene {
     this.combatGroup = [];
     this.turnOrder = [];
     this.turnIndex = 0;
+    this.combatRound = 0;
     this.playerAP = 1;
     this.playerMoves = Number(COMBAT_RULES.playerMovePerTurn || 5);
     this.playerMovesUsed = 0;
@@ -279,6 +282,10 @@ export class GameScene extends Phaser.Scene {
         else if (t === TILE.STAIRS) k = 't_stairs';
         else if (t === TILE.WATER) k = 't_water';
         else if (t === TILE.GRASS) k = 't_grass';
+        else if (t === TILE.FIRE) k = 't_floor';
+        else if (t === TILE.ACID) k = 't_water';
+        else if (t === TILE.ICE) k = 't_floor';
+        else if (t === TILE.CONSECRATED) k = 't_floor';
         const tex = getTileTex(k);
         this.tileSprites[r][c] = this.add.image(c * S + S / 2, r * S + S / 2, tex[0], tex[1]).setDisplaySize(S, S);
       }
@@ -497,6 +504,8 @@ export class GameScene extends Phaser.Scene {
     this.updateFogOfWar();
     this.time.addEvent({ delay: 1200, loop: true, callback: () => { if (this.mode === MODE.EXPLORE) this.wanderEnemies(); } });
     this.startExploreStatusTicker();
+    this.startAuraTicker();
+    this.events.once('shutdown', () => this.stopAuraTicker());
 
     const modData = (w.ModLoader as { _modData?: { _stageEvents?: unknown[]; _stageDialogs?: Record<string, unknown> } } | undefined)?._modData;
     EventRunner.init(this, (modData?._stageEvents || []) as Parameters<typeof EventRunner.init>[1]);
@@ -509,6 +518,16 @@ export class GameScene extends Phaser.Scene {
       + ` player:(${this.playerTile.x},${this.playerTile.y})`
       + ` floor:${(meta as Record<string, unknown>)?.floor} nextStage:${(meta as Record<string, unknown>)?.nextStage}`,
     );
+
+    const ml = (window as unknown as { ModLoader?: { consumeLastRunSummary?: () => Record<string, unknown> | null } }).ModLoader;
+    if (ml?.consumeLastRunSummary) {
+      const summary = ml.consumeLastRunSummary();
+      if (summary) {
+        import('@/ui/town-panels').then(({ showRunSummary }) => {
+          this.time.delayedCall(500, () => showRunSummary(summary));
+        });
+      }
+    }
   }
 
   playActorIdle(sprite: unknown, type: unknown): void {
@@ -876,6 +895,15 @@ export class GameScene extends Phaser.Scene {
     this.updateExplore(delta);
     this._checkWasdIdle();
   }
+
+  handlePlayerDefeat(): void {
+    const w = window as unknown as { ModLoader?: { resolveRunOutcome: (scene: unknown, outcome: string) => void } };
+    if (w.ModLoader?.resolveRunOutcome) {
+      this.time.delayedCall(1500, () => {
+        w.ModLoader!.resolveRunOutcome(this, 'death');
+      });
+    }
+  }
 }
 
 Object.assign(
@@ -886,6 +914,7 @@ Object.assign(
   SightSystemMixin,
   DamageSystemMixin,
   StatusEffectSystemMixin,
+  AuraSystemMixin,
   EntitySystemMixin,
   AbilitySystemMixin,
   InventorySystemMixin,

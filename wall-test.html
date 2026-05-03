@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Wall Tile Reference</title>
+<style>
+  body { background: #1a1a2e; color: #eee; font-family: monospace; margin: 20px; }
+  h2 { color: #60a5fa; margin-top: 32px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+  h3 { color: #f59e0b; }
+
+  .atlas-section { margin: 16px 0; }
+  .atlas-wrap { position: relative; display: inline-block; margin: 8px 0; }
+  .atlas-wrap img { image-rendering: pixelated; display: block; }
+  .atlas-wrap .grid-overlay {
+    position: absolute; top: 0; left: 0; pointer-events: none;
+    background-image:
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.25) 0px, rgba(255,255,255,0.25) 1px, transparent 1px, transparent var(--cell-w)),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.25) 0px, rgba(255,255,255,0.25) 1px, transparent 1px, transparent var(--cell-h));
+    background-size: var(--cell-w) var(--cell-h);
+  }
+  .atlas-wrap .cell-labels { position: absolute; top: 0; left: 0; }
+  .atlas-wrap .clbl {
+    position: absolute; font-size: 9px; color: #ff0; background: rgba(0,0,0,0.7);
+    padding: 1px 3px; pointer-events: none; white-space: nowrap;
+  }
+
+  .room-grid { display: inline-grid; gap: 0; margin: 16px 0; border: 2px solid #444; }
+  .room-grid .cell { position: relative; width: 64px; height: 64px; }
+  .room-grid .cell .coord { position: absolute; top: 1px; left: 2px; font-size: 9px; color: rgba(255,255,255,0.4); z-index: 2; }
+  .room-grid .cell .sprite { position: absolute; top: 0; left: 0; width: 64px; height: 64px; image-rendering: pixelated; }
+  .room-grid .cell .sprite.z1 { z-index: 1; }
+</style>
+</head>
+<body>
+
+<h1>0x72 Dungeon Tileset — Walls Low Atlas Reference</h1>
+
+<h2>1. Walls Low Atlas (192×64 = 12×4 cells @ 16×16)</h2>
+<p style="color:#888;">Shown at 4× (64px per cell). Coordinate labels = col,row.</p>
+<div class="atlas-section">
+  <div class="atlas-wrap" id="atlas-low">
+    <img src="/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_v1.7/atlas_walls_low-16x16.png" style="width:768px;height:256px;">
+    <div class="grid-overlay" style="width:768px;height:256px;--cell-w:64px;--cell-h:64px;"></div>
+  </div>
+</div>
+
+<hr>
+<h2>2. Sample Rooms (tiles from walls low atlas)</h2>
+
+<h3>2a. 7×7 floor with 5×5 room (Set 0 only, no void)</h3>
+<p style="color:#888;">Corners: ┌(1,0) ┐(3,0) └(1,2) ┘(3,2). Horizontal: ─(2,3). Vertical: │(0,0/0,1). Floor everywhere.</p>
+<div class="room-grid" id="room-on-floor" style="grid-template-columns: repeat(7, 64px);"></div>
+
+<h3>2b. Two connected rooms (T-walls at junction)</h3>
+<p style="color:#888;">T-walls: ┬(2,0) ┤(3,1) ├(1,1) ┴(2,2). Cross: ┼(2,1).</p>
+<div class="room-grid" id="room-connected" style="grid-template-columns: repeat(9, 64px);"></div>
+
+<h3>2c. Freestanding I-wall (vertical, col 0)</h3>
+<p style="color:#888;">0,0=top → 0,1=mid → 0,2=end (no wall below). Wall centered in tile.</p>
+<div class="room-grid" id="iwall" style="grid-template-columns: repeat(3, 64px);"></div>
+
+<h3>2d. Freestanding H-wall (horizontal, row 3)</h3>
+<p style="color:#888;">1,3=left end → 2,3=mid → 3,3=right end. Wall at top of tile (3/4 view).</p>
+<div class="room-grid" id="hwall" style="grid-template-columns: repeat(7, 64px);"></div>
+
+<h3>2e. Standalone pillar (0,3)</h3>
+<div class="room-grid" id="standalone" style="grid-template-columns: repeat(3, 64px);"></div>
+
+<script>
+const LOW_ATLAS = '/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_v1.7/atlas_walls_low-16x16.png';
+const FLOOR_ATLAS = '/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_v1.7/atlas_floor-16x16.png';
+const SCALE = 4; // 16px × 4 = 64px
+
+// Cell coordinate labels
+function addCellLabels(wrapperId, cols, rows, cellW, cellH) {
+  const wrap = document.getElementById(wrapperId);
+  const div = document.createElement('div');
+  div.className = 'cell-labels';
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const lbl = document.createElement('div');
+      lbl.className = 'clbl';
+      lbl.style.left = (c * cellW + 2) + 'px';
+      lbl.style.top = (r * cellH + 2) + 'px';
+      lbl.textContent = c + ',' + r;
+      div.appendChild(lbl);
+    }
+  }
+  wrap.appendChild(div);
+}
+addCellLabels('atlas-low', 12, 4, 64, 64);
+
+// Canvas sprite from an atlas image
+function spriteCanvas(atlasId, col, row, cls) {
+  const c = document.createElement('canvas');
+  c.width = 16 * SCALE;
+  c.height = 16 * SCALE;
+  c.className = 'sprite ' + (cls || '');
+  c.title = col + ',' + row;
+  c.dataset.atlas = atlasId;
+  c.dataset.col = col;
+  c.dataset.row = row;
+  return c;
+}
+
+// Load both atlases, then draw all canvases
+const wallImg = new Image();
+const floorImg = new Image();
+let loaded = 0;
+function onLoad() {
+  loaded++;
+  if (loaded < 2) return;
+  document.querySelectorAll('canvas.sprite').forEach(c => {
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    const col = +c.dataset.col, row = +c.dataset.row;
+    const img = c.dataset.atlas === 'wall' ? wallImg : floorImg;
+    ctx.drawImage(img, col * 16, row * 16, 16, 16, 0, 0, c.width, c.height);
+  });
+}
+wallImg.onload = onLoad;
+floorImg.onload = onLoad;
+wallImg.src = LOW_ATLAS;
+floorImg.src = FLOOR_ATLAS;
+
+function renderRoom(id, grid) {
+  const el = document.getElementById(id);
+  for (let r = 0; r < grid.length; r++) {
+    for (let c = 0; c < grid[0].length; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const coord = document.createElement('div');
+      coord.className = 'coord';
+      coord.textContent = r + ',' + c;
+      cell.appendChild(coord);
+      const e = grid[r][c];
+      // Floor base layer (from floor atlas)
+      const floorCol = ((r * 3 + c * 7) % 3);  // 0-2 = floor_1..3
+      cell.appendChild(spriteCanvas('floor', floorCol, 0));
+      // Wall overlay layer
+      if (e.wall) {
+        cell.appendChild(spriteCanvas('wall', e.wall[0], e.wall[1], 'z1'));
+      }
+      el.appendChild(cell);
+    }
+  }
+}
+
+// Build room: floor everywhere, wall tiles on border
+// Connection tileset (cols 1-3):
+//   1,0=┌  2,0=┬  3,0=┐
+//   1,1=├  2,1=┼  3,1=┤
+//   1,2=└  2,2=┴  3,2=┘
+// Vertical strip (col 0): 0,0=top 0,1=mid 0,2=end 0,3=standalone
+// Horizontal strip (row 3): 1,3=╶end-right 2,3=─mid 3,3=╴end-left
+function buildRoom(w, h) {
+  const grid = [];
+  for (let r = 0; r < h; r++) {
+    grid[r] = [];
+    for (let c = 0; c < w; c++) {
+      let wall = null;
+
+      if (r === 0) {
+        // Top wall row
+        if (c === 0)        wall = [1, 0]; // ┌ corner (connects R+B)
+        else if (c === w-1) wall = [3, 0]; // ┐ corner (connects L+B)
+        else                wall = [2, 0]; // ┬ T-down (connects L+R+B)
+      } else if (r === h-1) {
+        // Bottom wall row
+        if (c === 0)        wall = [1, 2]; // └ corner (connects R+T)
+        else if (c === w-1) wall = [3, 2]; // ┘ corner (connects L+T)
+        else                wall = [2, 2]; // ┴ T-up (connects L+R+T)
+      } else if (c === 0) {
+        // Left wall — connects to corner above + corner below = ├
+        wall = [1, 1]; // ├ T-right (connects T+R+B)
+      } else if (c === w-1) {
+        // Right wall — connects to corner above + corner below = ┤
+        wall = [3, 1]; // ┤ T-left (connects T+L+B)
+      }
+
+      grid[r][c] = { wall };
+    }
+  }
+  return grid;
+}
+
+// Freestanding I-wall (uses col 0 vertical strip)
+function buildIWall(length) {
+  const grid = [];
+  for (let r = 0; r < length + 2; r++) {
+    grid[r] = [];
+    for (let c = 0; c < 3; c++) {
+      let wall = null;
+      if (c === 1) {
+        if (r === 0)              wall = [0, 0]; // top cap
+        else if (r === length+1)  wall = [0, 2]; // bottom end cap
+        else                      wall = [0, 1]; // mid
+      }
+      grid[r][c] = { wall };
+    }
+  }
+  return grid;
+}
+
+// Freestanding horizontal wall (uses row 3)
+function buildHWall(length) {
+  const grid = [];
+  for (let r = 0; r < 3; r++) {
+    grid[r] = [];
+    for (let c = 0; c < length + 2; c++) {
+      let wall = null;
+      if (r === 1) {
+        if (c === 0)             wall = [1, 3]; // ╶ left end
+        else if (c === length+1) wall = [3, 3]; // ╴ right end
+        else                     wall = [2, 3]; // ─ mid
+      }
+      grid[r][c] = { wall };
+    }
+  }
+  return grid;
+}
+
+// 7×7 floor with 5×5 room in center (row 1-5, col 1-5)
+// Simple room: corners + horizontal ─ + vertical │, no T-walls
+function buildRoomOnFloor() {
+  const W = 7, H = 7;
+  // room bounds
+  const rt = 1, rb = 5, cl = 1, cr = 5;
+  const grid = [];
+  for (let r = 0; r < H; r++) {
+    grid[r] = [];
+    for (let c = 0; c < W; c++) {
+      let wall = null;
+      const onTop = r === rt, onBot = r === rb;
+      const onLeft = c === cl, onRight = c === cr;
+      const inTopRow = r === rt && c > cl && c < cr;
+      const inBotRow = r === rb && c > cl && c < cr;
+      const inLeftCol = c === cl && r > rt && r < rb;
+      const inRightCol = c === cr && r > rt && r < rb;
+
+      // Corners
+      if (onTop && onLeft)       wall = [1, 0]; // ┌
+      else if (onTop && onRight) wall = [3, 0]; // ┐
+      else if (onBot && onLeft)  wall = [1, 2]; // └
+      else if (onBot && onRight) wall = [3, 2]; // ┘
+      // Horizontal walls (top & bottom)
+      else if (inTopRow)         wall = [2, 3]; // ─
+      else if (inBotRow)         wall = [2, 3]; // ─
+      // Vertical walls (left & right)
+      else if (inLeftCol || inRightCol) {
+        wall = [0, 1]; // │ mid (all mid since corners handle ends)
+      }
+
+      grid[r][c] = { wall };
+    }
+  }
+  return grid;
+}
+
+// Two rooms sharing a wall with a door opening
+// 9×7 grid, room walls at rows 1-5, left room cols 1-4, right room cols 4-7
+// Door at row 3 col 4 (gap in divider wall)
+//
+//  . ┌ ─ ─ ┬ ─ ─ ┐ .
+//  . │ . . │ . . │ .
+//  . │ . .   . . │ .  ← door (no wall at col 4)
+//  . │ . . │ . . │ .
+//  . └ ─ ─ ┴ ─ ─ ┘ .
+//
+function buildConnectedRooms() {
+  const W = 9, H = 7;
+  const grid = [];
+  for (let r = 0; r < H; r++) {
+    grid[r] = [];
+    for (let c = 0; c < W; c++) {
+      grid[r][c] = { wall: null };
+    }
+  }
+  function w(r,c,tile) { grid[r][c].wall = tile; }
+
+  // Top wall
+  w(1,1,[1,0]); // ┌
+  w(1,2,[2,3]); w(1,3,[2,3]); // ─
+  w(1,4,[2,0]); // ┬ T-down (divider branches down)
+  w(1,5,[2,3]); w(1,6,[2,3]); // ─
+  w(1,7,[3,0]); // ┐
+
+  // Bottom wall
+  w(5,1,[1,2]); // └
+  w(5,2,[2,3]); w(5,3,[2,3]); // ─
+  w(5,4,[2,2]); // ┴ T-up (divider branches up)
+  w(5,5,[2,3]); w(5,6,[2,3]); // ─
+  w(5,7,[3,2]); // ┘
+
+  // Left side wall
+  for (let r = 2; r <= 4; r++) w(r,1,[0,1]); // │
+
+  // Right side wall
+  for (let r = 2; r <= 4; r++) w(r,7,[0,1]); // │
+
+  // Divider wall col 4 (with door gap at row 3)
+  w(2,4,[0,2]); // │ end cap (nothing below - door gap)
+  // row 3 col 4 = no wall (door!)
+  w(4,4,[0,0]); // │ top cap (nothing above - door gap)
+
+  return grid;
+}
+
+renderRoom('room-on-floor', buildRoomOnFloor());
+renderRoom('room-connected', buildConnectedRooms());
+renderRoom('iwall', buildIWall(4));
+renderRoom('hwall', buildHWall(5));
+
+// Standalone: single block surrounded by floor
+const standaloneGrid = [
+  [{wall:null},{wall:null},{wall:null}],
+  [{wall:null},{wall:[0,3]},{wall:null}],
+  [{wall:null},{wall:null},{wall:null}],
+];
+renderRoom('standalone', standaloneGrid);
+</script>
+
+</body>
+</html>

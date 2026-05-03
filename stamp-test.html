@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Room Stamp — Direct Tile Placement</title>
+<style>
+  body { background:#222034; color:#eee; font-family:monospace; margin:20px; }
+  h2 { color:#60a5fa; border-bottom:1px solid #333; padding-bottom:4px; }
+  h3 { color:#f59e0b; }
+  p.note { color:#888; font-size:12px; margin:4px 0 8px; }
+  .room-grid {
+    display:inline-grid; gap:0; margin:8px 0 24px; border:2px solid #444;
+  }
+  .room-grid .cell {
+    position:relative; width:64px; height:64px; overflow:visible;
+  }
+  .room-grid .cell canvas {
+    position:absolute; image-rendering:pixelated;
+  }
+  .room-grid .cell .coord {
+    position:absolute; top:1px; left:2px; font-size:9px;
+    color:rgba(255,255,255,0.25); z-index:10; pointer-events:none;
+  }
+</style>
+</head>
+<body>
+
+<h2>Room Stamp — Direct Tile Placement</h2>
+<p class="note">No autotile resolver. Each tile placed explicitly via stamp().</p>
+
+<h3>1. Hand-stamped dungeon room</h3>
+<div class="room-grid" id="room-manual"></div>
+
+<h3>2. Hand-stamped sewer room</h3>
+<div class="room-grid" id="room-sewer"></div>
+
+<h3>3. Mixed — custom clips</h3>
+<div class="room-grid" id="room-clips"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// Tile Stamper — core API
+// ══════════════════════════════════════════════════════════════════
+
+const TILESETS = {
+  dungeon: {
+    wall:  '/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_v1.7/atlas_walls_high-16x32.png',
+    floor: '/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_v1.7/atlas_floor-16x16.png',
+  },
+  sewer: {
+    wall:  '/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_sewers_v0.3/atlas_walls_high-16x32.png',
+    floor: '/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_sewers_v0.3/floor.png',
+  },
+};
+
+const SCALE = 4;
+const CELL  = 16 * SCALE; // 64px
+
+// ── Image loader ──
+const imgCache = {};
+let loadCount = 0, loadTotal = 0;
+let onAllLoaded = null;
+
+function loadImg(url) {
+  if (imgCache[url]) return imgCache[url];
+  loadTotal++;
+  const img = new Image();
+  img.onload = () => { if (++loadCount >= loadTotal && onAllLoaded) onAllLoaded(); };
+  img.src = url;
+  imgCache[url] = img;
+  return img;
+}
+
+// Pre-load all atlases
+for (const ts of Object.values(TILESETS)) { loadImg(ts.wall); loadImg(ts.floor); }
+
+// ══════════════════════════════════════════════════════════════════
+// stamp() — draw a tile reference onto a canvas context
+//
+// Tile ref formats:
+//   [col, row]                              → full 16×16 from atlas grid
+//   { col, row }                            → same as array form
+//   { col, row, clip:{x,y,w,h}, dx, dy }   → custom sub-rect
+// ══════════════════════════════════════════════════════════════════
+
+function stamp(ctx, atlas, tile, scale) {
+  if (!atlas || !atlas.complete) return;
+  scale = scale || SCALE;
+  ctx.imageSmoothingEnabled = false;
+
+  let col, row, clip, dx, dy;
+
+  if (Array.isArray(tile)) {
+    col = tile[0]; row = tile[1];
+    clip = null; dx = 0; dy = 0;
+  } else {
+    col = tile.col; row = tile.row;
+    clip = tile.clip || null;
+    dx = tile.dx || 0; dy = tile.dy || 0;
+  }
+
+  if (clip) {
+    const sx = col * 16 + clip.x;
+    const sy = row * 16 + clip.y;
+    ctx.drawImage(atlas, sx, sy, clip.w, clip.h,
+                  dx * scale, dy * scale, clip.w * scale, clip.h * scale);
+  } else {
+    ctx.drawImage(atlas, col * 16, row * 16, 16, 16,
+                  dx * scale, dy * scale, 16 * scale, 16 * scale);
+  }
+}
+
+// stampWall() — wall tiles are 16×32 (col×row in wall atlas)
+function stampWall(ctx, atlas, tile, scale) {
+  if (!atlas || !atlas.complete) return;
+  scale = scale || SCALE;
+  ctx.imageSmoothingEnabled = false;
+
+  const col = Array.isArray(tile) ? tile[0] : tile.col;
+  const row = Array.isArray(tile) ? tile[1] : tile.row;
+
+  ctx.drawImage(atlas, col * 16, row * 32, 16, 32,
+                0, -16 * scale, 16 * scale, 32 * scale);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// RoomStamp — build a room by placing tiles per layer per cell
+// ══════════════════════════════════════════════════════════════════
+
+class RoomStamp {
+  constructor(cols, rows, tileset) {
+    this.cols = cols;
+    this.rows = rows;
+    this.tileset = tileset || 'dungeon';
+    // Each cell: { floor: [], dirt: [], wall: [] }
+    this.cells = Array.from({ length: rows }, () =>
+      Array.from({ length: cols }, () => ({ floor: [], dirt: [], wall: [] }))
+    );
+  }
+
+  // Place a tile on a layer at (col, row)
+  // tile: [c,r] or { col, row, clip, dx, dy }
+  set(c, r, layer, tile) {
+    if (r >= 0 && r < this.rows && c >= 0 && c < this.cols) {
+      this.cells[r][c][layer].push(tile);
+    }
+    return this;
+  }
+
+  // Convenience: set floor
+  floor(c, r, tile) { return this.set(c, r, 'floor', tile); }
+
+  // Convenience: set dirt overlay
+  dirt(c, r, tile) { return this.set(c, r, 'dirt', tile); }
+
+  // Convenience: set wall
+  wall(c, r, tile) { return this.set(c, r, 'wall', tile); }
+
+  // Fill a rect on a layer
+  fill(c0, r0, c1, r1, layer, tile) {
+    for (let r = r0; r <= r1; r++)
+      for (let c = c0; c <= c1; c++)
+        this.set(c, r, layer, tile);
+    return this;
+  }
+
+  // Render into a DOM element
+  render(elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.style.gridTemplateColumns = `repeat(${this.cols}, 64px)`;
+
+    const ts = TILESETS[this.tileset];
+    const floorImg = imgCache[ts.floor];
+    const wallImg  = imgCache[ts.wall];
+
+    const Z = { floor: 1, dirt: 2, wall: 3 };
+
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        const div = document.createElement('div');
+        div.className = 'cell';
+
+        const cell = this.cells[r][c];
+
+        for (const layer of ['floor', 'dirt', 'wall']) {
+          for (const tile of cell[layer]) {
+            const cv = document.createElement('canvas');
+            const isWall = layer === 'wall';
+            cv.width  = CELL;
+            cv.height = isWall ? CELL * 2 : CELL;
+            cv.style.cssText = isWall
+              ? `left:0;top:-64px;width:64px;height:128px;z-index:${Z[layer]};`
+              : `left:0;top:0;width:64px;height:64px;z-index:${Z[layer]};`;
+
+            const ctx = cv.getContext('2d');
+            const atlas = isWall ? wallImg : floorImg;
+
+            if (isWall) {
+              stampWall(ctx, atlas, tile, SCALE);
+            } else {
+              stamp(ctx, atlas, tile, SCALE);
+            }
+
+            div.appendChild(cv);
+          }
+        }
+
+        // Coord label
+        const coord = document.createElement('div');
+        coord.className = 'coord';
+        coord.textContent = `${c},${r}`;
+        div.appendChild(coord);
+
+        el.appendChild(div);
+      }
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Room definitions — hand-stamped, no autotile
+// ══════════════════════════════════════════════════════════════════
+
+onAllLoaded = () => {
+
+  // ── 1. Hand-stamped dungeon room (7×7) ──
+  const room1 = new RoomStamp(7, 7, 'dungeon');
+
+  // Floor fill (inner 5×5)
+  room1.fill(1, 1, 5, 5, 'floor', [0, 0]);
+
+  // Top dirt on floor cells below north wall
+  for (let c = 1; c <= 5; c++) room1.dirt(c, 1, [4, 0]);
+
+  // Half-floor behind side walls
+  // Left wall col 0: floor peeks from right
+  room1.floor(0, 1, [4, 2]);  // halfTopL
+  room1.floor(0, 2, [4, 3]);  // halfMidL
+  room1.floor(0, 3, [4, 3]);  // halfMidL
+  room1.floor(0, 4, [4, 3]);  // halfMidL
+  room1.floor(0, 5, [4, 4]);  // halfBotL
+
+  // Right wall col 6: floor peeks from left
+  room1.floor(6, 1, [5, 2]);  // halfTopR
+  room1.floor(6, 2, [5, 3]);  // halfMidR
+  room1.floor(6, 3, [5, 3]);  // halfMidR
+  room1.floor(6, 4, [5, 3]);  // halfMidR
+  room1.floor(6, 5, [5, 4]);  // halfBotR
+
+  // Walls — all border cells
+  // Top row: [col, row] in wall atlas
+  room1.wall(0, 0, [1, 0]); // NW corner
+  room1.wall(1, 0, [2, 0]); room1.wall(2, 0, [2, 0]); room1.wall(3, 0, [2, 0]);
+  room1.wall(4, 0, [2, 0]); room1.wall(5, 0, [2, 0]);
+  room1.wall(6, 0, [3, 0]); // NE corner
+
+  // Side walls
+  for (let r = 1; r <= 5; r++) {
+    room1.wall(0, r, [0, 1]); // left
+    room1.wall(6, r, [0, 1]); // right
+  }
+
+  // Bottom row
+  room1.wall(0, 6, [1, 2]); // SW corner
+  room1.wall(1, 6, [2, 2]); room1.wall(2, 6, [2, 2]); room1.wall(3, 6, [2, 2]);
+  room1.wall(4, 6, [2, 2]); room1.wall(5, 6, [2, 2]);
+  room1.wall(6, 6, [3, 2]); // SE corner
+
+  room1.render('room-manual');
+
+
+  // ── 2. Hand-stamped sewer room (7×7) ──
+  const room2 = new RoomStamp(7, 7, 'sewer');
+
+  // Floor fill
+  room2.fill(1, 1, 5, 5, 'floor', [0, 0]);
+
+  // Baked top dirt (row below north wall)
+  for (let c = 1; c <= 5; c++) room2.floor(c, 1, [1, 3]);
+
+  // Half-floor behind walls using clipped dirt tiles
+  // Left wall: show right half of left-dirt tile
+  for (let r = 1; r <= 5; r++)
+    room2.floor(0, r, { col: 0, row: 1, clip: { x: 8, y: 0, w: 8, h: 16 }, dx: 8 });
+
+  // Right wall: show left half of right-dirt tile
+  for (let r = 1; r <= 5; r++)
+    room2.floor(6, r, { col: 1, row: 1, clip: { x: 0, y: 0, w: 8, h: 16 }, dx: 0 });
+
+  // Walls
+  room2.wall(0, 0, [1, 0]); room2.wall(6, 0, [3, 0]);
+  for (let c = 1; c <= 5; c++) room2.wall(c, 0, [2, 0]);
+  for (let r = 1; r <= 5; r++) { room2.wall(0, r, [0, 1]); room2.wall(6, r, [0, 1]); }
+  room2.wall(0, 6, [1, 2]); room2.wall(6, 6, [3, 2]);
+  for (let c = 1; c <= 5; c++) room2.wall(c, 6, [2, 2]);
+
+  room2.render('room-sewer');
+
+
+  // ── 3. Custom clips demo ──
+  const room3 = new RoomStamp(5, 5, 'dungeon');
+
+  // Full floors
+  room3.fill(0, 0, 4, 4, 'floor', [0, 0]);
+
+  // Custom clip: top-left quarter of tile [1,0] (cracked)
+  room3.floor(1, 1, { col: 1, row: 0, clip: { x: 0, y: 0, w: 8, h: 8 }, dx: 0, dy: 0 });
+
+  // Custom clip: bottom-right quarter of tile [2,0] (cracked)
+  room3.floor(3, 3, { col: 2, row: 0, clip: { x: 8, y: 8, w: 8, h: 8 }, dx: 8, dy: 8 });
+
+  // Custom clip: left half
+  room3.floor(0, 2, { col: 4, row: 0, clip: { x: 0, y: 0, w: 8, h: 16 }, dx: 0 });
+
+  // Custom clip: right half
+  room3.floor(4, 2, { col: 5, row: 0, clip: { x: 8, y: 0, w: 8, h: 16 }, dx: 8 });
+
+  // Dirt overlay in center
+  room3.dirt(2, 2, [4, 0]);
+
+  room3.render('room-clips');
+};
+</script>
+</body>
+</html>

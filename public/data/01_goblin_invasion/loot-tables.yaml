@@ -46,3 +46,15 @@ boss_prep:
     - { id: gem_ruby,             name: "Ruby",                   weight: 12, icon: "💎", type: gem, value: 50, rolls: 1 }
     - { id: scroll_fireball,      name: "Scroll of Fireball",     weight: 10, icon: "📜", type: consumable, rolls: 1 }
     - { id: dagger_plus1,         name: "Dagger +1",              weight: 8,  icon: "🗡️", type: weapon, weaponId: shortsword, atkBonus: 1, dmgBonus: 1, rolls: 1 }
+
+# ── Camp supply crate (mid-run refuge) ───────────────
+camp_supplies:
+  gold: [15, 30]
+  rolls: 2
+  allowDuplicates: false
+  pool:
+    - { id: potion_heal,          name: "Healing Potion",         weight: 35, icon: "🧪", type: consumable, heal: "2d4+2", rolls: 1 }
+    - { id: antidote,             name: "Antidote",               weight: 20, icon: "🧪", type: consumable, rolls: 1 }
+    - { id: torch_bundle,         name: "Torches (x5)",           weight: 18, icon: "🔥", type: misc, rolls: [5] }
+    - { id: rope_coil,            name: "Rope (50ft)",            weight: 15, icon: "🪢", type: misc, rolls: 1 }
+    - { id: potion_heal_greater,  name: "Greater Healing Potion", weight: 12, icon: "🧪", type: consumable, heal: "4d4+4", rolls: 1 }

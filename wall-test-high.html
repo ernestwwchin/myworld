@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Wall High Tile Reference</title>
+<style>
+  body { background: #222034; color: #eee; font-family: monospace; margin: 20px; }
+  h2 { color: #60a5fa; margin-top: 32px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+  h3 { color: #f59e0b; }
+
+  .atlas-section { margin: 16px 0; }
+  .atlas-wrap { position: relative; display: inline-block; margin: 8px 0; }
+  .atlas-wrap img { image-rendering: pixelated; display: block; }
+  .atlas-wrap .grid-overlay {
+    position: absolute; top: 0; left: 0; pointer-events: none;
+    background-image:
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.25) 0px, rgba(255,255,255,0.25) 1px, transparent 1px, transparent var(--cell-w)),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.25) 0px, rgba(255,255,255,0.25) 1px, transparent 1px, transparent var(--cell-h));
+    background-size: var(--cell-w) var(--cell-h);
+  }
+  .atlas-wrap .cell-labels { position: absolute; top: 0; left: 0; }
+  .atlas-wrap .clbl {
+    position: absolute; font-size: 9px; color: #ff0; background: rgba(0,0,0,0.7);
+    padding: 1px 3px; pointer-events: none; white-space: nowrap;
+  }
+
+  /* Room grid: each cell = 16×16 at 4× = 64×64 */
+  .room-grid { display: inline-grid; gap: 0; margin: 16px 0; border: 2px solid #444; }
+  .room-grid .cell { position: relative; width: 64px; height: 64px; overflow: visible; }
+  .room-grid .cell .coord { position: absolute; top: 1px; left: 2px; font-size: 9px; color: rgba(255,255,255,0.4); z-index: 5; }
+  .room-grid .cell canvas { position: absolute; image-rendering: pixelated; }
+
+  /* Tile detail popup */
+  #tile-popup {
+    display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+    background:#1a1a2e; border:3px solid #60a5fa; border-radius:12px; padding:24px;
+    z-index:1000; min-width:280px; text-align:center; box-shadow:0 0 40px rgba(0,0,0,0.8);
+  }
+  #tile-popup.show { display:block; }
+  #tile-popup canvas { image-rendering:pixelated; display:block; margin:0 auto 12px; }
+  #tile-popup .close-btn {
+    position:absolute; top:8px; right:12px; font-size:20px; color:#888; cursor:pointer; background:none; border:none;
+  }
+  #tile-popup .close-btn:hover { color:#fff; }
+  #tile-popup .tp-coord { font-size:18px; color:#fff; font-weight:bold; margin:8px 0; }
+  #tile-popup .tp-role { font-size:16px; margin:4px 0; }
+  #tile-popup .tp-cat { font-size:13px; color:#888; margin:4px 0; }
+  #tile-popup .tp-note { font-size:13px; color:#bbb; margin:8px 0 0; line-height:1.6; }
+  #tile-popup .tp-note span { display:inline-block; padding:1px 6px; border-radius:3px; font-size:10px; margin:1px 2px; background:#333; color:#ccc; }
+  #popup-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; }
+  #popup-overlay.show { display:block; }
+
+  /* Tile dictionary tables */
+  .tile-dict { border-collapse:collapse; margin:16px 0; }
+  .tile-dict th { text-align:left; padding:6px 10px; color:#888; border-bottom:2px solid #444; font-size:12px; }
+  .tile-dict td { padding:6px 10px; border-bottom:1px solid #333; vertical-align:middle; font-size:13px; }
+  .tile-dict tr:hover { background:#2a2a3e; }
+  .tile-dict tr { cursor:pointer; }
+  .tile-dict canvas { image-rendering:pixelated; vertical-align:middle; }
+  .tile-dict .td-coord { color:#fff; font-weight:bold; white-space:nowrap; }
+  .tile-dict .td-role { font-weight:bold; }
+  .tile-dict .td-tags span {
+    display:inline-block; padding:1px 6px; border-radius:3px; font-size:10px; margin:1px 2px;
+    background:#333; color:#ccc;
+  }
+  .tile-dict .td-tags span.t-floor { background:#1a3a1a; color:#4ade80; }
+  .tile-dict .td-tags span.t-half { background:#1a2a4a; color:#60a5fa; }
+  .tile-dict .td-tags span.t-overlay { background:#2a1a3a; color:#c084fc; }
+  .tile-dict .td-tags span.t-water { background:#1a2a3a; color:#38bdf8; }
+  .tile-dict .td-tags span.t-deco { background:#3a2a1a; color:#fbbf24; }
+  .tile-dict .td-tags span.t-trap { background:#3a1a1a; color:#f87171; }
+  .tile-dict .td-tags span.t-void { background:#2a1a3a; color:#a78bfa; }
+  .tile-dict .td-tags span.t-empty { background:#222; color:#666; }
+  .tile-dict .td-tags span.t-other { background:#222; color:#555; }
+  .tile-dict .td-tags span.t-wall { background:#2a2a1a; color:#e2e8f0; }
+  .tile-dict .td-tags span.t-corner { background:#1a2a2a; color:#5eead4; }
+</style>
+</head>
+<body>
+
+<!-- Tile detail popup -->
+<div id="popup-overlay" onclick="closePopup()"></div>
+<div id="tile-popup">
+  <button class="close-btn" onclick="closePopup()">&times;</button>
+  <canvas id="tp-canvas" width="128" height="128" style="width:128px;height:128px;"></canvas>
+  <div class="tp-coord" id="tp-coord"></div>
+  <div class="tp-role" id="tp-role"></div>
+  <div class="tp-cat" id="tp-cat"></div>
+  <div class="tp-note" id="tp-note"></div>
+</div>
+
+<h1>0x72 Dungeon Tileset — Walls High Atlas Reference</h1>
+
+<h2>1. Walls High Atlas — Dungeon (384×128 = 24×4 cells @ 16×32)</h2>
+<p style="color:#888;">Shown at 4× (64px wide × 128px tall per cell). Each tile is 16×32: top 16px = wall cap, bottom 16px = front face.</p>
+<div class="atlas-section">
+  <div class="atlas-wrap" id="atlas-high">
+    <img src="/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_v1.7/atlas_walls_high-16x32.png" style="width:1536px;height:512px;">
+    <div class="grid-overlay" style="width:1536px;height:512px;--cell-w:64px;--cell-h:128px;"></div>
+  </div>
+</div>
+
+<h2>1a. Dungeon Wall Tile Dictionary</h2>
+<p style="color:#888;">Click any row for 8× preview. Tiles are 16×32 (cap + face).</p>
+<table class="tile-dict" id="dungeon-wall-dict"></table>
+
+<h2>2. Floor Atlas — Dungeon (112×112 = 7×7 cells @ 16×16)</h2>
+<p style="color:#888;">Row 0 cols 0-2: floor variants. Row 0 cols 3-6: transparent overlays (dirt). Cols 4-5: half-floor edge tiles.</p>
+<div class="atlas-section">
+  <div class="atlas-wrap" id="atlas-floor">
+    <img src="/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_v1.7/atlas_floor-16x16.png" style="width:448px;height:448px;">
+    <div class="grid-overlay" style="width:448px;height:448px;--cell-w:64px;--cell-h:64px;"></div>
+  </div>
+</div>
+
+<h2>2a. Dungeon Floor Tile Dictionary</h2>
+<p style="color:#888;">Click any row for 8× preview. Transparent tiles shown on checkerboard.</p>
+<table class="tile-dict" id="dungeon-dict"></table>
+
+<h2>2b. Sewer Floor Atlas (144×80 = 9×5 cells @ 16×16)</h2>
+<p style="color:#888;">All tiles are solid (no transparent overlays). Cols 6-8 are water tiles. Row 4 has traps/special tiles.</p>
+<div class="atlas-section">
+  <div class="atlas-wrap" id="atlas-sewer-floor">
+    <img src="/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_sewers_v0.3/floor.png" style="width:576px;height:320px;">
+    <div class="grid-overlay" style="width:576px;height:320px;--cell-w:64px;--cell-h:64px;"></div>
+  </div>
+</div>
+
+<h2>2c. Sewer Floor Tile Dictionary</h2>
+<p style="color:#888;">Click any row for 8× preview. All sewer floor tiles are fully opaque (no transparent overlays).</p>
+<table class="tile-dict" id="sewer-dict"></table>
+
+<h2>2d. Sewer Walls High Atlas (224×128 = 14×4 cells @ 16×32)</h2>
+<div class="atlas-section">
+  <div class="atlas-wrap" id="atlas-sewer-walls">
+    <img src="/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_sewers_v0.3/atlas_walls_high-16x32.png" style="width:896px;height:512px;">
+    <div class="grid-overlay" style="width:896px;height:512px;--cell-w:64px;--cell-h:128px;"></div>
+  </div>
+</div>
+
+<h2>2e. Sewer Wall Tile Dictionary</h2>
+<p style="color:#888;">Click any row for 8× preview. Same autotile structure as dungeon, different theme.</p>
+<table class="tile-dict" id="sewer-wall-dict"></table>
+
+<hr>
+<h2>3. Sample Rooms (layered rendering)</h2>
+<p style="color:#888;">
+  <b>Two layers:</b> floor layer (bottom) + wall layer (top).<br>
+  Wall_high tiles (16×32) overflow into the row above via <code>top: -64px</code>.<br>
+  <b>Autotile:</b> wall tile picked by checking 4 cardinal neighbors for other walls.<br>
+  Void = no floor rendered → dark background shows through.
+</p>
+
+<h3>3a. Autotile map (Set 0, cols 0-3)</h3>
+<pre style="color:#888;font-size:12px;line-height:1.4;">
+       col 0      col 1      col 2      col 3
+       no E/W     E only     E+W        W only
+row 0  ╷ (S)      ┌ (S+E)    ┬ (S+E+W)  ┐ (S+W)       ← N=no,  S=yes  (top cap visible)
+row 1  │ (N+S)    ├ (N+S+E)  ┼ (all)    ┤ (N+S+W)     ← N=yes, S=yes  (overflow up+down)
+row 2  ╵ (N)      └ (N+E)    ┴ (N+E+W)  ┘ (N+W)       ← N=yes, S=no
+row 3  · (none)   ╶ (E)      ─ (E+W)    ╴ (W)         ← N=no,  S=no
+</pre>
+
+<h3>3b. Simple room</h3>
+<div class="room-grid" id="room-simple"></div>
+
+<h3>3c. Two rooms — 2-tile wide corridor</h3>
+<div class="room-grid" id="room-2wide"></div>
+
+<h3>3d. Simple room — bloody theme</h3>
+<div class="room-grid" id="room-bloody"></div>
+
+<h3>3e. Simple room — sewer theme</h3>
+<div class="room-grid" id="room-sewer"></div>
+
+<h3>3f. Two rooms — sewer corridor</h3>
+<div class="room-grid" id="room-sewer-corridor"></div>
+
+<script>
+const TILESETS = {
+  dungeon: {
+    wall: '/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_v1.7/atlas_walls_high-16x32.png',
+    floor: '/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_v1.7/atlas_floor-16x16.png',
+  },
+  sewer: {
+    wall: '/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_sewers_v0.3/atlas_walls_high-16x32.png',
+    floor: '/assets/vendor/0x72_dungeon/0x72_DungeonTilesetII_sewers_v0.3/floor.png',
+  },
+};
+const SCALE = 4;
+const CELL = 16 * SCALE; // 64px
+
+// ── Atlas labels ──
+function addCellLabels(wrapperId, cols, rows, cellW, cellH) {
+  const wrap = document.getElementById(wrapperId);
+  if (!wrap) return;
+  const div = document.createElement('div');
+  div.className = 'cell-labels';
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const lbl = document.createElement('div');
+      lbl.className = 'clbl';
+      lbl.style.left = (c * cellW + 2) + 'px';
+      lbl.style.top = (r * cellH + 2) + 'px';
+      lbl.textContent = c + ',' + r;
+      div.appendChild(lbl);
+    }
+  }
+  wrap.appendChild(div);
+}
+addCellLabels('atlas-high', 24, 4, 64, 128);
+addCellLabels('atlas-floor', 7, 7, 64, 64);
+addCellLabels('atlas-sewer-floor', 9, 5, 64, 64);
+addCellLabels('atlas-sewer-walls', 14, 4, 64, 128);
+
+// ── Sewer floor tile dictionary ──
+const SEWER_TILE_META = [
+  // row 0
+  { c:0, r:0, role:'floor',       cat:'floor', tags:['plain'],
+    note:'Normal plain floor tile. Use as general walkable floor.' },
+  { c:1, r:0, role:'spike-trap-0', cat:'trap', tags:['hazard','animated','frame-0'],
+    note:'Spike trap animation frame 0 — not triggered / retracted. First of 4-frame sequence [1-4,0].' },
+  { c:2, r:0, role:'spike-trap-1', cat:'trap', tags:['hazard','animated','frame-1'],
+    note:'Spike trap animation frame 1 — partially triggered. Second of 4-frame sequence [1-4,0].' },
+  { c:3, r:0, role:'spike-trap-2', cat:'trap', tags:['hazard','animated','frame-2'],
+    note:'Spike trap animation frame 2 — mostly triggered. Third of 4-frame sequence [1-4,0].' },
+  { c:4, r:0, role:'spike-trap-3', cat:'trap', tags:['hazard','animated','frame-3'],
+    note:'Spike trap animation frame 3 — fully triggered / extended. Last of 4-frame sequence [1-4,0].' },
+  { c:5, r:0, role:'crack-oval',   cat:'floor', tags:['plain','crack','hole','centered'],
+    note:'Floor with oval crack/hole centered slightly north. Same shape as [4,1]+[5,1] combined but in a single tile.' },
+  { c:6, r:0, role:'water-edge-NW', cat:'water', tags:['edge','north','left','corner'],
+    note:'Water edge — north-left corner. Land→water transition at NW.' },
+  { c:7, r:0, role:'water-edge-N', cat:'water', tags:['edge','north'],
+    note:'Water edge — north (repeating). Land→water transition along north boundary.' },
+  { c:8, r:0, role:'water-edge-NE', cat:'water', tags:['edge','north','right','corner'],
+    note:'Water edge — north-right corner. Land→water transition at NE.' },
+  // row 1
+  { c:0, r:1, role:'half-shadow-R', cat:'half', tags:['void-left','shadow-right','wall-adj'],
+    note:'Half floor: right side lit, left side dark shadow. Use on WALL cells where VOID is to the LEFT and room is to the RIGHT. Base version — pair with [2,1] (dirt variant).' },
+  { c:1, r:1, role:'half-shadow-L', cat:'half', tags:['void-right','shadow-left','wall-adj'],
+    note:'Half floor: left side lit, right side dark shadow. Use on WALL cells where VOID is to the RIGHT and room is to the LEFT. Base version — pair with [3,1] (dirt variant).' },
+  { c:2, r:1, role:'half-shadow-R', cat:'half', tags:['void-left','shadow-right','wall-adj','dirt-overlay'],
+    note:'Same as [0,1] but with dark dirt overlay on top. Variant for dirtier areas.' },
+  { c:3, r:1, role:'half-shadow-L', cat:'half', tags:['void-right','shadow-left','wall-adj','dirt-overlay'],
+    note:'Same as [1,1] but with dark dirt overlay on top. Variant for dirtier areas.' },
+  { c:4, r:1, role:'crack-bottom', cat:'floor', tags:['plain','crack','hole','bottom-half'],
+    note:'Floor with chunk missing on bottom — hammered out. Combines with [5,1] above to form oval crack.' },
+  { c:5, r:1, role:'crack-top',    cat:'floor', tags:['plain','crack','hole','top-half'],
+    note:'Floor with chunk missing on top. Combines with [4,1] below to form oval crack.' },
+  { c:6, r:1, role:'water-edge-W', cat:'water', tags:['edge','west','left-end','wave'],
+    note:'Water with left side is the end (west edge). Visible wave on left.' },
+  { c:7, r:1, role:'water-mid',   cat:'water', tags:['full','middle'],
+    note:'Water middle section.' },
+  { c:8, r:1, role:'water-edge-E', cat:'water', tags:['edge','east','right-end','wave'],
+    note:'Water with right side is the end (east edge). Visible wave on right.' },
+  // row 2
+  { c:0, r:2, role:'floor-dirt-BR', cat:'floor', tags:['plain','dirt','bottom-right'],
+    note:'Floor with dirt on bottom-right corner.' },
+  { c:1, r:2, role:'floor-dirt-B',  cat:'floor', tags:['plain','dirt','bottom'],
+    note:'Floor with dirt along bottom edge.' },
+  { c:2, r:2, role:'floor-dirt-B',  cat:'floor', tags:['plain','dirt','bottom','intense'],
+    note:'Floor with dirt along bottom edge — possibly more intense than [1,2].' },
+  { c:3, r:2, role:'floor-dirt-BL', cat:'floor', tags:['plain','dirt','bottom-left'],
+    note:'Floor with dirt on bottom-left corner.' },
+  { c:4, r:2, role:'crack-oval-lg', cat:'floor', tags:['plain','crack','hole','centered','large'],
+    note:'Floor with larger oval crack/hole — bigger version of [5,0].' },
+  { c:5, r:2, role:'crack-tri-N',  cat:'floor', tags:['plain','crack','triangle','north'],
+    note:'Floor with triangle crack on north side.' },
+  { c:6, r:2, role:'water-inner-NW', cat:'water', tags:['inner','corner','top-left'],
+    note:'Water inner corner NW. Possibly for pit-edge or concave water boundary. Use case unclear.' },
+  { c:7, r:2, role:'water-mid',   cat:'water', tags:['full','middle','duplicate'],
+    note:'Water middle — pixel-identical to [7,1].' },
+  { c:8, r:2, role:'water-inner-NE', cat:'water', tags:['inner','corner','top-right'],
+    note:'Water inner corner NE. Possibly for pit-edge or concave water boundary. Use case unclear.' },
+  // row 3
+  { c:0, r:3, role:'floor',       cat:'floor', tags:['plain','drain'],
+    note:'Floor drain variant. Use as walkable floor.' },
+  { c:1, r:3, role:'floor',       cat:'floor', tags:['plain','drain'],
+    note:'Floor drain variant.' },
+  { c:2, r:3, role:'floor',       cat:'floor', tags:['plain','drain'],
+    note:'Floor drain variant.' },
+  { c:3, r:3, role:'floor',       cat:'floor', tags:['plain','drain'],
+    note:'Floor drain variant.' },
+  { c:4, r:3, role:'crack-tri-L',  cat:'floor', tags:['plain','crack','triangle','left'],
+    note:'Floor with triangle crack on left side.' },
+  { c:5, r:3, role:'crack-tri-R',  cat:'floor', tags:['plain','crack','triangle','right'],
+    note:'Floor with triangle crack on right side.' },
+  { c:6, r:3, role:'water-edge-SW', cat:'water', tags:['edge','corner','bottom-left'],
+    note:'Water south-west corner. No visible wave — south-facing edges don\u0027t show waves in top-down view.' },
+  { c:7, r:3, role:'water-edge-S', cat:'water', tags:['edge','south','pipe','water-out'],
+    note:'Water edge south — same set as other water edges, with pipe/water flowing out.' },
+  { c:8, r:3, role:'water-edge-SE', cat:'water', tags:['edge','corner','bottom-right'],
+    note:'Water south-east corner. No visible wave — south-facing edges don\u0027t show waves in top-down view.' },
+  // row 4
+  { c:0, r:4, role:'stair-down',  cat:'deco',  tags:['stair','down','transition'],
+    note:'Stairway going down. Stage transition tile.' },
+  { c:1, r:4, role:'drain-closed', cat:'deco',  tags:['drain','manhole','large','closed'],
+    note:'Large drain / manhole cover — closed state. If opened, could reveal [2,4] (ladder down). May also be static decoration.' },
+  { c:2, r:4, role:'ladder-down', cat:'deco',  tags:['ladder','down','hole','transition'],
+    note:'Ladder going down into a hole. Stage transition tile.' },
+  { c:3, r:4, role:'crack-line',   cat:'floor', tags:['plain','crack','small','line'],
+    note:'Floor with small line crack.' },
+  { c:4, r:4, role:'crack-line',  cat:'floor', tags:['plain','crack','small','line','variant'],
+    note:'Floor with small line crack variant.' },
+  { c:5, r:4, role:'void-fill',   cat:'void',  tags:['solid-black','fill'],
+    note:'Solid dark fill. Use to paint void/out-of-bounds areas that need a non-transparent fill.' },
+  { c:6, r:4, role:'empty',       cat:'empty', tags:['transparent'],
+    note:'Fully transparent — no pixel data. Unused atlas slot.' },
+  { c:7, r:4, role:'empty',       cat:'empty', tags:['transparent'],
+    note:'Fully transparent. Unused.' },
+  { c:8, r:4, role:'empty',       cat:'empty', tags:['transparent'],
+    note:'Fully transparent. Unused.' },
+];
+
+const CAT_COLORS = {
+  floor:'#4ade80', half:'#60a5fa', water:'#38bdf8', deco:'#fbbf24', trap:'#f87171', void:'#a78bfa', empty:'#666',
+  overlay:'#c084fc', other:'#555'
+};
+
+// ── Tile detail popup ──
+function showPopup(t, imgSrc, catColors, tileH) {
+  tileH = tileH || 16;
+  const popup = document.getElementById('tile-popup');
+  const overlay = document.getElementById('popup-overlay');
+  const cvs = document.getElementById('tp-canvas');
+  const popH = tileH === 16 ? 128 : 256;
+  cvs.width = 128; cvs.height = popH;
+  cvs.style.height = popH + 'px';
+  const ctx = cvs.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, 128, popH);
+  for (let y = 0; y < popH; y += 16) for (let x = 0; x < 128; x += 16)
+    { ctx.fillStyle = (x + y) % 32 ? '#222' : '#333'; ctx.fillRect(x, y, 16, 16); }
+  const img = imgCache[imgSrc] || new Image();
+  if (!img.complete) { img.src = imgSrc; img.onload = () => draw(); } else draw();
+  function draw() {
+    ctx.drawImage(img, t.c * 16, t.r * tileH, 16, tileH, 0, 0, 128, popH);
+  }
+  const col = catColors[t.cat] || '#888';
+  document.getElementById('tp-coord').textContent = '[' + t.c + ',' + t.r + ']';
+  document.getElementById('tp-role').textContent = t.role;
+  document.getElementById('tp-role').style.color = col;
+  document.getElementById('tp-cat').innerHTML = 'category: <span style="color:'+col+'">'+t.cat+'</span>';
+  // Tags + note in popup
+  let tagsHtml = (t.tags||[]).map(tag => '<span class="t-'+t.cat+'">' + tag + '</span>').join(' ');
+  document.getElementById('tp-note').innerHTML = tagsHtml + '<br><br>' + t.note;
+  popup.style.borderColor = col;
+  popup.classList.add('show');
+  overlay.classList.add('show');
+}
+function closePopup() {
+  document.getElementById('tile-popup').classList.remove('show');
+  document.getElementById('popup-overlay').classList.remove('show');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePopup(); });
+
+// ── Shared table-list dictionary builder ──
+// opts.tileH: tile height in atlas pixels (default 16)
+function buildDict(containerId, meta, imgSrc, catColors, opts) {
+  const table = document.getElementById(containerId);
+  const tileH = (opts && opts.tileH) || 16;
+  const thumbH = tileH === 16 ? 48 : 96; // 3× or 3×
+  // Header
+  const thead = document.createElement('thead');
+  thead.innerHTML = '<tr><th>Tile</th><th>Coord</th><th>Role</th><th>Category</th><th>Tags</th><th>Description</th></tr>';
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  table.appendChild(tbody);
+
+  const img = new Image();
+  img.src = imgSrc;
+  img.onload = () => {
+    meta.forEach(t => {
+      const tr = document.createElement('tr');
+      const col = catColors[t.cat] || '#888';
+
+      // Tile preview
+      const tdImg = document.createElement('td');
+      const cvs = document.createElement('canvas');
+      cvs.width = 48; cvs.height = thumbH;
+      cvs.style.cssText = 'width:48px;height:'+thumbH+'px;background:repeating-conic-gradient(#333 0% 25%, #222 0% 50%) 50%/12px 12px;';
+      const ctx = cvs.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, t.c * 16, t.r * tileH, 16, tileH, 0, 0, 48, thumbH);
+      tdImg.appendChild(cvs);
+      tr.appendChild(tdImg);
+
+      // Coord
+      const tdCoord = document.createElement('td');
+      tdCoord.className = 'td-coord';
+      tdCoord.textContent = '[' + t.c + ',' + t.r + ']';
+      tr.appendChild(tdCoord);
+
+      // Role
+      const tdRole = document.createElement('td');
+      tdRole.className = 'td-role';
+      tdRole.style.color = col;
+      tdRole.textContent = t.role;
+      tr.appendChild(tdRole);
+
+      // Category
+      const tdCat = document.createElement('td');
+      tdCat.innerHTML = '<span class="t-'+t.cat+'" style="font-size:11px;">' + t.cat + '</span>';
+      tr.appendChild(tdCat);
+
+      // Tags
+      const tdTags = document.createElement('td');
+      tdTags.className = 'td-tags';
+      tdTags.innerHTML = (t.tags||[]).map(tag => '<span class="t-'+t.cat+'">' + tag + '</span>').join('');
+      tr.appendChild(tdTags);
+
+      // Description
+      const tdNote = document.createElement('td');
+      tdNote.style.cssText = 'color:#bbb;max-width:320px;font-size:12px;';
+      tdNote.textContent = t.note;
+      tr.appendChild(tdNote);
+
+      tr.onclick = () => showPopup(t, imgSrc, catColors, tileH);
+      tbody.appendChild(tr);
+    });
+  };
+}
+
+(function buildSewerDict() {
+  buildDict('sewer-dict', SEWER_TILE_META, TILESETS.sewer.floor, CAT_COLORS);
+})();
+
+// ── Dungeon floor tile dictionary ──
+const DUNGEON_TILE_META = [
+  // row 0
+  { c:0, r:0, role:'floor-A',       cat:'floor',   tags:['plain','base'],
+    note:'Base floor — clean stone, no cracks. Primary walkable floor tile.' },
+  { c:1, r:0, role:'floor-B',       cat:'floor',   tags:['plain','crack','large'],
+    note:'Large crack floor. Walkable floor variant with prominent crack detail.' },
+  { c:2, r:0, role:'floor-C',       cat:'floor',   tags:['plain','crack','small'],
+    note:'Small crack floor. Walkable floor variant with subtle crack detail.' },
+  { c:3, r:0, role:'ovl-dirt-lessL', cat:'overlay', tags:['transparent','dirt','north-wall','opening-left'],
+    note:'Top-dirt overlay with less dirt on LEFT side. Use when floor is next to N wall but the wall opens to the left (eastNeighborOpen=false, westNeighborOpen=true). Layer over a plain floor base.' },
+  { c:4, r:0, role:'ovl-dirt-A',    cat:'overlay', tags:['transparent','dirt','north-wall','full'],
+    note:'Full top-dirt overlay variant A. Use when floor cell has wall to the NORTH and walls continue on both sides. Layer over plain floor base.' },
+  { c:5, r:0, role:'ovl-dirt-B',    cat:'overlay', tags:['transparent','dirt','north-wall','full'],
+    note:'Full top-dirt overlay variant B. Same usage as [4,0].' },
+  { c:6, r:0, role:'ovl-dirt-lessR', cat:'overlay', tags:['transparent','dirt','north-wall','opening-right'],
+    note:'Top-dirt overlay with less dirt on RIGHT side. Use when floor is next to N wall but the wall opens to the right (westNeighborOpen=false, eastNeighborOpen=true). Layer over plain floor base.' },
+  // row 1
+  { c:0, r:1, role:'floor-D',      cat:'floor',   tags:['plain','crack','south-west'],
+    note:'Floor with crack on south-west.' },
+  { c:1, r:1, role:'floor-E',      cat:'floor',   tags:['plain','crack','small'],
+    note:'Floor with small crack.' },
+  { c:2, r:1, role:'floor-F',      cat:'floor',   tags:['plain','crack','south-east'],
+    note:'Floor with crack on south-east.' },
+  { c:3, r:1, role:'ovl-dirt-lessL-B', cat:'overlay', tags:['transparent','dirt','north-wall','opening-left','variant'],
+    note:'Floor version of [3,0] — top-dirt overlay (less left), variant B.' },
+  { c:4, r:1, role:'ovl-dirt-C',    cat:'overlay', tags:['transparent','dirt','north-wall','full','variant'],
+    note:'Floor version of [4,0] — top-dirt overlay full, variant C.' },
+  { c:5, r:1, role:'ovl-dirt-D',    cat:'overlay', tags:['transparent','dirt','north-wall','full','variant'],
+    note:'Floor version of [5,0] — top-dirt overlay full, variant D.' },
+  { c:6, r:1, role:'ovl-dirt-lessR-B',cat:'overlay',tags:['transparent','dirt','north-wall','opening-right','variant'],
+    note:'Floor version of [6,0] — top-dirt overlay (less right), variant B.' },
+  // row 2
+  { c:0, r:2, role:'floor-G',       cat:'floor',   tags:['plain','crack','north-east'],
+    note:'Floor with crack on north-east.' },
+  { c:1, r:2, role:'floor-H',       cat:'floor',   tags:['plain','crack','north-west'],
+    note:'Floor with crack on north-west.' },
+  { c:2, r:2, role:'ladder-down',   cat:'deco',    tags:['ladder','hole','interactable'],
+    note:'Ladder going down into a hole. Interactable / level transition.' },
+  { c:3, r:2, role:'hole',          cat:'deco',    tags:['hole','pit'],
+    note:'Hole only (no ladder). Pit / obstacle.' },
+  { c:4, r:2, role:'half-top-L',    cat:'half',    tags:['wall-adj','void-left','dirt','north-wall'],
+    note:'Half floor for wall cell: floor on RIGHT, void on LEFT. Top of vertical wall run (wall above is horizontal). Shows dirt from N wall proximity. Use when: eIsRoom && !wIsRoom && nWallIsHoriz.' },
+  { c:5, r:2, role:'half-top-R',    cat:'half',    tags:['wall-adj','void-right','dirt','north-wall'],
+    note:'Half floor for wall cell: floor on LEFT, void on RIGHT. Top of vertical wall run. Use when: wIsRoom && !eIsRoom && nWallIsHoriz.' },
+  { c:6, r:2, role:'ovl-dirt-bot-B', cat:'overlay', tags:['transparent','dirt','south-wall','variant'],
+    note:'Tile with dirt on bottom part. Variant of [6,3] — use when floor has wall to SOUTH.' },
+  // row 3
+  { c:0, r:3, role:'spike-frame-0', cat:'trap',   tags:['spike','animated','frame-0','not-triggered'],
+    note:'Spike trap animation frame 0 — not triggered (spikes hidden).' },
+  { c:1, r:3, role:'spike-frame-1', cat:'trap',   tags:['spike','animated','frame-1','partial'],
+    note:'Spike trap animation frame 1 — partially emerging.' },
+  { c:2, r:3, role:'spike-frame-2', cat:'trap',   tags:['spike','animated','frame-2','partial'],
+    note:'Spike trap animation frame 2 — mostly extended.' },
+  { c:3, r:3, role:'spike-frame-3', cat:'trap',   tags:['spike','animated','frame-3','fully-triggered'],
+    note:'Spike trap animation frame 3 — fully triggered (spikes fully out).' },
+  { c:4, r:3, role:'half-mid-L',    cat:'half',    tags:['wall-adj','void-left','dirt'],
+    note:'Half floor for wall cell: floor on RIGHT, void on LEFT. Mid vertical wall run (walls above AND below). Use when: eIsRoom && !wIsRoom && nIsWall && sIsWall.' },
+  { c:5, r:3, role:'half-mid-R',    cat:'half',    tags:['wall-adj','void-right','dirt'],
+    note:'Half floor for wall cell: floor on LEFT, void on RIGHT. Mid vertical wall run. Use when: wIsRoom && !eIsRoom && nIsWall && sIsWall.' },
+  { c:6, r:3, role:'ovl-dirt-bot',  cat:'overlay', tags:['transparent','dirt','south-wall'],
+    note:'Bottom-dirt overlay. Use when floor cell has wall to the SOUTH. Layer over plain floor base.' },
+  // row 4
+  { c:0, r:4, role:'btn-red-off',   cat:'deco',    tags:['button','red','untriggered','interactable'],
+    note:'Red button — untriggered (not pressed).' },
+  { c:1, r:4, role:'btn-red-on',    cat:'deco',    tags:['button','red','triggered','interactable'],
+    note:'Red button — triggered (pressed).' },
+  { c:2, r:4, role:'btn-blue-off',  cat:'deco',    tags:['button','blue','untriggered','interactable'],
+    note:'Blue button — untriggered (not pressed).' },
+  { c:3, r:4, role:'btn-blue-on',   cat:'deco',    tags:['button','blue','triggered','interactable'],
+    note:'Blue button — triggered (pressed).' },
+  { c:4, r:4, role:'half-bot-L',    cat:'half',    tags:['wall-adj','void-left','clean','south-wall'],
+    note:'Half floor for wall cell: floor on RIGHT, void on LEFT. Bottom of vertical wall run (wall below is horizontal). Use when: eIsRoom && !wIsRoom && sWallIsHoriz.' },
+  { c:5, r:4, role:'half-bot-R',    cat:'half',    tags:['wall-adj','void-right','clean','south-wall'],
+    note:'Half floor for wall cell: floor on LEFT, void on RIGHT. Bottom of vertical wall run. Use when: wIsRoom && !eIsRoom && sWallIsHoriz.' },
+  { c:6, r:4, role:'empty',          cat:'empty',   tags:['transparent'],
+    note:'Fully transparent tile — nothing here.' },
+  // row 5
+  { c:0, r:5, role:'stair-down',     cat:'deco',    tags:['stair','down','interactable'],
+    note:'Staircase going down. Level transition / interactable.' },
+  { c:1, r:5, role:'skull',          cat:'deco',    tags:['skull','decoration'],
+    note:'Skull on the floor. Decorative.' },
+  { c:2, r:5, role:'switch-right',   cat:'deco',    tags:['switch','handle-right','interactable'],
+    note:'Switch with handle pointing right (one state).' },
+  { c:3, r:5, role:'switch-left',    cat:'deco',    tags:['switch','handle-left','interactable'],
+    note:'Switch with handle pointing left (other state).' },
+  { c:4, r:5, role:'half-clean-L',  cat:'half',    tags:['wall-adj','void-left','clean','standalone'],
+    note:'Half floor for wall cell: floor on RIGHT, void on LEFT. Standalone wall (no N or S wall neighbors). Clean — no dirt. Use when: eIsRoom && !wIsRoom && !nIsWall && !sIsWall.' },
+  { c:5, r:5, role:'half-clean-R',  cat:'half',    tags:['wall-adj','void-right','clean','standalone'],
+    note:'Half floor for wall cell: floor on LEFT, void on RIGHT. Standalone wall. Use when: wIsRoom && !eIsRoom && !nIsWall && !sIsWall.' },
+  { c:6, r:5, role:'empty',          cat:'empty',   tags:['transparent'],
+    note:'Fully transparent tile — nothing here.' },
+  // row 6
+  { c:0, r:6, role:'pit-edge-cornerL', cat:'half',  tags:['pit','edge','transparent','corner-left'],
+    note:'Pit edge left corner — brick face visible at top, transparent on left. Place at left edge of a pit opening.' },
+  { c:1, r:6, role:'pit-edge-full',   cat:'half',  tags:['pit','edge','transparent','full-width'],
+    note:'Pit edge full width — repeating brick face at top. The vertical wall face of a drop-off seen from above.' },
+  { c:2, r:6, role:'pit-edge-cornerR',cat:'half',  tags:['pit','edge','transparent','corner-right'],
+    note:'Pit edge right corner — brick face visible at top, transparent on right. Place at right edge of a pit opening.' },
+  { c:3, r:6, role:'empty',          cat:'empty',   tags:['transparent'],
+    note:'Fully transparent tile — nothing here.' },
+  { c:4, r:6, role:'half-dirtTop-L', cat:'half',   tags:['wall-adj','void-left','dirt','north-wall','baked'],
+    note:'Half floor for FLOOR cell (not wall): next to N wall AND void to left. Baked dirt+void combo — used instead of overlay+half. Use when: northIsWall && westIsVoid.' },
+  { c:5, r:6, role:'half-dirtTop-R', cat:'half',   tags:['wall-adj','void-right','dirt','north-wall','baked'],
+    note:'Half floor for FLOOR cell (not wall): next to N wall AND void to right. Baked dirt+void combo. Use when: northIsWall && eastIsVoid.' },
+  { c:6, r:6, role:'empty',          cat:'empty',   tags:['transparent'],
+    note:'Fully transparent tile — nothing here.' },
+];
+
+const DUNGEON_CAT_COLORS = {
+  floor:'#4ade80', half:'#60a5fa', overlay:'#c084fc', other:'#555'
+};
+
+(function buildDungeonDict() {
+  buildDict('dungeon-dict', DUNGEON_TILE_META, TILESETS.dungeon.floor, DUNGEON_CAT_COLORS);
+})();
+
+// ── Wall tile metadata ──
+// Autotile layout: col = E/W, row = N/S
+// Row: S-only→0, N+S→1, N-only→2, neither→3
+// Col: neither→0, E-only→1, E+W→2, W-only→3
+// Sets: cols 0-3 = set A, 4-7 = set B (variant), 8-11 = set C (variant)
+
+const CONN_LABELS = {
+  '0,0':'╷ S-only',     '1,0':'┌ S+E',        '2,0':'┬ S+E+W',      '3,0':'┐ S+W',
+  '0,1':'│ N+S',        '1,1':'├ N+S+E',      '2,1':'┼ all-4',       '3,1':'┤ N+S+W',
+  '0,2':'╵ N-only',     '1,2':'└ N+E',        '2,2':'┴ N+E+W',      '3,2':'┘ N+W',
+  '0,3':'· isolated',   '1,3':'╶ E-only',     '2,3':'─ E+W',        '3,3':'╴ W-only',
+};
+
+function wallMeta(cols, label) {
+  const sets = Math.floor(cols / 4);
+  const meta = [];
+  for (let s = 0; s < sets; s++) {
+    for (let r = 0; r < 4; r++) {
+      for (let cOff = 0; cOff < 4; cOff++) {
+        const c = s * 4 + cOff;
+        if (c >= cols) continue;
+        const conn = CONN_LABELS[cOff+','+r] || '?';
+        const setLabel = s === 0 ? 'A (primary)' : s === 1 ? 'B (variant)' : s === 2 ? 'C (variant)' : 'set-'+(s+1);
+        meta.push({
+          c, r, role: conn, cat: 'wall',
+          tags: ['set-'+(s===0?'A':s===1?'B':'C'), 'autotile'],
+          note: 'Wall ' + conn + ' — ' + setLabel + '. Connectivity: col=' + cOff + ' row=' + r,
+        });
+      }
+    }
+  }
+  // Handle remaining columns beyond full sets
+  const remainder = cols % 4;
+  if (remainder > 0) {
+    const startC = sets * 4;
+    for (let r = 0; r < 4; r++) {
+      for (let cOff = 0; cOff < remainder; cOff++) {
+        const c = startC + cOff;
+        let opacityNote = '';
+        meta.push({
+          c, r, role: 'extra-' + cOff, cat: 'other',
+          tags: ['extra'],
+          note: 'Extra tile [' + c + ',' + r + '] beyond autotile sets.',
+        });
+      }
+    }
+  }
+  return meta;
+}
+
+const WALL_CAT_COLORS = { wall:'#e2e8f0', corner:'#5eead4', other:'#555', empty:'#666' };
+
+// Mark empty tiles
+function markEmpty(meta, imgSrc, cols, tileH, cb) {
+  const img = new Image();
+  img.src = imgSrc;
+  img.onload = () => {
+    const cvs = document.createElement('canvas');
+    cvs.width = cols * 16; cvs.height = 4 * tileH;
+    const ctx = cvs.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, cvs.width, cvs.height).data;
+    meta.forEach(t => {
+      let opaque = 0;
+      for (let y = 0; y < tileH; y++) for (let x = 0; x < 16; x++) {
+        const off = ((t.r * tileH + y) * cvs.width + (t.c * 16 + x)) * 4;
+        if (data[off + 3] > 0) opaque++;
+      }
+      if (opaque === 0) { t.cat = 'empty'; t.role = 'empty'; t.tags = ['transparent']; t.note = 'Fully transparent — unused slot.'; }
+    });
+    cb(meta);
+  };
+}
+
+// Apply manual overrides to generated wall metadata
+function applyOverrides(meta, overrides) {
+  overrides.forEach(o => {
+    const entry = meta.find(m => m.c === o.c && m.r === o.r);
+    if (entry) Object.assign(entry, o);
+  });
+}
+
+// Dungeon wall overrides (corrections from visual inspection)
+const DUNGEON_WALL_OVERRIDES = [
+  // ══════════════════════════════════════════════════════════════════
+  // SET A (cols 0-3) — Primary autotile set.
+  // Select by 4-bit connectivity mask: N=bit3 S=bit2 E=bit1 W=bit0.
+  // Row = N/S combo (r0=S-only, r1=N+S, r2=N-only, r3=isolated).
+  // Col = E/W combo (c0=none, c1=E, c2=E+W, c3=W).
+  // Use Set A as default. Swap with Set B/C brick-variant or
+  // brick-shift randomly (~20%) for visual variety.
+  // ══════════════════════════════════════════════════════════════════
+  { c:2, r:1, role:'┼ N+S+E+W', cat:'wall', tags:[],
+    note:'Default cross tile. All 4 neighbors are wall.' },
+
+  // ══════════════════════════════════════════════════════════════════
+  // SET B (cols 4-7) — Void variants + brick variants of Set A.
+  //
+  // VOID TILES: Special-purpose — black fill on one side. Use for:
+  // pools, hidden rooms, pits, cave walls bordering darkness, etc.
+  // NOT for normal room edges. Pick based on which side needs
+  // the black fill.
+  //
+  // BRICK VARIANTS: Same connectivity as Set A counterpart but with
+  // shifted brick pattern. Randomly substitute (~20%) for variety.
+  // ══════════════════════════════════════════════════════════════════
+  { c:4, r:0, role:'┼ N+S+E+W', cat:'wall', tags:['brick-shift-L'],
+    note:'Cross variant — bricks shifted left. Random swap for [2,1].' },
+  { c:5, r:0, role:'┤ N+S+W',   cat:'wall', tags:['void-R'],
+    note:'T-wall, right side black. Special: pool edge, hidden room, pit.' },
+  { c:6, r:0, role:'├ N+S+E',   cat:'wall', tags:['void-L'],
+    note:'T-wall, left side black. Special: pool edge, hidden room, pit.' },
+  { c:7, r:0, role:'┼ N+S+E+W', cat:'wall', tags:['brick-shift-R'],
+    note:'Cross variant — bricks shifted right. Random swap for [2,1].' },
+  { c:4, r:1, role:'├ N+S+E',   cat:'wall', tags:['void-L'],
+    note:'T-wall, left side black. Special: pool edge, hidden room, pit.' },
+  { c:5, r:1, role:'┘ N+W',     cat:'wall', tags:['void-R','void-S'],
+    note:'Corner NW — right+bottom black. Special: pool corner, pit edge.' },
+  { c:6, r:1, role:'└ N+E',     cat:'wall', tags:['void-L','void-S'],
+    note:'Corner NE — left+bottom black. Special: pool corner, pit edge.' },
+  { c:7, r:1, role:'┤ N+S+W',   cat:'wall', tags:['void-L'],
+    note:'T-wall, left side black. Special: pool edge, hidden room, pit.' },
+  { c:4, r:2, role:'├ N+S+E',   cat:'wall', tags:['brick-variant'],
+    note:'Brick variant of [1,1]. Random swap for variety.' },
+  { c:5, r:2, role:'┐ S+W',     cat:'wall', tags:['void-R'],
+    note:'Corner SW — right side black. Special: pool edge, pit.' },
+  { c:6, r:2, role:'┌ S+E',     cat:'wall', tags:['void-L'],
+    note:'Corner SE — left side black. Special: pool edge, pit.' },
+  { c:7, r:2, role:'┤ N+S+W',   cat:'wall', tags:['brick-variant'],
+    note:'Brick variant of [3,1]. Random swap for variety.' },
+  { c:4, r:3, role:'┼ N+S+E+W', cat:'wall', tags:['void-L'],
+    note:'Cross, left side black. Special: pool wall, hidden room.' },
+  { c:5, r:3, role:'┴ N+E+W',   cat:'wall', tags:[],
+    note:'T-wall open N+E+W. South wall present, no top connection.' },
+  { c:6, r:3, role:'┴ N+E+W',   cat:'wall', tags:['brick-variant'],
+    note:'Brick variant of [5,3]. Random swap for variety.' },
+  { c:7, r:3, role:'┼ N+S+E+W', cat:'wall', tags:['void-R'],
+    note:'Cross, right side black. Special: pool wall, hidden room.' },
+
+  // ══════════════════════════════════════════════════════════════════
+  // SET C (cols 8-11) — More void combos + brick variants.
+  //
+  // Row 3 = brick variants of Set A tiles (swap randomly ~20%).
+  // Rows 0-2 = void combos for special features (pools, pits,
+  // hidden rooms, cave darkness). [9,2] is pure black fill — use to
+  // paint void/darkness cells adjacent to these features.
+  // ══════════════════════════════════════════════════════════════════
+  { c:8,  r:0, role:'┌ S+E',     cat:'wall', tags:['void-R'],
+    note:'Corner SE — right side black. Special: pool corner, pit.' },
+  { c:9,  r:0, role:'┴ N+E+W',   cat:'wall', tags:['void-L','void-R','void-S'],
+    note:'T-wall N+E+W — all sides black. Special: narrow ledge over darkness.' },
+  { c:10, r:0, role:'─ E+W',     cat:'wall', tags:['void-L','void-R','void-S'],
+    note:'Horizontal — both sides + bottom black. Special: bridge/ledge over void.' },
+  { c:11, r:0, role:'┐ S+W',     cat:'wall', tags:['void-L'],
+    note:'Corner SW — left side black. Special: pool corner, pit.' },
+  { c:8,  r:1, role:'│ N+S',     cat:'wall', tags:['void-R'],
+    note:'Vertical — right side black. Special: wall bordering pool/pit.' },
+  { c:9,  r:1, role:'┼ N+S+E+W', cat:'wall', tags:['void-L'],
+    note:'Cross, left side black. Special: pool wall, hidden room.' },
+  { c:11, r:1, role:'┌ S+E',     cat:'wall', tags:['void-L'],
+    note:'Corner SE — left side black. Special: pool corner, pit.' },
+  { c:8,  r:2, role:'┐ S+W',     cat:'wall', tags:['void-R'],
+    note:'Corner SW — right side black. Special: pool corner, pit.' },
+  { c:9,  r:2, role:'void',      cat:'other', tags:[],
+    note:'Solid black fill. Use for void/darkness cells in pools, pits, hidden areas.' },
+  { c:10, r:2, role:'┼ N+S+E+W', cat:'wall', tags:['void-R'],
+    note:'Cross, right side black. Special: pool wall, hidden room.' },
+  { c:11, r:2, role:'│ N+S',     cat:'wall', tags:['void-L'],
+    note:'Vertical — left side black. Special: wall bordering pool/pit.' },
+  { c:8,  r:3, role:'└ N+E',     cat:'wall', tags:['brick-variant'],
+    note:'Brick variant of [1,2]. Random swap for variety.' },
+  { c:9,  r:3, role:'─ E+W',     cat:'wall', tags:['brick-variant'],
+    note:'Brick variant of [2,3]. Random swap for variety.' },
+  { c:10, r:3, role:'┬ S+E+W',   cat:'wall', tags:['brick-variant'],
+    note:'Brick variant of [2,0]. Random swap for variety.' },
+  { c:11, r:3, role:'┘ N+W',     cat:'wall', tags:['brick-variant'],
+    note:'Brick variant of [3,2]. Random swap for variety.' },
+
+  // ══════════════════════════════════════════════════════════════════
+  // DECO: Lion statues (cols 12-14)
+  //
+  // 2-tile tall: head on top, body on bottom. Composed of:
+  //   Row 1 (head): 3 interchangeable variants — pick randomly.
+  //   Row 0 (body-lava): 3 animation frames — cycle 0→1→2→0.
+  //   Row 2 (body-water): 3 animation frames — blue water variant.
+  // Any head fits any body. Place body on floor tile adjacent to
+  // south side of north wall. Head goes 1 tile above (overlapping
+  // the wall face). Typically placed in pairs flanking a doorway.
+  // ══════════════════════════════════════════════════════════════════
+  { c:12, r:0, role:'statue-body-lava-0',  cat:'deco', tags:['statue','animated','frame-0'],
+    note:'Lava body frame 0. Place on floor, 1 tile south of north wall.' },
+  { c:13, r:0, role:'statue-body-lava-1',  cat:'deco', tags:['statue','animated','frame-1'],
+    note:'Lava body frame 1.' },
+  { c:14, r:0, role:'statue-body-lava-2',  cat:'deco', tags:['statue','animated','frame-2'],
+    note:'Lava body frame 2.' },
+  { c:12, r:1, role:'statue-head-0',       cat:'deco', tags:['statue','head'],
+    note:'Head variant 0. Place directly above any body tile.' },
+  { c:13, r:1, role:'statue-head-1',       cat:'deco', tags:['statue','head'],
+    note:'Head variant 1. Pick randomly among 0-2.' },
+  { c:14, r:1, role:'statue-head-2',       cat:'deco', tags:['statue','head'],
+    note:'Head variant 2.' },
+  { c:12, r:2, role:'statue-body-water-0', cat:'deco', tags:['statue','animated','frame-0'],
+    note:'Blue water body frame 0. Sewer-themed alternative to lava body.' },
+  { c:13, r:2, role:'statue-body-water-1', cat:'deco', tags:['statue','animated','frame-1'],
+    note:'Blue water body frame 1.' },
+  { c:14, r:2, role:'statue-body-water-2', cat:'deco', tags:['statue','animated','frame-2'],
+    note:'Blue water body frame 2.' },
+
+  // ══════════════════════════════════════════════════════════════════
+  // DECO: Wall attachments — all are 16×32, placed on the floor tile
+  // 1 row south of a north wall. The top 16px overlaps the wall face
+  // (rendered above wall). Transparent elsewhere so floor shows.
+  // ══════════════════════════════════════════════════════════════════
+  { c:15, r:0, role:'wall-leak-lg',  cat:'deco', tags:['wall-adj','leak'],
+    note:'Large green water leak. Adds atmosphere to damp/sewer areas.' },
+  { c:16, r:0, role:'wall-leak-sm',  cat:'deco', tags:['wall-adj','leak'],
+    note:'Small green water leak. More subtle than [15,0].' },
+  { c:15, r:1, role:'flag-green',    cat:'deco', tags:['wall-adj','flag'],
+    note:'Green flag on wall. Place sparingly for decoration — 1 per ~8 wall tiles.' },
+  { c:16, r:1, role:'flag-yellow',   cat:'deco', tags:['wall-adj','flag'],
+    note:'Yellow flag on wall.' },
+  { c:17, r:1, role:'flag-red',      cat:'deco', tags:['wall-adj','flag'],
+    note:'Red flag on wall.' },
+  { c:18, r:1, role:'flag-blue',     cat:'deco', tags:['wall-adj','flag'],
+    note:'Blue flag on wall.' },
+
+  // ══════════════════════════════════════════════════════════════════
+  // OVERLAY: Wall damage — semi-transparent overlay drawn ON TOP of
+  // a wall tile (same cell). Makes wall look cracked/broken.
+  // Apply randomly (~5-10%) to interior wall tiles for wear effect.
+  // Do not stack — use one variant per cell.
+  // ══════════════════════════════════════════════════════════════════
+  { c:12, r:3, role:'wall-damage-0', cat:'overlay', tags:['wall-adj','damage'],
+    note:'Broken bricks variant 0. Overlay on any wall tile.' },
+  { c:13, r:3, role:'wall-damage-1', cat:'overlay', tags:['wall-adj','damage'],
+    note:'Broken bricks variant 1. Overlay on any wall tile.' },
+
+  // ══════════════════════════════════════════════════════════════════
+  // DECO: Pillar — 2-tile tall (16×32 each = 16×64 total).
+  // Place top [15,2] and bottom [15,3] on two vertically adjacent
+  // floor tiles. Used to break up large open rooms — place in grid
+  // pattern (every 3-4 tiles) or flanking corridors.
+  // ══════════════════════════════════════════════════════════════════
+  { c:15, r:2, role:'pillar-top', cat:'deco', tags:['pillar'],
+    note:'Top half. Always pair with [15,3] directly below.' },
+  { c:15, r:3, role:'pillar-bot', cat:'deco', tags:['pillar'],
+    note:'Bottom half. Always pair with [15,2] directly above.' },
+
+  // ══════════════════════════════════════════════════════════════════
+  // DECO: Doors — multi-tile composites placed IN the north wall.
+  //
+  // Layout: 4 tiles wide on the wall row (bottom), 2 tiles wide
+  // centered above (top). Bottom tiles REPLACE the wall tiles at
+  // that position. Top tiles overlap from the row above.
+  //
+  //              [top-L][top-R]
+  //   [bot-0][bot-1][bot-2][bot-3]   ← wall row
+  //
+  // Closed door = visual barrier. Open door = passable opening.
+  // Requires 4 contiguous horizontal wall tiles.
+  // ══════════════════════════════════════════════════════════════════
+  { c:17, r:2, role:'door-closed-top-L',  cat:'deco', tags:['door','closed'],
+    note:'Closed door top-left. Render above wall row.' },
+  { c:18, r:2, role:'door-closed-top-R',  cat:'deco', tags:['door','closed'],
+    note:'Closed door top-right. Render above wall row.' },
+  { c:16, r:3, role:'door-closed-bot-0',  cat:'deco', tags:['door','closed','wall-replace'],
+    note:'Closed door col 0 (leftmost). Replaces wall tile.' },
+  { c:17, r:3, role:'door-closed-bot-1',  cat:'deco', tags:['door','closed','wall-replace'],
+    note:'Closed door col 1. Replaces wall tile.' },
+  { c:18, r:3, role:'door-closed-bot-2',  cat:'deco', tags:['door','closed','wall-replace'],
+    note:'Closed door col 2. Replaces wall tile.' },
+  { c:19, r:3, role:'door-closed-bot-3',  cat:'deco', tags:['door','closed','wall-replace'],
+    note:'Closed door col 3 (rightmost). Replaces wall tile.' },
+  { c:21, r:2, role:'door-open-top-L',    cat:'deco', tags:['door','open'],
+    note:'Open door top-left. Render above wall row.' },
+  { c:22, r:2, role:'door-open-top-R',    cat:'deco', tags:['door','open'],
+    note:'Open door top-right. Render above wall row.' },
+  { c:20, r:3, role:'door-open-bot-0',    cat:'deco', tags:['door','open','wall-replace'],
+    note:'Open door col 0 (leftmost). Replaces wall tile.' },
+  { c:21, r:3, role:'door-open-bot-1',    cat:'deco', tags:['door','open','wall-replace'],
+    note:'Open door col 1. Replaces wall tile.' },
+  { c:22, r:3, role:'door-open-bot-2',    cat:'deco', tags:['door','open','wall-replace'],
+    note:'Open door col 2. Replaces wall tile.' },
+  { c:23, r:3, role:'door-open-bot-3',    cat:'deco', tags:['door','open','wall-replace'],
+    note:'Open door col 3 (rightmost). Replaces wall tile.' },
+];
+
+// Build dungeon wall dict
+const DUNGEON_WALL_META = wallMeta(24, 'dungeon');
+markEmpty(DUNGEON_WALL_META, TILESETS.dungeon.wall, 24, 32, (meta) => {
+  applyOverrides(meta, DUNGEON_WALL_OVERRIDES);
+  buildDict('dungeon-wall-dict', meta, TILESETS.dungeon.wall, WALL_CAT_COLORS, {tileH:32});
+});
+
+// ══════════════════════════════════════════════════════════════════
+// SEWER WALL OVERRIDES
+// Same autotile system as dungeon. Set A = primary, B = void/brick,
+// C = more void combos + brick variants. Sewer has fewer deco tiles.
+// ══════════════════════════════════════════════════════════════════
+const SEWER_WALL_OVERRIDES = [
+  // ── Set A (cols 0-3) — same layout as dungeon Set A ──
+  { c:2, r:2, role:'┴ N+E+W', cat:'wall', tags:[],
+    note:'Default T-wall N+E+W. Auto-generated was correct; kept for completeness.' },
+
+  // ── Set B (cols 4-7): void + brick variants ──
+  { c:4, r:0, role:'┼ N+S+E+W', cat:'wall', tags:['brick-shift-L'],
+    note:'Cross variant — bricks shifted left. Random swap for [2,1].' },
+  { c:5, r:0, role:'┬ S+E+W',   cat:'wall', tags:['void-R'],
+    note:'T-wall S+E+W — right side black. Special: pool edge, pit.' },
+  { c:6, r:0, role:'┬ S+E+W',   cat:'wall', tags:['void-L'],
+    note:'T-wall S+E+W — left side black. Special: pool edge, pit.' },
+  { c:7, r:0, role:'┼ N+S+E+W', cat:'wall', tags:['brick-shift-R'],
+    note:'Cross variant — bricks shifted right. Random swap for [2,1].' },
+  { c:4, r:1, role:'├ N+S+E',   cat:'wall', tags:['void-R'],
+    note:'T-wall N+S+E — right side black. Special: pool edge, pit.' },
+  { c:5, r:1, role:'┘ N+W',     cat:'wall', tags:['void-L','void-R','void-S'],
+    note:'Corner NW — all sides black. Special: pool corner, pit edge.' },
+  { c:6, r:1, role:'└ N+E',     cat:'wall', tags:['void-L','void-R','void-S'],
+    note:'Corner NE — all sides black. Special: pool corner, pit edge.' },
+  { c:7, r:1, role:'┤ N+S+W',   cat:'wall', tags:['void-L'],
+    note:'T-wall N+S+W — left side black. Special: pool edge, pit.' },
+  { c:4, r:2, role:'├ N+S+E',   cat:'wall', tags:['brick-variant'],
+    note:'Brick variant of [1,1]. Random swap for variety.' },
+  { c:5, r:2, role:'┐ S+W',     cat:'wall', tags:['void-R'],
+    note:'Corner SW — right side black. Special: pool edge, pit.' },
+  { c:6, r:2, role:'┌ S+E',     cat:'wall', tags:['void-L'],
+    note:'Corner SE — left side black. Special: pool edge, pit.' },
+  { c:7, r:2, role:'┤ N+S+W',   cat:'wall', tags:['brick-variant'],
+    note:'Brick variant of [3,1]. Random swap for variety.' },
+  { c:4, r:3, role:'┼ N+S+E+W', cat:'wall', tags:['void-L'],
+    note:'Cross, left side black. Special: pool wall, hidden room.' },
+  { c:5, r:3, role:'┴ N+E+W',   cat:'wall', tags:['brick-shift-L'],
+    note:'Brick variant of [2,2] — shifted left. Random swap for variety.' },
+  { c:6, r:3, role:'┴ N+E+W',   cat:'wall', tags:['brick-shift-R'],
+    note:'Brick variant of [2,2] — shifted right. Random swap for variety.' },
+  { c:7, r:3, role:'┼ N+S+E+W', cat:'wall', tags:['void-R'],
+    note:'Cross, right side black. Special: pool wall, hidden room.' },
+
+  // ── Set C (cols 8-11): void combos + standard tiles ──
+  { c:8,  r:0, role:'┌ S+E',     cat:'wall', tags:['void-R'],
+    note:'Corner SE — right side black. Special: pool corner, pit.' },
+  { c:9,  r:0, role:'┴ N+E+W',   cat:'wall', tags:['void-L','void-R','void-S'],
+    note:'T-wall N+E+W — all sides black. Special: narrow ledge over darkness.' },
+  { c:10, r:0, role:'─ E+W',     cat:'wall', tags:['void-L','void-R','void-S'],
+    note:'Horizontal — both sides + bottom black. Special: bridge/ledge over void.' },
+  { c:11, r:0, role:'┐ S+W',     cat:'wall', tags:['void-L'],
+    note:'Corner SW — left side black. Special: pool corner, pit.' },
+  { c:8,  r:1, role:'│ N+S',     cat:'wall', tags:['void-R'],
+    note:'Vertical — right side black. Special: wall bordering pool/pit.' },
+  { c:9,  r:1, role:'┼ N+S+E+W', cat:'wall', tags:['void-L'],
+    note:'Cross, left side black. Special: pool wall, hidden room.' },
+  { c:11, r:1, role:'┌ S+E',     cat:'wall', tags:['void-L','brick-variant'],
+    note:'Corner SE, left void — brick variant of [6,2]. Special: pool corner.' },
+  { c:8,  r:2, role:'┐ S+W',     cat:'wall', tags:['void-R','brick-variant'],
+    note:'Corner SW, right void — brick variant of [5,2]. Special: pool corner.' },
+  { c:9,  r:2, role:'void',      cat:'other', tags:[],
+    note:'Solid black fill. Use for void/darkness in pools, pits, hidden areas.' },
+  { c:10, r:2, role:'┼ N+S+E+W', cat:'wall', tags:['void-R','brick-variant'],
+    note:'Cross, right void — brick variant of [7,3]. Special: pool wall.' },
+  { c:11, r:2, role:'│ N+S',     cat:'wall', tags:['void-L'],
+    note:'Vertical — left side black. Special: wall bordering pool/pit.' },
+  { c:8,  r:3, role:'└ N+E',     cat:'wall', tags:[],
+    note:'Corner NE. Standard sewer tile (no brick-variant in this set).' },
+  { c:9,  r:3, role:'─ E+W',     cat:'wall', tags:[],
+    note:'Horizontal E+W. Standard sewer tile.' },
+  { c:10, r:3, role:'┬ S+E+W',   cat:'wall', tags:[],
+    note:'T-wall S+E+W. Standard sewer tile.' },
+  { c:11, r:3, role:'┘ N+W',     cat:'wall', tags:[],
+    note:'Corner NW. Standard sewer tile.' },
+
+  // ── Deco: wall damage overlays ──
+  // Semi-transparent overlay drawn on top of wall tile (same cell).
+  // Apply randomly (~5-10%) to interior walls for worn look.
+  { c:12, r:3, role:'wall-damage-0', cat:'overlay', tags:['wall-adj','damage'],
+    note:'Broken wall variant 0. Overlay on any wall tile.' },
+  { c:13, r:3, role:'wall-damage-1', cat:'overlay', tags:['wall-adj','damage'],
+    note:'Broken wall variant 1. Overlay on any wall tile.' },
+];
+
+// Build sewer wall dict
+const SEWER_WALL_META = wallMeta(14, 'sewer');
+markEmpty(SEWER_WALL_META, TILESETS.sewer.wall, 14, 32, (meta) => {
+  applyOverrides(meta, SEWER_WALL_OVERRIDES);
+  buildDict('sewer-wall-dict', meta, TILESETS.sewer.wall, WALL_CAT_COLORS, {tileH:32});
+});
+
+// ── Image loading ──
+const imgCache = {}; // url → Image
+let totalToLoad = 0, totalLoaded = 0;
+function loadImg(url) {
+  if (imgCache[url]) return imgCache[url];
+  totalToLoad++;
+  const img = new Image();
+  img.onload = () => { if (++totalLoaded >= totalToLoad) drawAll(); };
+  img.src = url;
+  imgCache[url] = img;
+  return img;
+}
+// Preload all tilesets
+for (const ts of Object.values(TILESETS)) { loadImg(ts.wall); loadImg(ts.floor); }
+
+function drawAll() {
+  document.querySelectorAll('canvas[data-type]').forEach(c => {
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    const type = c.dataset.type;
+    const col = +c.dataset.col, row = +c.dataset.row;
+    const tsName = c.dataset.tileset || 'dungeon';
+    const ts = TILESETS[tsName];
+    const wallImg = imgCache[ts.wall];
+    const floorImg = imgCache[ts.floor];
+    if (type === 'floor') {
+      ctx.drawImage(floorImg, col * 16, row * 16, 16, 16, 0, 0, c.width, c.height);
+    } else if (type === 'floor-half') {
+      const side = c.dataset.side;
+      const sx = col * 16 + (side === 'R' ? 8 : 0);
+      const dx = side === 'R' ? c.width / 2 : 0;
+      ctx.drawImage(floorImg, sx, row * 16, 8, 16, dx, 0, c.width / 2, c.height);
+    } else if (type === 'dirt-overlay') {
+      ctx.drawImage(floorImg, col * 16, row * 16, 16, 16, 0, 0, c.width, c.height);
+      const tint = c.dataset.tint;
+      if (tint) {
+        ctx.globalCompositeOperation = 'source-atop';
+        ctx.fillStyle = tint;
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+    } else if (type === 'wallhigh') {
+      ctx.drawImage(wallImg, col * 16, row * 32, 16, 32, 0, 0, c.width, c.height);
+    }
+  });
+}
+
+// ── Canvas helpers ──
+// _ts tracks which tileset renderRoom is currently using
+let _ts = 'dungeon';
+
+function floorCanvas(col, row) {
+  const c = document.createElement('canvas');
+  c.width = CELL; c.height = CELL;
+  c.style.cssText = 'left:0;top:0;width:64px;height:64px;z-index:1;';
+  c.dataset.type = 'floor'; c.dataset.col = col; c.dataset.row = row;
+  c.dataset.tileset = _ts;
+  return c;
+}
+
+function halfFloorCanvas(col, row, side) {
+  const c = document.createElement('canvas');
+  c.width = CELL; c.height = CELL;
+  c.style.cssText = 'left:0;top:0;width:64px;height:64px;z-index:1;';
+  c.dataset.type = 'floor-half'; c.dataset.col = col; c.dataset.row = row;
+  c.dataset.side = side;
+  c.dataset.tileset = _ts;
+  return c;
+}
+
+function dirtOverlay(col, row, tint) {
+  const c = document.createElement('canvas');
+  c.width = CELL; c.height = CELL;
+  c.style.cssText = 'left:0;top:0;width:64px;height:64px;z-index:2;';
+  c.dataset.type = 'dirt-overlay'; c.dataset.col = col; c.dataset.row = row;
+  c.dataset.tileset = _ts;
+  if (tint) c.dataset.tint = tint;
+  return c;
+}
+
+function wallHighCanvas(col, row) {
+  const c = document.createElement('canvas');
+  c.width = CELL; c.height = CELL * 2;
+  c.style.cssText = 'left:0;top:-64px;width:64px;height:128px;z-index:3;';
+  c.dataset.type = 'wallhigh'; c.dataset.col = col; c.dataset.row = row;
+  c.dataset.tileset = _ts;
+  return c;
+}
+
+// ── Autotile: compute walls_high tile [col, row] from neighbor walls ──
+//   Row = N/S connectivity:  S only→0  N+S→1  N only→2  neither→3
+//   Col = E/W connectivity:  neither→0  E only→1  E+W→2  W only→3
+function getWallTile(grid, r, c) {
+  const isWall = (r2, c2) =>
+    r2 >= 0 && r2 < grid.length && c2 >= 0 && c2 < grid[0].length && grid[r2][c2] === 'wall';
+  const N = isWall(r - 1, c), S = isWall(r + 1, c);
+  const E = isWall(r, c + 1), W = isWall(r, c - 1);
+  const row = (!N && S) ? 0 : (N && S) ? 1 : (N && !S) ? 2 : 3;
+  const col = (!E && !W) ? 0 : (E && !W) ? 1 : (E && W) ? 2 : 3;
+  return [col, row];
+}
+
+// ── Helpers for neighbor checks ──
+function at(grid, r, c) {
+  if (r < 0 || r >= grid.length || c < 0 || c >= grid[0].length) return 'void';
+  return grid[r][c];
+}
+
+// Spatial hash for natural-looking tile variation
+function tileHash(r, c, mod) {
+  let h = (r * 2654435761 ^ c * 2246822519) >>> 0;
+  h = ((h >> 16) ^ h) * 0x45d9f3b >>> 0;
+  h = ((h >> 16) ^ h) >>> 0;
+  return h % mod;
+}
+
+// ── Enhanced wall tile picker ──────────────────────────────────────
+// ── Void tile lookup (reference only) ──
+// NOT used in normal autotile — these are special-purpose tiles for:
+// pools, hidden rooms, pits, map-boundary fills, etc.
+// Key = base Set-A 'col,row'. Value = { voidFlags: [[atlasC,atlasR], ...] }
+// Flags: L = west void, R = east void, S = south void
+const DUNGEON_VOID_TILES = {
+  '3,1': { R: [[5,0]],  L: [[7,1]] },           // ┤ N+S+W
+  '1,1': { L: [[6,0],[4,1]] },                   // ├ N+S+E
+  '3,2': { RS: [[5,1]] },                        // ┘ N+W
+  '1,2': { LS: [[6,1]] },                        // └ N+E
+  '3,0': { R: [[5,2],[8,2]], L: [[11,0]] },      // ┐ S+W
+  '1,0': { R: [[8,0]],  L: [[6,2],[11,1]] },     // ┌ S+E
+  '2,1': { L: [[4,3],[9,1]], R: [[7,3],[10,2]] },// ┼ N+S+E+W
+  '0,1': { R: [[8,1]],  L: [[11,2]] },           // │ N+S
+  '2,2': { LRS: [[9,0]] },                       // ┴ N+E+W
+  '2,3': { LRS: [[10,0]] },                      // ─ E+W
+};
+const SEWER_VOID_TILES = {
+  '2,0': { R: [[5,0]],  L: [[6,0]] },            // ┬ S+E+W
+  '1,1': { R: [[4,1]] },                         // ├ N+S+E
+  '3,2': { LRS: [[5,1]] },                       // ┘ N+W
+  '1,2': { LRS: [[6,1]] },                       // └ N+E
+  '3,1': { L: [[7,1]] },                         // ┤ N+S+W
+  '3,0': { R: [[5,2],[8,2]], L: [[11,0]] },      // ┐ S+W
+  '1,0': { R: [[8,0]],  L: [[6,2],[11,1]] },     // ┌ S+E
+  '2,1': { L: [[4,3],[9,1]], R: [[7,3],[10,2]] },// ┼ N+S+E+W
+  '0,1': { R: [[8,1]],  L: [[11,2]] },           // │ N+S
+  '2,2': { LRS: [[9,0]] },                       // ┴ N+E+W
+  '2,3': { LRS: [[10,0]] },                      // ─ E+W
+};
+
+// Brick variant lookup: base 'col,row' → [[atlasC,atlasR], ...]
+const DUNGEON_BRICK_VARIANTS = {
+  '2,1': [[4,0],[7,0]],  // ┼ shifted bricks
+  '1,1': [[4,2]],        // ├ brick variant
+  '3,1': [[7,2]],        // ┤ brick variant
+  '2,2': [[6,3]],        // ┴ brick variant
+  '1,2': [[8,3]],        // └ brick variant
+  '2,3': [[9,3]],        // ─ brick variant
+  '2,0': [[10,3]],       // ┬ brick variant
+  '3,2': [[11,3]],       // ┘ brick variant
+};
+const SEWER_BRICK_VARIANTS = {
+  '2,1': [[4,0],[7,0]],  // ┼ shifted bricks
+  '1,1': [[4,2]],        // ├ brick variant
+  '3,1': [[7,2]],        // ┤ brick variant
+  '2,2': [[5,3],[6,3]],  // ┴ shifted bricks
+};
+
+// Enhanced autotile: random brick variants for visual variety.
+// Void tiles are NOT auto-selected — they're special-purpose
+// (pools, hidden rooms, pits) and should be placed manually.
+function getWallTileEx(grid, r, c, tileset) {
+  const [baseCol, baseRow] = getWallTile(grid, r, c);
+  const key = baseCol + ',' + baseRow;
+
+  const brickMap = tileset === 'sewer' ? SEWER_BRICK_VARIANTS : DUNGEON_BRICK_VARIANTS;
+
+  // Brick variant ~20% of the time for visual variety
+  if (brickMap[key] && tileHash(r, c, 5) === 0) {
+    const opts = brickMap[key];
+    return opts[tileHash(r + 7, c + 13, opts.length)];
+  }
+
+  return [baseCol, baseRow];
+}
+
+// ── Per-tileset floor coordinate maps ──
+// Each maps a logical role to [col, row] in that tileset's floor atlas.
+const FLOOR_MAPS = {
+  dungeon: {
+    hasOverlays: true,
+    plain: [[0,0],[1,0],[2,0]],
+    topDirtOverlay: [[4,0],[5,0]],
+    topDirtLessLeftOvl:  [3,0],
+    topDirtLessRightOvl: [6,0],
+    bottomDirtOverlay:   [6,3],
+    halfDirtTopL: [4,6], halfDirtTopR: [5,6],
+    halfTopL: [4,2], halfTopR: [5,2],
+    halfMidL: [4,3], halfMidR: [5,3],
+    halfBotL: [4,4], halfBotR: [5,4],
+    halfCleanL: [4,5], halfCleanR: [5,5],
+  },
+  sewer: {
+    hasOverlays: false,  // all baked, no transparent overlays
+    // [0,0]: clean floor — use as majority plain tile
+    plain: [[0,0]],
+    // Row 3 cols 0-3: dark top edge — floor next to north wall
+    topDirtBaked:          [[0,3],[1,3],[2,3],[3,3]],
+    topDirtLessLeftBaked:  [0,3],  // top dirt, less on left (wall opens west)
+    topDirtLessRightBaked: [3,3],  // top dirt, less on right (wall opens east)
+    // Row 2 cols 0-3: dark bottom edge — floor next to south wall
+    bottomDirtBaked:       [[0,2],[1,2],[2,2],[3,2]],
+    bottomDirtLessLeftBaked:  [0,2],  // bottom dirt, less on left
+    bottomDirtLessRightBaked: [3,2],  // bottom dirt, less on right
+    noHalfFloor: true, // sewer atlas has no half-floor tiles — use plain floor
+    halfDirtTopL: null, halfDirtTopR: null,
+    halfTopL: null, halfTopR: null,
+    halfMidL: null, halfMidR: null,
+    halfBotL: null, halfBotR: null,
+    halfCleanL: null, halfCleanR: null,
+  },
+};
+
+// ── Render a room grid ──
+// theme: { dirtTint: null | '#rrggbbaa', tileset: 'dungeon'|'sewer' }
+function renderRoom(id, grid, theme) {
+  const el = document.getElementById(id);
+  const rows = grid.length, cols = grid[0].length;
+  el.style.gridTemplateColumns = `repeat(${cols}, 64px)`;
+  const tint = theme && theme.dirtTint || null;
+  _ts = (theme && theme.tileset) || 'dungeon';
+  const fm = FLOOR_MAPS[_ts];
+
+  // Helper: pick from variants array
+  function pick(arr, r, c) { return arr[tileHash(r, c, arr.length)]; }
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const type = grid[r][c];
+
+      // ── Floor layer ──
+      if (type === 'floor') {
+        const northIsWall = at(grid, r - 1, c) === 'wall';
+        const southIsWall = at(grid, r + 1, c) === 'wall';
+        const westIsVoid = at(grid, r, c - 1) === 'void';
+        const eastIsVoid = at(grid, r, c + 1) === 'void';
+
+        const [bCol, bRow] = pick(fm.plain, r, c);
+
+        if (fm.noHalfFloor) {
+          // Sewer: no half-floor or dirt-half tiles — baked dirt tiles
+          if (northIsWall) {
+            const eastIsFloor = at(grid, r, c + 1) === 'floor';
+            const westIsFloor = at(grid, r, c - 1) === 'floor';
+            const eastNeighborOpen = eastIsFloor && at(grid, r - 1, c + 1) !== 'wall';
+            const westNeighborOpen = westIsFloor && at(grid, r - 1, c - 1) !== 'wall';
+            if (eastNeighborOpen && westNeighborOpen) {
+              cell.appendChild(floorCanvas(bCol, bRow));
+            } else if (westNeighborOpen) {
+              cell.appendChild(floorCanvas(...fm.topDirtLessLeftBaked));
+            } else if (eastNeighborOpen) {
+              cell.appendChild(floorCanvas(...fm.topDirtLessRightBaked));
+            } else {
+              const [dC, dR] = pick(fm.topDirtBaked, r, c);
+              cell.appendChild(floorCanvas(dC, dR));
+            }
+          } else if (southIsWall) {
+            const eastIsFloor = at(grid, r, c + 1) === 'floor';
+            const westIsFloor = at(grid, r, c - 1) === 'floor';
+            const eastNeighborOpen = eastIsFloor && at(grid, r + 1, c + 1) !== 'wall';
+            const westNeighborOpen = westIsFloor && at(grid, r + 1, c - 1) !== 'wall';
+            if (eastNeighborOpen && westNeighborOpen) {
+              cell.appendChild(floorCanvas(bCol, bRow));
+            } else if (westNeighborOpen) {
+              cell.appendChild(floorCanvas(...fm.bottomDirtLessLeftBaked));
+            } else if (eastNeighborOpen) {
+              cell.appendChild(floorCanvas(...fm.bottomDirtLessRightBaked));
+            } else {
+              const [dC, dR] = pick(fm.bottomDirtBaked, r, c);
+              cell.appendChild(floorCanvas(dC, dR));
+            }
+          } else {
+            cell.appendChild(floorCanvas(bCol, bRow));
+          }
+        } else if (northIsWall && westIsVoid) {
+          cell.appendChild(floorCanvas(...fm.halfDirtTopL));
+        } else if (northIsWall && eastIsVoid) {
+          cell.appendChild(floorCanvas(...fm.halfDirtTopR));
+        } else if (northIsWall) {
+          const eastIsFloor = at(grid, r, c + 1) === 'floor';
+          const westIsFloor = at(grid, r, c - 1) === 'floor';
+          const eastNeighborOpen = eastIsFloor && at(grid, r - 1, c + 1) !== 'wall';
+          const westNeighborOpen = westIsFloor && at(grid, r - 1, c - 1) !== 'wall';
+
+          if (eastNeighborOpen && westNeighborOpen) {
+            cell.appendChild(floorCanvas(bCol, bRow));
+          } else if (fm.hasOverlays) {
+            // Dungeon: clean base + transparent overlay
+            cell.appendChild(floorCanvas(bCol, bRow));
+            if (eastNeighborOpen) {
+              cell.appendChild(dirtOverlay(...fm.topDirtLessRightOvl, tint));
+            } else if (westNeighborOpen) {
+              cell.appendChild(dirtOverlay(...fm.topDirtLessLeftOvl, tint));
+            } else {
+              const [dC, dR] = pick(fm.topDirtOverlay, r, c);
+              cell.appendChild(dirtOverlay(dC, dR, tint));
+            }
+          } else {
+            // Sewer: baked dirt tiles
+            if (eastNeighborOpen) {
+              cell.appendChild(floorCanvas(...fm.topDirtLessRightBaked));
+            } else if (westNeighborOpen) {
+              cell.appendChild(floorCanvas(...fm.topDirtLessLeftBaked));
+            } else {
+              const [dC, dR] = pick(fm.topDirtBaked, r, c);
+              cell.appendChild(floorCanvas(dC, dR));
+            }
+          }
+        } else if (southIsWall) {
+          const eastIsFloor = at(grid, r, c + 1) === 'floor';
+          const westIsFloor = at(grid, r, c - 1) === 'floor';
+          const eastNeighborOpen = eastIsFloor && at(grid, r + 1, c + 1) !== 'wall';
+          const westNeighborOpen = westIsFloor && at(grid, r + 1, c - 1) !== 'wall';
+          if (eastNeighborOpen || westNeighborOpen) {
+            cell.appendChild(floorCanvas(bCol, bRow));
+          } else if (fm.hasOverlays) {
+            cell.appendChild(floorCanvas(bCol, bRow));
+            cell.appendChild(dirtOverlay(...fm.bottomDirtOverlay, tint));
+          } else {
+            cell.appendChild(floorCanvas(...fm.bottomDirtBaked));
+          }
+        } else {
+          cell.appendChild(floorCanvas(bCol, bRow));
+        }
+      } else if (type === 'wall') {
+        if (fm.noHalfFloor) {
+          const eIsFloor = at(grid, r, c+1)==='floor';
+          const wIsFloor = at(grid, r, c-1)==='floor';
+          const sIsFloor = at(grid, r+1, c)==='floor';
+          const nIsFloor = at(grid, r-1, c)==='floor';
+          const [fC, fR] = pick(fm.plain, r, c);
+          if (eIsFloor && wIsFloor) {
+            cell.appendChild(floorCanvas(fC, fR));
+          } else if (eIsFloor && !wIsFloor) {
+            cell.appendChild(halfFloorCanvas(fC, fR, 'R'));
+          } else if (wIsFloor && !eIsFloor) {
+            cell.appendChild(halfFloorCanvas(fC, fR, 'L'));
+          } else if (sIsFloor || nIsFloor) {
+            cell.appendChild(floorCanvas(fC, fR));
+          }
+        } else {
+        const eIsRoom = (at(grid, r, c + 1) === 'floor' ||
+          (at(grid, r, c + 1) === 'wall' && at(grid, r + 1, c + 1) !== 'void'));
+        const wIsRoom = (at(grid, r, c - 1) === 'floor' ||
+          (at(grid, r, c - 1) === 'wall' && at(grid, r + 1, c - 1) !== 'void'));
+        const sIsFloor = at(grid, r + 1, c) === 'floor';
+        const nIsFloor = at(grid, r - 1, c) === 'floor';
+        const nIsWall = at(grid, r - 1, c) === 'wall';
+        const sIsWall = at(grid, r + 1, c) === 'wall';
+
+        if (eIsRoom && !wIsRoom) {
+          if (nIsWall && sIsWall) {
+            cell.appendChild(floorCanvas(...fm.halfMidL));
+          } else if (sIsWall) {
+            cell.appendChild(floorCanvas(...fm.halfTopL));
+          } else if (nIsWall) {
+            cell.appendChild(floorCanvas(...fm.halfBotL));
+          } else {
+            cell.appendChild(floorCanvas(...fm.halfCleanL));
+          }
+        } else if (wIsRoom && !eIsRoom) {
+          if (nIsWall && sIsWall) {
+            cell.appendChild(floorCanvas(...fm.halfMidR));
+          } else if (sIsWall) {
+            cell.appendChild(floorCanvas(...fm.halfTopR));
+          } else if (nIsWall) {
+            cell.appendChild(floorCanvas(...fm.halfBotR));
+          } else {
+            cell.appendChild(floorCanvas(...fm.halfCleanR));
+          }
+        } else if (eIsRoom && wIsRoom) {
+          const [fC, fR] = pick(fm.plain, r, c);
+          cell.appendChild(floorCanvas(fC, fR));
+        } else if (sIsFloor || nIsFloor) {
+          const [fC, fR] = pick(fm.plain, r, c);
+          cell.appendChild(floorCanvas(fC, fR));
+        }
+        } // end !noHalfFloor
+      }
+
+      // ── Wall layer ──
+      if (type === 'wall') {
+        const [wCol, wRow] = getWallTileEx(grid, r, c, _ts);
+        cell.appendChild(wallHighCanvas(wCol, wRow));
+      }
+
+      // Coordinate label
+      const coord = document.createElement('div');
+      coord.className = 'coord';
+      coord.textContent = c + ',' + r;
+      cell.appendChild(coord);
+
+      el.appendChild(cell);
+    }
+  }
+}
+
+// ── Room definitions ──
+
+// 3b: Simple room — 5×5 floor interior + wall border + void margin
+function buildSimpleRoom() {
+  const W = 9, H = 10;
+  const grid = Array.from({ length: H }, () => Array(W).fill('void'));
+  for (let r = 1; r <= 8; r++) {
+    for (let c = 1; c <= 7; c++) {
+      grid[r][c] = (r === 1 || r === 8 || c === 1 || c === 7) ? 'wall' : 'floor';
+    }
+  }
+  return grid;
+}
+
+// 3c: Two rooms connected by a 2-tile wide vertical corridor (no door)
+function buildCorridor2() {
+  const W = 10, H = 14;
+  const grid = Array.from({ length: H }, () => Array(W).fill('void'));
+
+  // Room A (top): cols 1-7, rows 1-5
+  for (let r = 1; r <= 5; r++)
+    for (let c = 1; c <= 7; c++)
+      grid[r][c] = (r === 1 || r === 5 || c === 1 || c === 7) ? 'wall' : 'floor';
+
+  // Room B (bottom): cols 2-8, rows 8-12
+  for (let r = 8; r <= 12; r++)
+    for (let c = 2; c <= 8; c++)
+      grid[r][c] = (r === 8 || r === 12 || c === 2 || c === 8) ? 'wall' : 'floor';
+
+  // Corridor: 2-tile wide (cols 4-5), walls on cols 3,6
+  for (let r = 5; r <= 8; r++) {
+    if (grid[r][3] !== 'floor') grid[r][3] = 'wall';
+    if (grid[r][6] !== 'floor') grid[r][6] = 'wall';
+    grid[r][4] = 'floor';
+    grid[r][5] = 'floor';
+  }
+
+  return grid;
+}
+
+renderRoom('room-simple', buildSimpleRoom());
+renderRoom('room-2wide', buildCorridor2());
+renderRoom('room-bloody', buildSimpleRoom(), { dirtTint: 'rgba(120, 20, 15, 0.7)' });
+renderRoom('room-sewer', buildSimpleRoom(), { tileset: 'sewer' });
+renderRoom('room-sewer-corridor', buildCorridor2(), { tileset: 'sewer' });
+</script>
+
+</body>
+</html>

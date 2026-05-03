@@ -1,0 +1,148 @@
+# W1 Mod System Showcase — large rooms with open doorways
+# Access via: http://localhost:3000/?map=ts_w1_showcase
+#
+# Big rooms along a wide corridor. Open doorways (floor gaps).
+# Walk into a room to trigger combat.
+
+name: "W1 Showcase"
+floor: "TEST"
+globalLight: bright
+
+grid:
+  - "##############################################################################"
+  - "#........##..........##..........##..........##..........##..................#"
+  - "#........##..........##..........##..........##..........##..................#"
+  - "#........##..........##..........##..........##..........##..................#"
+  - "#........##..........##..........##..........##..........##..................#"
+  - "#........##..........##..........##..........##..........##..................#"
+  - "#........##..........##..........##..........##..........##..................#"
+  - "####..##D####..#########..#########..#########..#########..###################"
+  - "#............................................................................#"
+  - "#..................FFF.III...................................................#"
+  - "#............................................................................#"
+  - "####..#######..#########..#########..#########..#########..###################"
+  - "#........##..........##..........##..........##..........##..................#"
+  - "#........##..........##..........##..........##..........##..................#"
+  - "#........##..........##..........##..........##..........##..................#"
+  - "#........##..........##..........##..........##..........##..................#"
+  - "#........##..........##..........##..........##..........##..................#"
+  - "#........##..........##..........##..........##..........##...........S......#"
+  - "##############################################################################"
+
+playerStart: { x: 36, y: 9 }
+
+encounters:
+  # ── Top R1: Solo goblin — basic 1v1 ──
+  - { creature: goblin, x: 4, y: 3, facing: 180, group: r1 }
+
+  # ── Top R2: Orc — resists slashing ──
+  - { creature: orc, x: 15, y: 3, facing: 180, group: r2 }
+
+  # ── Top R3: 3-goblin squad — naming A/B/C ──
+  - { creature: goblin, x: 26, y: 2, facing: 180, group: r3 }
+  - { creature: goblin, x: 28, y: 4, facing: 180, group: r3 }
+  - { creature: goblin, x: 30, y: 3, facing: 180, group: r3 }
+
+  # ── Top R4: Bone Lord — named, immune poison, vuln bludgeon ──
+  - { creature: skeleton, x: 38, y: 3, facing: 180, name: "Bone Lord", group: r4 }
+
+  # ── Top R5: Extra orc ──
+  - { creature: orc, x: 48, y: 3, facing: 180, group: r5 }
+
+  # ── Top R6 (wide): Skeleton ──
+  - { creature: skeleton, x: 64, y: 3, facing: 180, group: r6 }
+
+  # ── Bottom R1: Empty — stash ──
+  # ── Bottom R2: Empty — shop ──
+
+  # ── Bottom R3: 2 Skeletons — tests vuln bludgeoning ──
+  - { creature: skeleton, x: 28, y: 14, facing: 0, group: r9 }
+  - { creature: skeleton, x: 26, y: 15, facing: 0, group: r9 }
+
+  # ── Bottom R4: 2 goblins ──
+  - { creature: goblin, x: 37, y: 13, facing: 0, group: r10 }
+  - { creature: goblin, x: 39, y: 15, facing: 0, group: r10 }
+
+  # ── Bottom R5: Solo orc ──
+  - { creature: orc, x: 48, y: 14, facing: 0, group: r11 }
+
+  # ── Bottom R6 (wide): Boss — Orc Warchief + 2 guards ──
+  - { creature: orc, x: 66, y: 14, facing: 0, name: "Orc Warchief", group: boss }
+  - { creature: goblin, x: 62, y: 13, facing: 0, group: boss }
+  - { creature: goblin, x: 70, y: 15, facing: 0, group: boss }
+
+  # ── Corridor: patrol goblin ──
+  - { creature: goblin, x: 55, y: 9, facing: 270, group: patrol }
+
+interactables:
+  - id: power_shrine
+    kind: interactable
+    x: 30
+    y: 9
+    state:
+      label: "Power Shrine"
+      icon: "⚡"
+      texture: deco_crystal
+      needsAdjacency: false
+      description: "A glowing shrine radiates power. Choose your class and become Level 10."
+      actions:
+        - { label: "Choose Class", icon: "⚡", action: jobselect }
+
+  - id: test_quests
+    kind: interactable
+    x: 7
+    y: 14
+    state:
+      label: "Quest Board"
+      icon: "📋"
+      texture: deco_banner
+      description: "A notice board with available quests."
+      actions:
+        - { label: "View Quests", icon: "📋", action: quests }
+
+  - id: test_locked_door
+    kind: door
+    x: 8
+    y: 7
+    state:
+      label: "Locked Door"
+    locked: true
+    lockDc: 14
+    breakDc: 17
+
+  - id: test_trapped_chest
+    kind: chest
+    x: 5
+    y: 14
+    locked: true
+    lockDc: 13
+    trapDamage: 6
+    trapDc: 12
+    gold: 30
+
+  - id: test_stash
+    kind: interactable
+    x: 4
+    y: 14
+    state:
+      label: "Test Stash"
+      icon: "🗄"
+      texture: deco_crystal
+      description: "Test the stash panel."
+      actions:
+        - { label: "Open Stash", icon: "🗄", action: stash }
+        - { label: "Deposit All", icon: "📥", action: stash_deposit_all }
+
+  - id: test_shop
+    kind: interactable
+    x: 15
+    y: 14
+    state:
+      label: "Test Shop"
+      icon: "🧰"
+      texture: deco_banner
+      description: "Test the shop panel."
+      actions:
+        - { label: "Browse Shop", icon: "🧰", action: shop }
+
+nextStage: null

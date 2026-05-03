@@ -20,6 +20,7 @@ stages:
   - gw_b1f
   - gw_b2f
   - gw_b3f
+  - gw_camp
   - gw_b4f
   - gw_b5f
   - gw_scripted_b1f   # hand-crafted map (not in run rotation)

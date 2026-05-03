@@ -1,0 +1,2 @@
+autoplay:
+  - { do: log, text: "=== ts_w1_showcase: W1 Mod System Feature Showcase ===" }

@@ -1,7 +1,7 @@
 name: "B3F — The Bone Warrens"
 floor: B3F
 globalLight: dark
-nextStage: gw_b4f
+nextStage: gw_camp
 
 generator:
   type: bsp
@@ -11,19 +11,41 @@ generator:
   stairs: true
 
 encounters:
-  - creature: goblin
-    count: 2
-  - creature: goblin_archer
-    count: 2
-  - creature: goblin_warrior
-    count: 3
-  - creature: goblin_trapper
+  # Squad: Heavy Patrol
+  - squad: patrol
+    creatures: [goblin_warrior, goblin_archer]
     count: 1
-  - creature: goblin_shaman
-    count: 2
-  - creature: goblin_captain
+    placement: corridor
+
+  # Squad: Shaman Circle
+  - squad: shaman_circle
+    creatures: [goblin_shaman, goblin_shaman, goblin]
     count: 1
-  - creature: cave_spider
-    count: 2
+    placement: room_center
+
+  # Squad: Spider Den
+  - squad: spider_den
+    creatures: [cave_spider, spider, spider]
+    count: 1
+    placement: room_dead_end
+
+  # Squad: Elite Guard
+  - squad: elite_guard
+    creatures:
+      - { creature: goblin_captain, name: "Sergeant" }
+      - creature: goblin_warrior
+      - creature: goblin_warrior
+    count: 1
+    placement: room_near_stairs
+
+  # Squad: Ambush
+  - squad: ambush
+    creatures:
+      - { creature: goblin_trapper, hidden: true }
+      - creature: goblin_archer
+    count: 1
+    placement: room_dead_end
+
+  # Flat: Hobgoblin wanderer
   - creature: hobgoblin
     count: 1

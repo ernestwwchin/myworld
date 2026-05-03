@@ -1,4 +1,8 @@
 import { STATUS_RULES, STATUS_DEFS, dnd } from '@/config';
+import { StatusEngine } from './status-engine';
+import type { StatusDef, StatusInstance } from './status-engine';
+import { recalcBoosts } from './boost-runner';
+import type { BoostSceneAdapter } from './boost-runner';
 import type { GameScene } from '@/game';
 import type { Actor, StatusEffect } from '@/types/actors';
 
@@ -7,11 +11,98 @@ interface ProcessResult {
   acted: boolean;
 }
 
+let _statusEngine: StatusEngine | null = null;
+
+function getStatusEngine(scene: GameScene): StatusEngine {
+  if (_statusEngine) return _statusEngine;
+  _statusEngine = new StatusEngine({
+    getStatuses(actor: Actor): StatusInstance[] {
+      const fx = actor === 'player'
+        ? scene.playerEffects as unknown as StatusInstance[]
+        : ((actor as Record<string, unknown>).statusInstances || []) as StatusInstance[];
+      return fx;
+    },
+    setStatuses(actor: Actor, statuses: StatusInstance[]): void {
+      if (actor === 'player') {
+        (scene as unknown as { playerEffects: unknown }).playerEffects = statuses;
+      } else {
+        (actor as Record<string, unknown>).statusInstances = statuses;
+      }
+    },
+  });
+  return _statusEngine;
+}
+
+function getBoostAdapter(scene: GameScene): BoostSceneAdapter {
+  return {
+    actorEffects(actor: Actor): StatusEffect[] {
+      return scene.actorEffects(actor);
+    },
+    getActorHP(actor: Actor): number {
+      if (actor === 'player') return scene.playerHP;
+      return (actor as { hp?: number }).hp ?? 0;
+    },
+    getActorMaxHP(actor: Actor): number {
+      if (actor === 'player') return scene.playerMaxHP;
+      return (actor as { maxHp?: number }).maxHp ?? 1;
+    },
+  };
+}
+
 export const StatusEffectSystemMixin = {
   actorEffects(this: GameScene, actor: Actor): StatusEffect[] {
     if (actor === 'player') return this.playerEffects as StatusEffect[];
     if (!actor.effects) actor.effects = [];
     return actor.effects;
+  },
+
+  getStatusEngine(this: GameScene): StatusEngine {
+    return getStatusEngine(this);
+  },
+
+  applyStatusToActor(this: GameScene, actor: Actor, statusId: string, duration?: number, source?: Actor | null): void {
+    const def: StatusDef = {
+      id: statusId,
+      duration,
+      ...((STATUS_DEFS as Record<string, Record<string, unknown>>)?.[statusId] || {}),
+    };
+    const engine = getStatusEngine(this);
+    engine.applyStatus(actor, def, source ?? null, duration);
+    recalcBoosts(actor, getBoostAdapter(this));
+    this.showStatus(`${this.actorLabel(actor)} is now ${statusId}.`);
+    this.executeAbilityHook?.('on_status_applied', { actor, statusId, duration, source });
+    if (actor === 'player') {
+      this.updateHUD?.();
+      const sp = (window as unknown as { SidePanel?: { refreshActiveTab?: () => void } }).SidePanel;
+      sp?.refreshActiveTab?.();
+    }
+  },
+
+  removeStatusFromActor(this: GameScene, actor: Actor, statusId: string): void {
+    const engine = getStatusEngine(this);
+    const removed = engine.removeStatus(actor, statusId);
+    if (removed) {
+      recalcBoosts(actor, getBoostAdapter(this));
+      this.showStatus(`${this.actorLabel(actor)} is no longer ${statusId}.`);
+      this.executeAbilityHook?.('on_status_removed', { actor, statusId });
+      if (actor === 'player') {
+        this.updateHUD?.();
+        const sp = (window as unknown as { SidePanel?: { refreshActiveTab?: () => void } }).SidePanel;
+        sp?.refreshActiveTab?.();
+      }
+    }
+  },
+
+  removeStatusesBySource(this: GameScene, actor: Actor, source: Actor): void {
+    const engine = getStatusEngine(this);
+    const removed = engine.removeStatusBySource(actor, source);
+    if (removed.length) {
+      recalcBoosts(actor, getBoostAdapter(this));
+    }
+  },
+
+  resetStatusEngine(this: GameScene): void {
+    _statusEngine = null;
   },
 
   removeEffect(this: GameScene, actor: Actor, index: number): StatusEffect | null {
@@ -126,5 +217,10 @@ declare module '@/game' {
     actorLabel(actor: Actor): string;
     formatDamageBreakdown(dr: { total: number; bonus?: number; isCrit?: boolean; baseRolls: Array<{ kind: string; value: number }>; critRolls: Array<{ kind: string; value: number }> }): string;
     normalizeEffects(effects: StatusEffect[]): StatusEffect[];
+    getStatusEngine(): StatusEngine;
+    applyStatusToActor(actor: Actor, statusId: string, duration?: number, source?: Actor | null): void;
+    removeStatusFromActor(actor: Actor, statusId: string): void;
+    removeStatusesBySource(actor: Actor, source: Actor): void;
+    resetStatusEngine(): void;
   }
 }

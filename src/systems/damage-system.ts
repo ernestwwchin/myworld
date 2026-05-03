@@ -1,5 +1,7 @@
 import { S } from '@/config';
 import { playHitAnim } from '@/sprites';
+import { resolveDamage } from './damage-pipeline';
+import type { DerivedStats } from './boost-runner';
 import type { GameScene } from '@/game';
 import type { Actor, Enemy } from '@/types/actors';
 
@@ -89,15 +91,43 @@ export const DamageSystemMixin = {
       else actor.hpFg.setFillStyle(0xe74c3c);
     }
   },
+
+  applyTypedDamage(
+    this: GameScene,
+    actor: Actor,
+    amount: number,
+    damageType: string,
+    source?: Actor,
+  ): { final: number; immune: boolean; resistant: boolean; vulnerable: boolean } {
+    const targetDerived = (actor as Record<string, unknown>).derived as DerivedStats | undefined;
+    const sourceDerived = source ? (source as Record<string, unknown>).derived as DerivedStats | undefined : undefined;
+    const result = resolveDamage(
+      { amount, type: damageType },
+      targetDerived ?? null,
+      sourceDerived ?? null,
+    );
+    if (result.immune) {
+      const name = this.actorLabel(actor);
+      this.showStatus(`${name} is immune to ${damageType} damage.`);
+      return result;
+    }
+    let label = '';
+    const name = this.actorLabel(actor);
+    if (result.resistant) label = `${name} resists ${damageType}! (${result.final} damage)`;
+    else if (result.vulnerable) label = `${name} is vulnerable to ${damageType}! (${result.final} damage)`;
+    this.applyDamageToActor(actor, result.final, undefined, label);
+    return result;
+  },
 };
 
 declare module '@/game' {
   interface GameScene {
     applyDamageToActor(actor: Actor, dmg: number, color?: string, label?: string): void;
     applyHealToActor(actor: Actor, amount: number, color?: string, label?: string): void;
+    applyTypedDamage(actor: Actor, amount: number, damageType: string, source?: Actor): { final: number; immune: boolean; resistant: boolean; vulnerable: boolean };
     spawnFloat(x: number, y: number, text: string, color: string): void;
     updateHUD(): void;
     showStatus(text: string): void;
-    handlePlayerDefeat?(): void;
+    handlePlayerDefeat(): void;
   }
 }

@@ -1,10 +1,16 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 export default defineConfig({
   root: '.',
   publicDir: 'public',
   base: './',
+  plugins: [
+    svelte({
+      compilerOptions: { css: 'injected' },
+    }),
+  ],
   server: {
     port: 3000,
     strictPort: true,
@@ -27,6 +33,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         test: resolve(__dirname, 'test.html'),
+        editor: resolve(__dirname, 'editor.html'),
       },
       output: {
         manualChunks(id: string) {

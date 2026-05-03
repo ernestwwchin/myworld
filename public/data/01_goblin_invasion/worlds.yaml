@@ -24,11 +24,13 @@ worlds:
         - gw_b1f
         - gw_b2f
         - gw_b3f
+        - gw_camp
         - gw_b4f
         - gw_b5f
       depthBands:
         - { from: 1, to: 1, stages: [gw_b1f] }
         - { from: 2, to: 2, stages: [gw_b2f] }
         - { from: 3, to: 3, stages: [gw_b3f] }
-        - { from: 4, to: 4, stages: [gw_b4f] }
-        - { from: 5, to: 99, stages: [gw_b5f] }
+        - { from: 4, to: 4, stages: [gw_camp] }
+        - { from: 5, to: 5, stages: [gw_b4f] }
+        - { from: 6, to: 99, stages: [gw_b5f] }

@@ -1,6 +1,8 @@
-import { S, COMBAT_RULES, WEAPON_DEFS, dnd } from '@/config';
+import { S, COMBAT_RULES, WEAPON_DEFS, PLAYER_STATS, dnd } from '@/config';
 import { bfs, wallBlk, withCombatLog } from '@/helpers';
 import { tileDist } from '@/systems/world-position-system';
+import { decideAction } from '@/systems/ai-profiles';
+import type { AIState, AITarget } from '@/systems/ai-profiles';
 import type { GameScene } from '@/game';
 
 const MOVE_SPEED = 440;
@@ -26,6 +28,7 @@ type Enemy = {
   searchTurnsRemaining: number;
   lastSeenPlayerTile: { x: number; y: number };
   _searchAbandonedAnnounced?: boolean;
+  onHit?: Array<{ status: string; target: string; save?: { stat: string; dc: number }; duration?: number }>;
 };
 
 export const CombatAIMixin = {
@@ -117,35 +120,65 @@ export const CombatAIMixin = {
       else this.endEnemyTurn(enemy);
     };
 
-    if (!this.playerHidden && isAdj()) {
-      this.time.delayedCall(150, () => this.doEnemyAttack(enemy));
-      return;
-    }
+    const aiState = this._buildAIState(enemy);
+    const aiEnemies = this._buildAITargets();
+    const aiAllies = this._buildAIAllies(enemy);
+    const decision = decideAction(aiState, aiAllies, aiEnemies);
 
-    const blockFn = (_x: number, _y: number) => wallBlk(_x, _y);
-    const path = bfs(enemy.tx, enemy.ty, targetTile.x, targetTile.y, blockFn);
-    const enemyBudget = Math.max(1, Math.floor(enemy.spd * Number(COMBAT_RULES.enemySpeedScale || 1)));
-    let budget = enemyBudget;
-    const mp: { x: number; y: number }[] = [];
-    let prev = { x: enemy.tx, y: enemy.ty };
-    for (let i = 0; i < Math.max(0, path.length - 1); i++) {
-      const t = path[i];
-      const sc = tileDist(prev.x, prev.y, t.x, t.y);
-      if (budget < sc - 0.001) break;
-      if ((this.enemies as unknown as Enemy[]).some((e) => e.alive && e !== enemy && e.tx === t.x && e.ty === t.y)) break;
-      if (!this.playerHidden && t.x === this.playerTile.x && t.y === this.playerTile.y) break;
-      budget -= sc;
-      mp.push(t);
-      prev = t;
-    }
-    if (!mp.length) { afterMove(); return; }
+    const moveTo = (tx: number, ty: number, then: () => void) => {
+      const blockFn = (_x: number, _y: number) => wallBlk(_x, _y);
+      const path = bfs(enemy.tx, enemy.ty, tx, ty, blockFn);
+      const enemyBudget = Math.max(1, Math.floor(enemy.spd * Number(COMBAT_RULES.enemySpeedScale || 1)));
+      let budget = enemyBudget;
+      const mp: { x: number; y: number }[] = [];
+      let prev = { x: enemy.tx, y: enemy.ty };
+      for (let i = 0; i < Math.max(0, path.length - 1); i++) {
+        const t = path[i];
+        const sc = tileDist(prev.x, prev.y, t.x, t.y);
+        if (budget < sc - 0.001) break;
+        if ((this.enemies as unknown as Enemy[]).some((e) => e.alive && e !== enemy && e.tx === t.x && e.ty === t.y)) break;
+        if (!this.playerHidden && t.x === this.playerTile.x && t.y === this.playerTile.y) break;
+        budget -= sc;
+        mp.push(t);
+        prev = t;
+      }
+      if (!mp.length) { then(); return; }
+      const dest = mp[mp.length - 1];
+      this.animEnemyMove(enemy, mp.slice(), () => {
+        enemy.tx = dest.x;
+        enemy.ty = dest.y;
+        then();
+      });
+    };
 
-    const dest = mp[mp.length - 1];
-    this.animEnemyMove(enemy, mp.slice(), () => {
-      enemy.tx = dest.x;
-      enemy.ty = dest.y;
-      afterMove();
-    });
+    switch (decision.action) {
+      case 'attack':
+        if (isAdj()) {
+          this.time.delayedCall(150, () => this.doEnemyAttack(enemy));
+        } else {
+          moveTo(targetTile.x, targetTile.y, afterMove);
+        }
+        break;
+      case 'move':
+        if (decision.moveToward) {
+          moveTo(decision.moveToward.tx, decision.moveToward.ty, afterMove);
+        } else {
+          moveTo(targetTile.x, targetTile.y, afterMove);
+        }
+        break;
+      case 'ability':
+        withCombatLog((l: any) =>
+          l.log(`${enemy.displayName} uses ${decision.abilityId || 'ability'}!`, 'enemy', 'combat'),
+        );
+        if (isAdj()) {
+          this.time.delayedCall(150, () => this.doEnemyAttack(enemy));
+        } else {
+          this.endEnemyTurn(enemy);
+        }
+        break;
+      default:
+        this.endEnemyTurn(enemy);
+    }
   },
 
   doEnemyAttack(this: GameScene, enemy: Enemy): void {
@@ -172,24 +205,29 @@ export const CombatAIMixin = {
       return;
     }
     const dr = dnd.rollDamageSpec(enemy.damageFormula, isCrit);
-    const dmg = Math.max(1, dr.total);
+    const rawDmg = Math.max(1, dr.total);
+    const eWpn = enemy.weaponId ? WEAPON_DEFS[enemy.weaponId] : null;
+    const eDmgType = eWpn?.damageType || 'bludgeoning';
+    const dmg = rawDmg;
     (this as unknown as { playerHP: number }).playerHP = Math.max(0, (this as unknown as { playerHP: number }).playerHP - dmg);
     this.cameras.main.shake(180, 0.006);
     this.tweens.add({ targets: this.player, alpha: 0.3, duration: 80, yoyo: true, repeat: 2 });
-    this.spawnFloat(this.player.x, this.player.y - 10, isCrit ? `💥${dmg}` : `-${dmg}`, '#e74c3c');
+    this.spawnFloat(this.player.x, this.player.y - 10, isCrit ? `💥${dmg}` : `-${dmg}`, isCrit ? '#f39c12' : this.dmgColor(eDmgType));
     const dmgText = this.formatDamageBreakdown(dr);
     this.showStatus(`${enemy.displayName}${isCrit ? ' CRITS' : ' hits'} for ${dmg}! ${dmgText}`);
-    const eWpn = enemy.weaponId ? WEAPON_DEFS[enemy.weaponId] : null;
-    const eDmgType = eWpn ? eWpn.damageType : '';
     withCombatLog((l: any) =>
-      l.logRoll({ actor: enemy.displayName, target: 'You', result: isCrit ? 'crit' : 'hit', damage: dmg, rollDetail: rollLine, dmgDetail: `${dmgText}${eDmgType ? ' ' + eDmgType : ''}` }),
+      l.logRoll({ actor: enemy.displayName, target: 'You', result: isCrit ? 'crit' : 'hit', damage: dmg, rollDetail: rollLine, dmgDetail: dmgText, dmgType: eDmgType }),
     );
     this.updateHUD();
+    this._processEnemyOnHitEffects(enemy);
+    this.executeAbilityHook('on_hit', { source: enemy, target: 'player', isCrit, damage: dmg });
+    this.executeAbilityHook('on_damage_taken', { source: enemy, target: 'player', amount: dmg, damageType: eDmgType });
     if ((this as unknown as { playerHP: number }).playerHP <= 0) {
       this.showStatus('You have been defeated...');
       withCombatLog((l: any) =>
         l.log('You have been defeated...', 'enemy', 'combat'),
       );
+      if (typeof this.handlePlayerDefeat === 'function') this.handlePlayerDefeat();
     }
     if (isCrit) {
       this.diceWaiting = 'enemy';
@@ -231,12 +269,71 @@ export const CombatAIMixin = {
     if (!path.length) this.time.delayedCall(dur + 10, () => this.playActorIdle(enemy.img, enemy.type));
   },
 
+  _buildAIState(this: GameScene, enemy: Enemy): AIState {
+    const ai = (enemy as Record<string, unknown>).ai as Record<string, unknown> | undefined;
+    return {
+      profile: (ai?.profile as AIState['profile']) || 'basic',
+      preferredRange: Number(ai?.preferredRange || 6),
+      abilities: (ai?.abilities || (enemy as Record<string, unknown>).abilities || []) as AIState['abilities'],
+      hp: (enemy as { hp?: number }).hp ?? 0,
+      maxHp: (enemy as { maxHp?: number }).maxHp ?? 1,
+      tx: enemy.tx,
+      ty: enemy.ty,
+    };
+  },
+
+  _buildAITargets(this: GameScene): AITarget[] {
+    return [{
+      hp: this.playerHP,
+      maxHp: this.playerMaxHP,
+      tx: this.playerTile.x,
+      ty: this.playerTile.y,
+    }];
+  },
+
+  _buildAIAllies(this: GameScene, enemy: Enemy): AITarget[] {
+    return (this.combatGroup as unknown as Enemy[])
+      .filter(e => e.alive && e !== enemy)
+      .map(e => ({
+        hp: (e as { hp?: number }).hp ?? 0,
+        maxHp: (e as { maxHp?: number }).maxHp ?? 1,
+        tx: e.tx,
+        ty: e.ty,
+        isAlly: true,
+        statuses: [],
+      }));
+  },
+
   _finishEnemyTurn(this: GameScene, enemy: Enemy): void {
     if (this._pendingEnemyTurnActor) {
       this.processStatusEffectsForActor(this._pendingEnemyTurnActor, 'turn_end');
       this._pendingEnemyTurnActor = null;
     }
     this.time.delayedCall(400, () => this.advanceEnemyTurn());
+  },
+
+  _processEnemyOnHitEffects(this: GameScene, enemy: Enemy): void {
+    const effects = enemy.onHit;
+    if (!effects?.length) return;
+    for (const eff of effects) {
+      if (eff.target !== 'player') continue;
+      const save = eff.save;
+      if (save) {
+        const statVal = (PLAYER_STATS as Record<string, unknown>)[save.stat] as number ?? 10;
+        const mod = Math.floor((statVal - 10) / 2);
+        const roll = dnd.roll(1, 20) + mod;
+        if (roll >= save.dc) {
+          this.showStatus?.(`You resist ${eff.status} (${save.stat.toUpperCase()} save ${roll} vs DC ${save.dc}).`);
+          withCombatLog((l: any) => l.log(`You resist ${eff.status} (rolled ${roll} vs DC ${save.dc}).`, 'system', 'combat'));
+          continue;
+        }
+        this.showStatus?.(`${eff.status.toUpperCase()} — save failed (${save.stat.toUpperCase()} ${roll} vs DC ${save.dc})!`);
+        withCombatLog((l: any) => l.log(`You are ${eff.status}! (save ${roll} vs DC ${save.dc})`, 'system', 'combat'));
+      }
+      if (typeof this.applyStatusToActor === 'function') {
+        this.applyStatusToActor('player' as unknown as import('@/types/actors').Actor, eff.status, eff.duration);
+      }
+    }
   },
 };
 
@@ -246,8 +343,13 @@ declare module '@/game' {
     doEnemyTurn(enemy: unknown): void;
     doEnemyAttack(enemy: unknown): void;
     animEnemyMove(enemy: unknown, path: { x: number; y: number }[], onDone: () => void, prevTx?: number, prevTy?: number): void;
+    _buildAIState(enemy: unknown): AIState;
+    _buildAITargets(): AITarget[];
+    _buildAIAllies(enemy: unknown): AITarget[];
     _finishEnemyTurn(enemy: unknown): void;
+    _processEnemyOnHitEffects(enemy: unknown): void;
     endEnemyTurn(enemy: unknown): void;
+    handlePlayerDefeat(): void;
 
     canEnemySeePlayer(enemy: unknown): boolean;
     canEnemySeeTile(enemy: unknown, tx: number, ty: number, opts?: Record<string, unknown>): boolean;

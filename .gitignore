@@ -34,4 +34,4 @@ scratch/
 
 # commit graph outputs, ignore the extraction cache and regenerable obsidian vault
 graphify-out/cache/
-graphify-out/obsidian/
+graphify-out/obsidian/temp/

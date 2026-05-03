@@ -18,6 +18,8 @@ Each file below clusters related ideas around one decision that needs to be made
 | [run-and-pacing.md](run-and-pacing.md) | Micro-floors vs macro-floors, XP curve, seed-driven storylines? | open |
 | [class-and-progression.md](class-and-progression.md) | Vessel/class system + town-hub meta-progression? | open |
 | [world-and-content.md](world-and-content.md) | World lore, quest scenarios, rest points, UI for new systems? | open |
+| [tilemap-research.md](tilemap-research.md) | How to create beautiful tilemaps for BSP auto-generated maps? | open |
+| [agentic-world-builder.md](agentic-world-builder.md) | LLM agent that generates mod stages from natural language? | future |
 
 ### Dependencies
 - `class-and-progression` depends on `power-system` (mastery multipliers require soul cores)
