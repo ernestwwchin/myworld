@@ -1,7 +1,7 @@
-# Graph Report - /home/wonwong/git/wonwong/myworld-design  (2026-04-22)
+# Graph Report - /home/wonwong/git/wonwong/myworld-design  (2026-04-23)
 
 ## Corpus Check
-- 84 files · ~208,814 words
+- 84 files · ~228,144 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
